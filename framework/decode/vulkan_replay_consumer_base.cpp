@@ -1501,10 +1501,30 @@ VkResult VulkanReplayConsumerBase::OverrideCreateDevice(VkResult                
                 GFXRECON_LOG_WARNING("The vkCreateDevice parameter pCreateInfo is NULL.");
             }
 
+            if (modified_create_info.enabledExtensionCount > 0)
+            {
+                GFXRECON_LOG_INFO("Creating device with the following extensions:");
+
+                for (uint32_t i = 0; i < modified_create_info.enabledExtensionCount; ++i)
+                {
+                    GFXRECON_LOG_INFO("\t%s", modified_create_info.ppEnabledExtensionNames[i]);
+                }
+            }
+
             result = create_device_proc(physicalDevice, &modified_create_info, pAllocator, pDevice);
         }
         else
         {
+            if (pCreateInfo && (pCreateInfo->enabledExtensionCount > 0))
+            {
+                GFXRECON_LOG_INFO("Creating device with the following extensions:");
+
+                for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
+                {
+                    GFXRECON_LOG_INFO("\t%s", pCreateInfo->ppEnabledExtensionNames[i]);
+                }
+            }
+
             result = create_device_proc(physicalDevice, pCreateInfo, pAllocator, pDevice);
         }
 

@@ -1,0 +1,32 @@
+Source: gfxreconstruct
+Section: Graphics
+Priority: optional
+Maintainer: John Zupin <johnz@lunarg.com>
+Build-Depends: debhelper (>= 9),
+ cmake,
+ build-essential,
+ libx11-xcb-dev,
+ libxkbcommon-dev,
+ libwayland-dev,
+ libxrandr-dev,
+ liblz4-dev
+Standards-Version: 4.1.2
+Homepage: https://github.com/LunarG/gfxreconstruct
+Vcs-Git: https://github.com/LunarG/gfxreconstruct
+Vcs-Browser: https://github.com/LunarG/gfxreconstruct
+
+Package: gfxreconstruct
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: The GFXReconstruct project provides
+ tools for the capture and replay of Vulkan API
+ calls, allowing the graphics commands executed by a
+ Vulkan application to be recorded to a file that
+ may later be replayed to reconstruct the
+ graphics-specific behavior of the captured
+ application. The replay code has been organized
+ with a framework design to make it easy to create
+ additional tools for processing capture files.
+ Although the software is currently exclusive to
+ the Vulkan API, it has been designed such that
+ support for additional graphics APIs is possible.

@@ -1,0 +1,5 @@
+gfxreconstruct (0.8.1-1) unstable; urgency=medium
+
+  * Initial package build for testing
+
+ -- John Zupin <johnz@lunarg.com>  Wed, 20 May 2020 10:59:54 -0600

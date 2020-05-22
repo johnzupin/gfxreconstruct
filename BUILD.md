@@ -3,19 +3,18 @@ Instructions for building the GFXReconstruct project source code on Linux,
 Windows, and Android platforms.
 
 ## Index
-1. [Contributing](#contributing-to-the-repository)
+1. [Introduction](#introduction)
 2. [Repository Content](#repository-content)
 3. [Repository Set-Up](#repository-set-up)
 4. [Windows Build](#building-on-windows)
 5. [Linux Build](#building-on-linux)
 6. [Android Build](#android)
 
-## Contributing to the Repository
-The preferred work flow for external contributions is to develop the
-contribution in a fork of the GFXReconstruct repository and to submit a pull
-request for the completed contribution.
-
-Please see [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
+## Introduction
+The following documentation provides end user build instructions for
+the GFXReconstruct software.  Developers interested in contributing to the
+project should also see [CONTRIBUTING.md](CONTRIBUTING.md) for additional
+setup instructions.
 
 ## Repository Content
 The GFXReconstruct repository contains the source code for a Vulkan API
@@ -37,11 +36,13 @@ organized with the following file structure:
 | layer | | GFXReconstruct capture layer for recording Vulkan API data. |
 | tools | | Tools for processing capture files. |
 | | compress | Tool to compress or decompress GFXR capture files. |
+| | extract | Tool to extract SPIR-V binaries from GFXR capture files. |
+| | info | Tool to print information describing GFXR capture files. |
 | | replay | Tool to replay GFXR capture files. |
 | | toascii | Tool to convert GFXR capture files to an ASCII listing of API calls. |
 
 ## Repository Set-Up
-### Download the Repository
+### Clone the Repository
 Use the following Git command to create a local copy of the GFXReconstruct
 repository:
 ```
@@ -72,48 +73,44 @@ Submodules will need to be updated when the repository status (e.g.
 after a repository update (e.g. `git pull`).
 
 ## Common build instructions
-- There is a Python-3 build.py script at the repo root that can be used to update
-  all dependencies, and build the project on both Windows and Linux.
-  Run the script with the -h option to get help on how to run the build using
-  the script.  
-  The script requires Python 3.5 and above.
-- There is an optional pre-build step for every target to run clang-format
-  to apply the GFXReconstruct code style on the code.  
-  This requires clang-format to be installed on the system.
-  Use the `-DAPPLY_CPP_CODE_STYLE=ON` option to enable this pre-build step.
-  Use the --code-style option if building with the build script.
-  Code style is not applied to generated files.
-- It is recommended to run static analysis on the code before submission.
-  Use the -DRUN_STATIC_ANALYSIS=ON to run a post-build static analysis using
-  clang-tidy.
-  Use the --static-analysis option if building with the build script.
+For desktop builds, there is a Python 3 build script, `scripts/build.py`, that can
+be used to update Git submodule dependencies, configure, and build the GFXReconstruct
+software.  The script works with both Windows and Linux, and requires Python 3.5 or
+above.
+
+By default, the script performs some optional build steps that are intended for
+developer builds.  If the target build system has not been configured for
+developer builds as described in [CONTRIBUTING.md](CONTRIBUTING.md), the script
+can be run with the following options to disable the developer build steps:
+```
+python scripts/build.py --skip-check-code-style --skip-tests
+```
+Run the script with the `-h` option for additional usage information.
 
 ## Building for Windows
 ### Windows Development Environment Requirements
 - Microsoft [Visual Studio](https://www.visualstudio.com/)
-  - Versions
+  - Supported Versions
+    - [2019](https://www.visualstudio.com/vs/downloads/)
+    - [2017](https://www.visualstudio.com/vs/older-downloads/)
     - [2015](https://www.visualstudio.com/vs/older-downloads/)
-    - [2017](https://www.visualstudio.com/vs/downloads/)
-  - The Community Edition for each of the above versions is sufficient.
+  - The Community Edition for each of the above versions is sufficient
 - [CMake](http://www.cmake.org/download/) (Version 3.1 or better)
-  - Use the installer option to add CMake to the system PATH
+  - The build instructions assume that CMake has been added to the system PATH
 - Git Client Support
   - [Git for Windows](http://git-scm.com/download/win) is a popular solution
     for Windows
   - Some IDEs (e.g., [Visual Studio](https://www.visualstudio.com/),
     [GitHub Desktop](https://desktop.github.com/)) have integrated
     Git client support
-- Clang-format and Clang-tidy can be installed by installing the Windows Clang
-  package from http://llvm.org/builds/
 
 ### Windows Build - Microsoft Visual Studio
-The general approach is to run CMake to generate the Visual Studio project
-files.
-Then either run CMake with the `--build` option to build from the command line
-or use the Visual Studio IDE to open the generated solution and work with the
+The general approach is to first run CMake to generate the Visual Studio project
+files.  Then either run CMake with the `--build` option to build from the command
+line or use the Visual Studio IDE to open the generated solution and work with the
 solution interactively.
 
-#### Use `CMake` to Create the Visual Studio Project Files
+#### Generate Visual Studio Project Files with `CMake`
 Change your current directory to the top level directory for the cloned
 GFXReconstruct repository, create a build folder, and generate the Visual
 Studio project files.
@@ -125,7 +122,6 @@ cd gfxreconstruct
 mkdir build
 cmake -H. -Bbuild -G "Visual Studio 15 Win64"
 ```
-
 The following commands can be used to generate project files for different
 variations of the Visual Studio 2015 and 2017 WIN32 and x64 build
 configurations:
@@ -133,7 +129,7 @@ configurations:
  * 32-bit for VS 2017: cmake -H. -Bbuild -G "Visual Studio 15"
  * 32-bit for VS 2015: cmake -H. -Bbuild -G "Visual Studio 14"
 
-The above steps create a Windows solution file named
+Running any of the above commands will create a Windows solution file named
 `GFXReconstruct.sln` in the build directory.
 
 At this point, you can build the solution from the command line or open the
@@ -153,7 +149,7 @@ cmake --build . --config Release
 ```
 
 #### Build the Solution With Visual Studio
-Launch Visual Studio and open the `GFXReconstruct.sln` solution file
+Launch **Visual Studio** and open the `GFXReconstruct.sln` solution file
 from the build folder. You may select "Debug" or "Release" from the Solution
 Configurations drop-down list. Start a build by selecting the Build->Build
 Solution menu item.
@@ -165,62 +161,77 @@ Building on Linux requires the installation of the following packages:
 * Git
 * CMake
 * X11 + XCB and/or Wayland development libraries
-* clang-format package
-
-The following optional packages are also recommended:
-* clang-tidy package
 
 ##### Ubuntu
-On Ubuntu, the required packages can be installed with the following
-command:
+For Ubuntu, the required packages can be installed with the following command:
 ```
-sudo apt-get install git cmake build-essential libx11-xcb-dev libxkbcommon-dev \
-        libwayland-dev libxrandr-dev  liblz4-dev clang-format clang-tidy
+sudo apt-get install git cmake build-essential libx11-xcb-dev libxcb-keysyms1-dev \
+        libwayland-dev libxrandr-dev liblz4-dev libzstd-dev
 ```
 
-##### Fedora Core
-On Fedora Core, the required packages can be installed with the following
+##### Fedora
+For Fedora, the required packages can be installed with the following
 command:
 ```
-sudo dnf install git cmake libxcb-devel libxkbcommon-devel \
-        libXrandr-devel wayland-devel clang clang-tools-extra
+sudo dnf install git cmake libxcb-devel libX11-devel xcb-util-keysyms-devel \
+        libXrandr-devel wayland-devel lz4-devel libzstd-devel
 ```
 
 ### Linux Build
-The general approach is to run CMake to generate make files. Then either run
+The general approach is to run CMake to generate makefiles. Then either run
 CMake with the `--build` option or `make` to build from the command line.
 
-#### Use CMake to Create the Make Files
+#### Use CMake to Create the Makefiles
 Change your current directory to the top level directory for the cloned
 GFXReconstruct repository, create a build folder, and generate the make
 files.
+
+The following example demonstrates makefile generation for a 64-bit Debug build:
 ```
 cd gfxreconstruct
 mkdir build
 cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Debug
 ```
 
-Use `-DCMAKE_BUILD_TYPE` to specify a `Debug` or `Release` build profile.
+The following commands can be used to generate makefiles for different
+variations of Debug and Release 32-bit and 64-bit build configurations,
+where `-DCMAKE_BUILD_TYPE` is used to specify `Debug` or `Release` build
+profiles:
+ * 64-bit Release: cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release
+ * 32-bit Debug: cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=-m32 -DCMAKE_SHARED_LINKER_FLAGS=-m32
+ * 32-bit Release: cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-m32 -DCMAKE_SHARED_LINKER_FLAGS=-m32
+
+For 32-bit builds, the 32-bit versions of the required packages specified above
+must be installed.
 
 #### Build the Project
 Run either the `make` or `cmake --build .` command from the build directory
 to build the GFXReconstruct project source.
 
-For faster builds on multi-core systems with `make`, use `make -j` to
-specify the number of cores to use for the build. For example:
+For faster builds on multi-core systems with `make`, use `make -jN` to
+specify the number of jobs that are allowed to run at the same time with
+the build.  For example:
 ```
 make -j4
 ```
 
-For build systems that support ccache, enable it with the CMake
+For build systems that support ccache, it can be enabled with the CMake
 `-DUSE_CCACHE=On` option.
 
+## Install the project
+
+Files can be installed to "/usr/local/" with `sudo make install`
+
+For Linux, the default install directory `/usr/local` can be changed by setting CMake's CMAKE_INSTALL_PREFIX
+variable. For example, to install to a "/tmp/gfxreconstruct" directory, run `cmake -DCMAKE_INSTALL_PREFIX=/tmp/gfxreconstruct .`
+from gfxreconstruct's root source directory. Then install with `make install`.
+
 ## Android
-### Android Develpment Requirements
+### Android Development Requirements
  * The latest version of [Android Studio](https://developer.android.com/studio/) with additional items:
    * The [Android Platform tools](https://developer.android.com/studio/releases/platform-tools) for your specific platform
    * The [Android NDK](https://developer.android.com/ndk/guides/)
-   * [Android SDK 24 (7.0 Nougat) or newer](https://guides.codepath.com/android/installing-android-sdk-tools)
+   * [Android SDK 26 (8.0 Oreo) or newer](https://guides.codepath.com/android/installing-android-sdk-tools)
  * Set the following `ANDROID_*` environment variables appropriately in your user environment if building outside of Android Studio:
    * `ANDROID_NDK_HOME`
    * `ANDROID_SDK_HOME`

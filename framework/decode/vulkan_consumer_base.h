@@ -1,6 +1,6 @@
 /*
-** Copyright (c) 2018 Valve Corporation
-** Copyright (c) 2018 LunarG, Inc.
+** Copyright (c) 2018-2020 Valve Corporation
+** Copyright (c) 2018-2020 LunarG, Inc.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -48,6 +48,34 @@ class VulkanConsumerBase
 
     virtual void ProcessResizeWindowCommand(format::HandleId surface_id, uint32_t width, uint32_t height) {}
 
+    virtual void ProcessCreateHardwareBufferCommand(format::HandleId                                    memory_id,
+                                                    uint64_t                                            buffer_id,
+                                                    uint32_t                                            format,
+                                                    uint32_t                                            width,
+                                                    uint32_t                                            height,
+                                                    uint32_t                                            stride,
+                                                    uint32_t                                            usage,
+                                                    uint32_t                                            layers,
+                                                    const std::vector<format::HardwareBufferPlaneInfo>& plane_info)
+    {}
+
+    virtual void ProcessDestroyHardwareBufferCommand(uint64_t buffer_id) {}
+
+    virtual void ProcessSetDevicePropertiesCommand(format::HandleId   physical_device_id,
+                                                   uint32_t           api_version,
+                                                   uint32_t           driver_version,
+                                                   uint32_t           vendor_id,
+                                                   uint32_t           device_id,
+                                                   uint32_t           device_type,
+                                                   const uint8_t      pipeline_cache_uuid[format::kUuidSize],
+                                                   const std::string& device_name)
+    {}
+
+    virtual void ProcessSetDeviceMemoryPropertiesCommand(format::HandleId physical_device_id,
+                                                         const std::vector<format::DeviceMemoryType>& memory_types,
+                                                         const std::vector<format::DeviceMemoryHeap>& memory_heaps)
+    {}
+
     virtual void ProcessSetSwapchainImageStateCommand(format::HandleId device_id,
                                                       format::HandleId swapchain_id,
                                                       uint32_t         last_presented_image,
@@ -75,29 +103,32 @@ class VulkanConsumerBase
                                          const uint8_t*               data)
     {}
 
-    virtual void Process_vkUpdateDescriptorSetWithTemplate(format::HandleId device,
-                                                           format::HandleId descriptorSet,
-                                                           format::HandleId descriptorUpdateTemplate,
-                                                           const DescriptorUpdateTemplateDecoder& pData) = 0;
+    virtual void Process_vkUpdateDescriptorSetWithTemplate(format::HandleId                 device,
+                                                           format::HandleId                 descriptorSet,
+                                                           format::HandleId                 descriptorUpdateTemplate,
+                                                           DescriptorUpdateTemplateDecoder* pData)
+    {}
 
     virtual void Process_vkCmdPushDescriptorSetWithTemplateKHR(format::HandleId commandBuffer,
                                                                format::HandleId descriptorUpdateTemplate,
                                                                format::HandleId layout,
                                                                uint32_t         set,
-                                                               const DescriptorUpdateTemplateDecoder& pData) = 0;
+                                                               DescriptorUpdateTemplateDecoder* pData)
+    {}
 
-    virtual void Process_vkUpdateDescriptorSetWithTemplateKHR(format::HandleId device,
-                                                              format::HandleId descriptorSet,
-                                                              format::HandleId descriptorUpdateTemplate,
-                                                              const DescriptorUpdateTemplateDecoder& pData) = 0;
+    virtual void Process_vkUpdateDescriptorSetWithTemplateKHR(format::HandleId                 device,
+                                                              format::HandleId                 descriptorSet,
+                                                              format::HandleId                 descriptorUpdateTemplate,
+                                                              DescriptorUpdateTemplateDecoder* pData)
+    {}
 
-    virtual void
-    Process_vkRegisterObjectsNVX(VkResult                                                   returnValue,
-                                 format::HandleId                                           device,
-                                 format::HandleId                                           objectTable,
-                                 uint32_t                                                   objectCount,
-                                 const StructPointerDecoder<Decoded_VkObjectTableEntryNVX>& ppObjectTableEntries,
-                                 const PointerDecoder<uint32_t>&                            pObjectIndices) = 0;
+    virtual void Process_vkRegisterObjectsNVX(VkResult                                             returnValue,
+                                              format::HandleId                                     device,
+                                              format::HandleId                                     objectTable,
+                                              uint32_t                                             objectCount,
+                                              StructPointerDecoder<Decoded_VkObjectTableEntryNVX>* ppObjectTableEntries,
+                                              PointerDecoder<uint32_t>*                            pObjectIndices)
+    {}
 };
 
 GFXRECON_END_NAMESPACE(decode)

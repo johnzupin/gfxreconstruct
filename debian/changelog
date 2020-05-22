@@ -1,3 +1,165 @@
+gfxreconstruct (0.9.0-0ubuntu1) UNRELEASED; urgency=medium
+
+  [ Dustin Graves ]
+  * Set version to 0.9.0
+
+  [ Mike Schuchardt ]
+  * Tell clang-format to ignore generated directory
+  * Track command buffer handles inside structs
+
+  [ Dustin Graves ]
+  * Fixes for clang-tidy issues from util code
+  * Address compiler warnings
+  * Enable warnings as errors for desktop builds
+  * Update Xcb event sequence no comparison logic
+  * Warn for VK_INCOMPLETE on replay
+
+  [ xooi ]
+  * Add hotkey trim trigger functions
+  * Implement trim hotkey trigger in Linux
+
+  [ Dustin Graves ]
+  * Add file lock for trimming state snapshot
+  * Override default F10 key behavior on Windows
+  * Store additional object info in handle map
+  * Use HandlePointerDecoder memory for output handles
+  * Pointer decoders manage output param allocation
+  * Pass PointerDecoder to override funcs
+  * Pass handle info struct to replay overrides
+  * Add object info structs to object mapper
+  * Move replay data to handle info structs
+  * Fix vkMapMemory capture with VK_WHOLE_SIZE
+  * Use non-stream LZ4 compress/decompress calls
+  * Remove try-catch blocks from compression code
+  * Add fullscreen exclusive win32 replay support
+  * Fix command tracking warnings
+  * Remove the page guard lazy copy option
+  * Add persistent memory page guard option
+  * Use bitwise operations with page size calculations
+  * Add buffer size alignment page guard option
+  * Update page guard interface for imported memory
+  * Add AHardwareBuffer support
+  * Add AHB creation to trim state snapshot
+  * Remove persistent shadow memory table
+  * Make all VulkanConsumer methods empty functions
+  * Add a gfxrecon-info command line utility
+
+  [ David Pinedo ]
+  * Fix encode/decode of wchar_t strings
+
+  [ Dustin Graves ]
+  * Ensure 16-bit encode/decode for LPCWSTR
+  * Add trimming support for bind2 calls
+  * Add support for Zstandard compression
+  * Case insensitive arg comparison for gfxrecon-compress
+  * Fix enum util declarations
+  * Fix Android replay crash on error
+  * Initial memory allocator implementation
+  * Integrate memory allocator with replay consumer
+  * Add memory type index remapping
+  * Record device memory reqs before device creation
+  * Remove redundant memory prop tracking
+  * Override physical device memory property replay
+  * Expand allocator interface for resource creation
+  * Add VMA dependency
+  * Initial rebind allocator implementation
+  * Mapped memory write remap for rebind allocator
+  * Add rebind support for bind buffer2/image2
+  * Add rebind support for flush/invalidate ranges
+  * Decouple replay consumer and resource allocator
+  * Update trim file replay for memory portability
+  * Handle image row alignment mismatch on replay
+  * Add --memory-translation replay option
+  * Add missing resource queries to trim state
+  * Add phys device memory props to trim state
+  * Report replay memory incompatibility
+
+  [ Greg Fischer ]
+  * Replace shader feature
+
+  [ Mike Schuchardt ]
+  * Dynamically load linux windowing libs for replay
+  * Linux replay wsi fallback
+  * Add replay argument for WSI selection
+
+  [ Greg Fischer ]
+  * Shader extract feature
+  * Use handle id in filename for shader extract and replace.
+
+  [ Mike Schuchardt ]
+  * Move platform keyboard code into util
+  * dlopen xcb-keysyms.so for XCB hotkey capture
+  * Add hotkey support for Xlib via XCB
+  * Improve hotkey capture error messages
+
+  [ Dustin Graves ]
+  * Fix const behavior for consumer classes
+  * Use pointer decoder output memory for handles
+  * On demand replay handle memory allocation
+  * Return replay size from enum phys devices override
+  * Store variable array counts on replay
+  * Adjust variable array size on replay
+  * Conditional allocation for replay outputs
+  * Update to 1.2.134 header
+  * Add vkGetPhysicalDeviceToolPropertiesEXT support
+  * Cleanup capture layer code
+  * Set layer version to project version
+  * Conditionally use SA_ONSTACK with sigaction
+
+  [ Greg Fischer ]
+  * Fix usage for gfxrecon-extract and gfxrecon --replace shaders.
+
+  [ Mike Schuchardt ]
+  * Scale replay wayland surface to match output
+  * Add fullscreen support for wayland replay
+  * Use reinterpret_cast in wayland loader util
+
+  [ Dustin Graves ]
+  * Record phys device props before device creation
+  * Handle available physical device differences
+  * Fix trim issue with non-zero memory offsets
+  * Fix rebind memory translation offsets
+  * Add replay memory allocation index check
+  * Keep dGPU allocations host visible on rebind
+  * Adjust loader search order
+  * Build platform XLIB_XRANDR without XLIB
+  * Ensure CheckLibraryExists.cmake is included
+  * Eliminate duplicate handle mapping code
+  * Add missing logging.h include
+
+  [ John Zupin ]
+  * Add CMake install rules
+
+  [ Dustin Graves ]
+  * Fix replay for image/buffer destroy w/null handle
+  * Use sys.executable to invoke Python
+  * Track descriptor set dependencies for trim
+
+  [ David Pinedo ]
+  * Initial launcher script implementations
+
+  [ Dustin Graves ]
+  * Fix 32-bit debug build warning
+  * Update extract consumer interface
+
+  [ Bob Ellison ]
+  * Update docs for Clang Format v9
+
+  [ Dustin Graves ]
+  * Update BUILD and CONTRIBUTING docs
+  * Add 32-bit Linux build instructions
+
+  [ David Pinedo ]
+  * Renamed layer json file to VkLayer_gfxreconstruct.json
+
+  [ Dustin Graves ]
+  * Update for ClangFormat v9
+
+  [ Mike Schuchardt ]
+  * Fix path quoting in json generator
+
+ -- John Zupin <john@odin>  Fri, 22 May 2020 16:35:56 -0600
+
 gfxreconstruct (0.8.1-1) unstable; urgency=medium
 
   * Initial package creation

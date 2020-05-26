@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 9),
  build-essential,
  libx11-xcb-dev,
  libxkbcommon-dev,
- libwayland-dev,
+ libwayland-dev (>= 1.12.0),
  libxrandr-dev,
  liblz4-dev,
  libzstd-dev

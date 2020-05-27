@@ -40,4 +40,4 @@ target_link_libraries(gfxrecon-toascii gfxrecon_decode gfxrecon_graphics gfxreco
 
 common_build_directives(gfxrecon-toascii)
 
-install(TARGETS gfxrecon-toascii RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+#install(TARGETS gfxrecon-toascii RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

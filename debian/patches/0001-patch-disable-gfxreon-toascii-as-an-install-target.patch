@@ -1,0 +1,18 @@
+From: John Zupin <johnz@lunarg.com>
+Date: Wed, 27 May 2020 16:10:56 -0600
+Subject: patch: disable gfxreon-toascii as an install target
+
+---
+ tools/toascii/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/toascii/CMakeLists.txt b/tools/toascii/CMakeLists.txt
+index dea269e..dff1d71 100644
+--- a/tools/toascii/CMakeLists.txt
++++ b/tools/toascii/CMakeLists.txt
+@@ -11,4 +11,4 @@ target_link_libraries(gfxrecon-toascii gfxrecon_decode gfxrecon_format gfxrecon_
+ 
+ common_build_directives(gfxrecon-toascii)
+ 
+-install(TARGETS gfxrecon-toascii RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
++#install(TARGETS gfxrecon-toascii RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

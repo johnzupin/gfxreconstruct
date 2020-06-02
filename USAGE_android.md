@@ -1,8 +1,41 @@
-# Using the GFXReconstruct Layer on Android Devices
+# API Capture and Replay on Android with GFXReconstruct
 
-## Before Use
+This document describes the GFXReconstruct software for capturing and replaying
+Vulkan API calls on Android devices.
 
-### Permissions
+[![LunarG][1]][2]
+
+[1]: https://vulkan.lunarg.com/img/LunarGLogo.png "www.LunarG.com"
+[2]: https://www.LunarG.com/
+
+[![Creative Commons][3]][4]
+
+[3]: https://i.creativecommons.org/l/by-nd/4.0/88x31.png "Creative Commons License"
+[4]: https://creativecommons.org/licenses/by-nd/4.0/
+
+Copyright &copy; 2018-2020 LunarG, Inc.
+
+## Index
+
+1. [Capturing API Calls](#capturing-api-calls)
+    1. [Before Use](#before-use)
+    2. [Enabling the Layer with ADB](#enabling-the-layer-with-adb)
+    3. [Capture Options](#capture-options)
+    4. [Capture Files](#capture-files)
+2. [Replaying API Calls](#replaying-api-calls)
+    1. [Launch Script](#launch-script)
+    2. [Install APK Command](#install-apk-command)
+    3. [Replay Command](#replay-command)
+
+## Capturing API Calls
+
+The GFXReconstruct capture layer is a Vulkan layer that intercepts Vulkan API
+calls and logs them to a GFXReconstruct capture file.
+
+### Before Use
+
+#### Permissions
+
 The GFXReconstruct layer can optionally read a configuration file
 from or write capture files to external storage.  This requires that
 the application loading the layer have external storage permissions.
@@ -13,14 +46,16 @@ it may be necessary to ensure that the requested permissions are
 granted through one of the following actions:
 
 When installing the application with `adb install`:
- * Specify the -g option: `adb install -g`
+
+* Specify the -g option: `adb install -g`
 
 When deploying from Android Studio:
- * Click on "Run" in the menu
- * Choose "Edit Configurations..."
- * In the dialog box, look for the "Install Flags:" text box
- * Enter `-g`
- * Click "Apply"
+
+* Click on "Run" in the menu
+* Choose "Edit Configurations..."
+* In the dialog box, look for the "Install Flags:" text box
+* Enter `-g`
+* Click "Apply"
 
 It may also be possible to grant external storage permissions to
 an installed application through the device Settings.
@@ -29,7 +64,8 @@ an installed application through the device Settings.
 the layer to return `VK_ERROR_INITIALIZATION_FAILED` from its
 `vkCreateInstance` function if it fails to create a capture file.
 
-### Disabling Debug Breaks Triggered by the GFXReconstruct Layer
+#### Disabling Debug Breaks Triggered by the GFXReconstruct Layer
+
 The Vulkan API allows Vulkan memory objects to be mapped by an application
 for direct modification. To successfully capture an application,
 the GFXReconstruct layer must be able to detect when the application
@@ -44,7 +80,8 @@ When running an application in a debugger with the layer enabled, the
 access violations triggered by the layer's memory tracking behavior may
 cause the debugger to break. These debug breaks may be disabled for LLDB with
 the following command:
-```
+
+```text
 process handle SIGSEGV -n true -p true -s false
 ```
 
@@ -52,45 +89,50 @@ This command may be entered manually through the LLDB tab on Android Studio's
 Debug panel.
 
 It may also be set as a post attach command in the project configuration:
- * Click on "Run" in the menu
- * Choose "Edit Configurations..."
- * In the dialog box, select the "Debugger" tab
- * In the "Debugger" tab, select the "LLDB Post Attach Commands" tab
- * Click the `+` to add the command to the command list
- * Enter the `process handle SIGSEGV -n true -p true -s false` command
- * Click "Apply"
 
-## Enabling the Layer with ADB
+* Click on "Run" in the menu
+* Choose "Edit Configurations..."
+* In the dialog box, select the "Debugger" tab
+* In the "Debugger" tab, select the "LLDB Post Attach Commands" tab
+* Click the `+` to add the command to the command list
+* Enter the `process handle SIGSEGV -n true -p true -s false` command
+* Click "Apply"
+
+### Enabling the Layer with ADB
+
 The layer can be enabled through a system property by executing the following
 ADB command:
 
-```
+```bash
 adb shell "setprop debug.vulkan.layers 'VK_LAYER_LUNARG_gfxreconstruct'"
 ```
 
 The following command will disable the layer:
 
-```
+```bash
 adb shell "setprop debug.vulkan.layers ''"
 ```
 
-## Layer Options
+### Capture Options
+
 The GFXReconstruct layer supports the following options, which may be enabled
 with Android system properties.  Each property begins with the prefix `debug.gfxrecon`,
 and can be set through ADB with the following command syntax:
 
-```
+```bash
 adb shell "setprop <option> '<value>'"
 ```
 
 For example, to set the log_level to "warning", specify:
 
-```
+```bash
 adb shell "setprop debug.gfxrecon.log_level 'warning'"
 ```
 
-### Supported Options
+#### Supported Options
+
 Options with the BOOL type accept the following values:
+
 * A case-insensitive string value 'true' or a non-zero integer value indicate true.
 * A case-insensitive string value 'false' or a zero integer value indicate false.
 
@@ -117,7 +159,8 @@ Memory Tracking Mode | debug.gfxrecon.memory_tracking_mode | STRING | Specifies 
 Page Guard Copy on Map | debug.gfxrecon.page_guard_copy_on_map | BOOL | When the `page_guard` memory tracking mode is enabled, copies the content of the mapped memory to the shadow memory immediately after the memory is mapped. Default is: `true`
 Page Guard Separate Read Tracking | debug.gfxrecon.page_guard_separate_read | BOOL | When the `page_guard` memory tracking mode is enabled, copies the content of pages accessed for read from mapped memory to shadow memory on each read. Can overwrite unprocessed shadow memory content when an application is reading from and writing to the same page. Default is: `true`
 
-## Capture Files
+### Capture Files
+
 Capture files are created on the first call to `vkCreateInstance`, when the
 Vulkan loader loads the capture layer, and are closed on `vkDestroyInstance`,
 when the last active instance is destroyed and the layer is unloaded.
@@ -133,12 +176,14 @@ instance.
 If the layer fails to open the capture file, it will make the call to
 `vkCreateInstance` fail, returning `VK_ERROR_INITIALIZATION_FAILED`.
 
-### Specifying Capture File Location
+#### Specifying Capture File Location
+
 The capture file's save location can be specified by setting the
 `debug.gfxrecon.capture_file` system property, described above in
 the [Layer Options](#layer-options) section.
 
-### Timestamps
+#### Timestamps
+
 When capture file timestamps are enabled, a timestamp with an
 [ISO 8601-based](https://en.wikipedia.org/wiki/ISO_8601)
 format will be added to the name of every file created by the layer. The
@@ -146,14 +191,123 @@ timestamp is generated when the capture file is created by the layer's
 `vkCreateInstance` function and is added to the base filename specified
 through the `debug.gfxrecon.capture_file` system property. Timestamps have
 the form:
- ```
+
+```text
 _yyyymmddThhmmss
 ```
-where the lower-case letters stand for: Year, Month, Day, Hour, Minute, Second.
-The `T` is a designator that separates the date and time components. Time is
-reported for the local timezone and is specified with the 24-hour format.
+
+where the lower-case letters stand for: Year, Month, Day, Hours, Minutes,
+Seconds.  The `T` is a designator that separates the date and time components.
+Time is reported for the local timezone and is specified with the 24-hour
+format.
 
 The following example shows a timestamp that was added to a file that was
 originally named `gfxrecon_capture.gfxr` and was created at 2:35 PM
 on November 25, 2018:
   `gfxrecon_capture_20181125T143527.gfxr`
+
+## Replaying API Calls
+
+### Launch Script
+
+The `gfxrecon.py` script, located in android/scripts directory of the
+[gfxreconstruct git repository](https://github.com/LunarG/gfxreconstruct)
+is provided as a convenient method for deploying and launching the Android replay tool. The script
+currently supports the following commands:
+
+Command | Description
+--------|------------
+install-apk | Install the specified APK file with the `-g -t -r` options.
+replay | Launch the replay tool with the specified command line options.
+
+### Install APK Command
+
+The `gfxrecon.py install-apk` command has the following usage:
+
+```text
+usage: gfxrecon.py install-apk [-h] <file>
+
+positional arguments:
+  file        APK file to install
+
+optional arguments:
+  -h, --help  show this help message and exit
+```
+
+The command is equivalent to:
+
+```bash
+adb install -g -t -r <file>
+```
+
+The install-apk option of the `gfxrecon.py` script with the install-apk option is
+is a convenient way to install the gfxrecon replay tool. For example:
+
+```bash
+python gfxrecon.py install replay-debug.apk
+```
+
+### Replay Command
+
+The `gfxrecon.py replay` command has the following usage:
+
+```text
+usage: gfxrecon.py replay [-h] [-p local-file] [--version] [--pause-frame N]
+                          [--paused] [--sfa] [--opcd] [-m <mode>]
+                          [file]
+
+positional arguments:
+  file                  File on device to play (forwarded to replay tool)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p local-file, --push-file local-file
+                        Local file to push to the location on device specified
+                        by <file>
+  --version             Print version information and exit (forwarded to
+                        replay tool)
+  --pause-frame N       Pause after replaying frame number N (forwarded to
+                        replay tool)
+  --paused              Pause after replaying the first frame (same as "--
+                        pause-frame 1"; forwarded to replay tool)
+  --sfa, --skip-failed-allocations
+                        Skip vkAllocateMemory, vkAllocateCommandBuffers, and
+                        vkAllocateDescriptorSets calls that failed during
+                        capture (forwarded to replay tool)
+  --opcd, --omit-pipeline-cache-data
+                        Omit pipeline cache data from calls to
+                        vkCreatePipelineCache (forwarded to replay tool)
+  -m <mode>, --memory-translation <mode>
+                        Enable memory translation for replay on GPUs with
+                        memory types that are not compatible with the capture
+                        GPU's memory types. Available modes are: none, remap,
+                        rebind (forwarded to replay tool)
+```
+
+The command will force-stop an active replay process before starting the replay
+activity with the following:
+
+```bash
+adb shell am force-stop com.lunarg.gfxreconstruct.replay
+adb shell am start -n "com.lunarg.gfxreconstruct.replay/android.app.NativeActivity" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER --es "args" "<arg-list>"
+```
+
+#### Touch Controls
+
+The `gfxrecon-replay` tool for Android supports the following touch controls:
+
+Key(s) | Action
+-------|-------
+Tap | Toggle pause/play.
+Swipe left | Advance to the next frame when paused.
+
+#### Key Controls
+
+The `gfxrecon-replay` tool for Android supports the following key controls. Key
+events can be simulated through `adb` with the
+`adb shell input keyevent <key-code>` command:
+
+Key(s) | Key code(s) | Action
+-------|-------------|-------
+Space, p | Space = 62, p = 44 |Toggle pause/play.
+D-pad right, n | D-pad right = 22, n = 42 | Advance to the next frame when paused.

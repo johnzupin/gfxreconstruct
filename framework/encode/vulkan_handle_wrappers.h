@@ -68,8 +68,10 @@ struct SamplerYcbcrConversionWrapper        : public HandleWrapper<VkSamplerYcbc
 struct DebugReportCallbackEXTWrapper        : public HandleWrapper<VkDebugReportCallbackEXT> {};
 struct DebugUtilsMessengerEXTWrapper        : public HandleWrapper<VkDebugUtilsMessengerEXT> {};
 struct ValidationCacheEXTWrapper            : public HandleWrapper<VkValidationCacheEXT> {};
-struct IndirectCommandsLayoutNVXWrapper     : public HandleWrapper<VkIndirectCommandsLayoutNVX> {};
+struct IndirectCommandsLayoutNVWrapper      : public HandleWrapper<VkIndirectCommandsLayoutNV> {};
 struct PerformanceConfigurationINTELWrapper : public HandleWrapper<VkPerformanceConfigurationINTEL> {};
+struct DeferredOperationKHRWrapper          : public HandleWrapper<VkDeferredOperationKHR> {};
+struct PrivateDataSlotEXTWrapper            : public HandleWrapper<VkPrivateDataSlotEXT> {};
 
 // This handle type has a create function, but no destroy function. The handle wrapper will be owned by its parent VkDisplayKHR
 // handle wrapper, which will filter duplicate handle retrievals and ensure that the wrapper is destroyed.
@@ -352,7 +354,7 @@ struct SwapchainKHRWrapper : public HandleWrapper<VkSwapchainKHR>
     std::vector<ImageAcquiredInfo> image_acquired_info;
 };
 
-struct ObjectTableNVXWrapper : public HandleWrapper<VkObjectTableNVX>
+struct AccelerationStructureKHRWrapper : public HandleWrapper<VkAccelerationStructureKHR>
 {
     // TODO: Determine what additional state tracking is needed.
 };

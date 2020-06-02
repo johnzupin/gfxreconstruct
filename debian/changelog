@@ -1,3 +1,28 @@
+gfxreconstruct (0.9.0+12-0ubuntu16.04) xenial; urgency=medium
+
+  [ David Pinedo ]
+  * Use os.path.join in gfxrecon.py script
+  * Remove unneeded imports from python scripts
+
+  [ John Zupin ]
+  * copyright: initial update
+
+  [ Dustin Graves ]
+  * Fix null assignment in gfxrecon-info
+  * Fix incomplete block header check
+  * Add missing member initialization
+
+  [ David Pinedo ]
+  * Documentation changes for SDK release
+
+  [ Dustin Graves ]
+  * Documentation cleanup
+  * Replace alt signal stack with SA_ONSTACK override
+  * Update header to 1.2.136
+  * Update header to 1.2.141
+
+ -- John Zupin <john@odin>  Mon, 01 Jun 2020 19:07:53 -0600
+
 gfxreconstruct (0.9.0-0ubuntu16.04) xenial; urgency=medium
 
   [ Dustin Graves ]

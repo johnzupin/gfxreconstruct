@@ -17,7 +17,7 @@ Homepage: https://github.com/LunarG/gfxreconstruct
 Vcs-Git: https://github.com/LunarG/gfxreconstruct
 Vcs-Browser: https://github.com/LunarG/gfxreconstruct
 
-Package: gfxreconstruct
+Package: lunarg-gfxreconstruct
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: The GFXReconstruct project provides

@@ -3,6 +3,7 @@ Section: Graphics
 Priority: optional
 Maintainer: John Zupin <johnz@lunarg.com>
 Build-Depends: debhelper (>= 9),
+ libfile-fcntllock-perl,
  cmake,
  build-essential,
  libx11-xcb-dev,

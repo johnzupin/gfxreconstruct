@@ -3,8 +3,8 @@ Upstream-Name: gfxreconstruct
 Source: https://github.com/LunarG/gfxreconstruct/
 
 Files: *
-Copyright: Copyright (c) 2018 Valve Corporation
-           Copyright (c) 2018 LunarG, Inc.
+Copyright: Copyright (c) 2018,2020 Valve Corporation
+           Copyright (c) 2018,2020 LunarG, Inc.
 License: Apache License 2.0
  Apache License
  .

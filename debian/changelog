@@ -1,3 +1,31 @@
+gfxreconstruct (0.9.0+19-0ubuntu16.04) xenial; urgency=medium
+
+  [ David Pinedo ]
+  * Change USAGE documents heading
+
+  [ Dustin Graves ]
+  * Fix incomplete block at EOF false positive
+
+  [ John Zupin ]
+  * control: added libfile-fcntllock-perl build deb
+  * control: renamed gfxreconstruct to lunarg-gfxreconstruct
+
+  [ David Pinedo ]
+  * Don't allow Cygwin Python for gfxrecon-capture.py
+
+  [ John Zupin ]
+  * copyright: updated dates
+
+  [ David Pinedo ]
+  * Minor usage documenation edits
+  * Remove 'python' from cmd line in instructions for running py scripts
+
+  [ Dustin Graves ]
+  * Treat sdk branch as release branch
+  * Fix size_t to int conversion in compression code
+
+ -- John Zupin <john@odin>  Thu, 04 Jun 2020 18:42:47 -0600
+
 gfxreconstruct (0.9.0+12-0ubuntu16.04) xenial; urgency=medium
 
   [ David Pinedo ]

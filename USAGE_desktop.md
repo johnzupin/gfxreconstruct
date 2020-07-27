@@ -1,13 +1,11 @@
+<!-- markdownlint-disable MD033 -->
 <!-- markdownlint-disable MD041 -->
-[![LunarG][1]][2]
+<p align="left"><img src="https://vulkan.lunarg.com/img/NewLunarGLogoBlack.png" alt="LunarG" width=263 height=113 /></p>
 
-[1]: https://vulkan.lunarg.com/img/LunarGLogo.png "www.LunarG.com"
-[2]: https://www.LunarG.com/
+[![Creative Commons][1]][2]
 
-[![Creative Commons][3]][4]
-
-[3]: https://i.creativecommons.org/l/by-nd/4.0/88x31.png "Creative Commons License"
-[4]: https://creativecommons.org/licenses/by-nd/4.0/
+[1]: https://i.creativecommons.org/l/by-nd/4.0/88x31.png "Creative Commons License"
+[2]: https://creativecommons.org/licenses/by-nd/4.0/
 
 Copyright &copy; 2018-2020 LunarG, Inc.
 
@@ -118,8 +116,8 @@ export VK_INSTANCE_LAYERS=VK_LAYER_LUNARG_gfxreconstruct
 
 ### Capture Options
 
-The GFXReconstruct layer supports several options that are set
-using environment variables.
+The GFXReconstruct layer supports several options, which may be enabled
+through environment variables or a layer settings file.
 
 #### Windows Options
 
@@ -173,6 +171,28 @@ Memory Tracking Mode | GFXRECON_MEMORY_TRACKING_MODE | STRING | Specifies the me
 Page Guard Copy on Map | GFXRECON_PAGE_GUARD_COPY_ON_MAP | BOOL | When the `page_guard` memory tracking mode is enabled, copies the content of the mapped memory to the shadow memory immediately after the memory is mapped. Default is: `true`
 Page Guard Separate Read Tracking | GFXRECON_PAGE_GUARD_SEPARATE_READ | BOOL | When the `page_guard` memory tracking mode is enabled, copies the content of pages accessed for read from mapped memory to shadow memory on each read. Can overwrite unprocessed shadow memory content when an application is reading from and writing to the same page. Default is: `true`
 Page Guard External Memory | GFXRECON_PAGE_GUARD_EXTERNAL_MEMORY | BOOL | When the `page_guard` memory tracking mode is enabled, use the VK_EXT_external_memory_host extension to eliminate the need for shadow memory allocations. For each memory allocation from a host visible memory type, the capture layer will create an allocation from system memory, which it can monitor for write access, and provide that allocation to vkAllocateMemory as external memory. Only available on Windows. Default is `false`
+
+#### Settings File
+
+Capture options may also be specified through a layer settings file.  The layer
+settings file will be loaded before the environment variables are processed,
+allowing environment variables to override individual settings file entries.
+
+The `VK_LAYER_SETTINGS_PATH` environment variable is used to enable a
+settings file. The environment variable may be set as either the path to the
+folder containing a file named `vk_layer_settings.txt` or the full path to a
+file with a custom name. When set to a folder, the capture layer will try to
+open a file in that folder named `vk_layer_settings.txt`.  When set to a file,
+the capture layer will try to open a file with the specified name.
+
+The settings file may be combined with settings files for other layers. The
+capture layer will ignore entries that do not start with the
+'lunarg_gfxreconstruct.' prefix.
+
+A sample layer settings file, documenting each available setting, can be found
+in the GFXReconstruct GitHub repository at `layer/vk_layer_settings.txt`. Most
+binary distributions of the GFXReconstruct software will also include a sample
+settings file.
 
 ### Capture Files
 
@@ -345,6 +365,9 @@ Optional arguments:
                             remap       Attempt to map capture memory types to
                                         compatible replay memory types, without
                                         altering memory allocation behavior.
+                            realign     Adjust memory allocation sizes and
+                                        resource binding offests based on
+                                        replay memory properties.
                             rebind      Change memory allocation behavior based
                                         on resource usage and replay memory
                                         properties.  Resources may be bound

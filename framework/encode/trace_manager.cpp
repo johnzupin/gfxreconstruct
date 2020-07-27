@@ -60,7 +60,8 @@ uint32_t                                               TraceManager::instance_co
 std::mutex                                             TraceManager::instance_lock_;
 thread_local std::unique_ptr<TraceManager::ThreadData> TraceManager::thread_data_;
 LayerTable                                             TraceManager::layer_table_;
-std::atomic<format::ThreadId>                          TraceManager::unique_id_counter_{ 0 };
+
+std::atomic<format::HandleId> TraceManager::unique_id_counter_{ format::kNullHandleId };
 
 TraceManager::ThreadData::ThreadData() : thread_id_(GetThreadId()), call_id_(format::ApiCallId::ApiCall_Unknown)
 {
@@ -694,6 +695,59 @@ void TraceManager::WriteResizeWindowCmd(format::HandleId surface_id, uint32_t wi
     }
 }
 
+void TraceManager::WriteResizeWindowCmd2(format::HandleId              surface_id,
+                                         uint32_t                      width,
+                                         uint32_t                      height,
+                                         VkSurfaceTransformFlagBitsKHR pre_transform)
+{
+    if ((capture_mode_ & kModeWrite) == kModeWrite)
+    {
+        format::ResizeWindowCommand2 resize_cmd2;
+        resize_cmd2.meta_header.block_header.type = format::BlockType::kMetaDataBlock;
+        resize_cmd2.meta_header.block_header.size = sizeof(resize_cmd2.meta_header.meta_data_type) +
+                                                    sizeof(resize_cmd2.thread_id) + sizeof(resize_cmd2.surface_id) +
+                                                    sizeof(resize_cmd2.width) + sizeof(resize_cmd2.height);
+        resize_cmd2.meta_header.meta_data_type = format::MetaDataType::kResizeWindowCommand2;
+        resize_cmd2.thread_id                  = GetThreadData()->thread_id_;
+
+        resize_cmd2.surface_id = surface_id;
+        resize_cmd2.width      = width;
+        resize_cmd2.height     = height;
+
+        switch (pre_transform)
+        {
+            default:
+            case VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR:
+            case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR:
+            case VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR:
+                resize_cmd2.pre_transform = format::ResizeWindowPreTransform::kPreTransform0;
+                break;
+            case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:
+            case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR:
+                resize_cmd2.pre_transform = format::ResizeWindowPreTransform::kPreTransform90;
+                break;
+            case VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR:
+            case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR:
+                resize_cmd2.pre_transform = format::ResizeWindowPreTransform::kPreTransform180;
+                break;
+            case VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR:
+            case VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR:
+                resize_cmd2.pre_transform = format::ResizeWindowPreTransform::kPreTransform270;
+                break;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(file_lock_);
+            bytes_written_ += file_stream_->Write(&resize_cmd2, sizeof(resize_cmd2));
+
+            if (force_file_flush_)
+            {
+                file_stream_->Flush();
+            }
+        }
+    }
+}
+
 void TraceManager::WriteFillMemoryCmd(format::HandleId memory_id,
                                       VkDeviceSize     offset,
                                       VkDeviceSize     size,
@@ -793,7 +847,7 @@ void TraceManager::WriteCreateHardwareBufferCmd(format::HandleId                
         else
         {
             create_buffer_cmd.planes = static_cast<uint32_t>(plane_info.size());
-            // Update size of packet with compressed or uncompressed data size.
+            // Update size of packet with size of plane info.
             planes_size = sizeof(plane_info[0]) * plane_info.size();
             create_buffer_cmd.meta_header.block_header.size += planes_size;
         }
@@ -1670,8 +1724,10 @@ void TraceManager::PreProcess_vkCreateSwapchain(VkDevice                        
 
     if (pCreateInfo)
     {
-        WriteResizeWindowCmd(
-            GetWrappedId(pCreateInfo->surface), pCreateInfo->imageExtent.width, pCreateInfo->imageExtent.height);
+        WriteResizeWindowCmd2(GetWrappedId(pCreateInfo->surface),
+                              pCreateInfo->imageExtent.width,
+                              pCreateInfo->imageExtent.height,
+                              pCreateInfo->preTransform);
     }
 }
 

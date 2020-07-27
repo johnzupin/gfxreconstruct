@@ -26,14 +26,14 @@
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
 
-VulkanDefaultAllocator::VulkanDefaultAllocator() : device_(VK_NULL_HANDLE) {}
+VulkanDefaultAllocator::VulkanDefaultAllocator() : device_(VK_NULL_HANDLE), memory_properties_{} {}
 
 VulkanDefaultAllocator::VulkanDefaultAllocator(const std::string& custom_error_string) :
-    device_(VK_NULL_HANDLE), custom_error_string_(custom_error_string)
+    device_(VK_NULL_HANDLE), memory_properties_{}, custom_error_string_(custom_error_string)
 {}
 
 VulkanDefaultAllocator::VulkanDefaultAllocator(std::string&& custom_error_string) :
-    device_(VK_NULL_HANDLE), custom_error_string_(std::move(custom_error_string))
+    device_(VK_NULL_HANDLE), memory_properties_{}, custom_error_string_(std::move(custom_error_string))
 {}
 
 VkResult VulkanDefaultAllocator::Initialize(uint32_t                                api_version,
@@ -68,35 +68,67 @@ void VulkanDefaultAllocator::Destroy()
 
 VkResult VulkanDefaultAllocator::CreateBuffer(const VkBufferCreateInfo*    create_info,
                                               const VkAllocationCallbacks* allocation_callbacks,
+                                              format::HandleId             capture_id,
                                               VkBuffer*                    buffer,
                                               ResourceData*                allocator_data)
 {
-    GFXRECON_UNREFERENCED_PARAMETER(allocator_data);
-    return functions_.create_buffer(device_, create_info, allocation_callbacks, buffer);
+    VkResult result = VK_ERROR_INITIALIZATION_FAILED;
+
+    if (allocator_data != nullptr)
+    {
+        auto resource_alloc_info        = new ResourceAllocInfo;
+        resource_alloc_info->capture_id = capture_id;
+        (*allocator_data)               = reinterpret_cast<ResourceData>(resource_alloc_info);
+
+        result = functions_.create_buffer(device_, create_info, allocation_callbacks, buffer);
+    }
+
+    return result;
 }
 
 void VulkanDefaultAllocator::DestroyBuffer(VkBuffer                     buffer,
                                            const VkAllocationCallbacks* allocation_callbacks,
                                            ResourceData                 allocator_data)
 {
-    GFXRECON_UNREFERENCED_PARAMETER(allocator_data);
+    if (allocator_data != 0)
+    {
+        auto resource_alloc_info = reinterpret_cast<ResourceAllocInfo*>(allocator_data);
+        delete resource_alloc_info;
+    }
+
     functions_.destroy_buffer(device_, buffer, allocation_callbacks);
 }
 
 VkResult VulkanDefaultAllocator::CreateImage(const VkImageCreateInfo*     create_info,
                                              const VkAllocationCallbacks* allocation_callbacks,
+                                             format::HandleId             capture_id,
                                              VkImage*                     image,
                                              ResourceData*                allocator_data)
 {
-    GFXRECON_UNREFERENCED_PARAMETER(allocator_data);
-    return functions_.create_image(device_, create_info, allocation_callbacks, image);
+    VkResult result = VK_ERROR_INITIALIZATION_FAILED;
+
+    if (allocator_data != nullptr)
+    {
+        auto resource_alloc_info        = new ResourceAllocInfo;
+        resource_alloc_info->capture_id = capture_id;
+        (*allocator_data)               = reinterpret_cast<ResourceData>(resource_alloc_info);
+
+        result = functions_.create_image(device_, create_info, allocation_callbacks, image);
+    }
+
+    return result;
 }
 
 void VulkanDefaultAllocator::DestroyImage(VkImage                      image,
                                           const VkAllocationCallbacks* allocation_callbacks,
                                           ResourceData                 allocator_data)
 {
-    GFXRECON_UNREFERENCED_PARAMETER(allocator_data);
+    if (allocator_data != 0)
+    {
+        auto resource_alloc_info = reinterpret_cast<ResourceAllocInfo*>(allocator_data);
+        delete resource_alloc_info;
+    }
+
     functions_.destroy_image(device_, image, allocation_callbacks);
 }
 
@@ -113,6 +145,7 @@ void VulkanDefaultAllocator::GetImageSubresourceLayout(VkImage                  
 
 VkResult VulkanDefaultAllocator::AllocateMemory(const VkMemoryAllocateInfo*  allocate_info,
                                                 const VkAllocationCallbacks* allocation_callbacks,
+                                                format::HandleId             capture_id,
                                                 VkDeviceMemory*              memory,
                                                 MemoryData*                  allocator_data)
 {
@@ -121,7 +154,7 @@ VkResult VulkanDefaultAllocator::AllocateMemory(const VkMemoryAllocateInfo*  all
     if ((allocate_info != nullptr) && (allocator_data != nullptr) &&
         (allocate_info->memoryTypeIndex < memory_properties_.memoryTypeCount))
     {
-        result = Allocate(allocate_info, allocation_callbacks, memory, allocator_data);
+        result = Allocate(allocate_info, allocation_callbacks, capture_id, memory, allocator_data);
     }
 
     return result;
@@ -135,6 +168,10 @@ void VulkanDefaultAllocator::FreeMemory(VkDeviceMemory               memory,
     {
         auto memory_alloc_info = reinterpret_cast<MemoryAllocInfo*>(allocator_data);
         delete memory_alloc_info;
+    }
+    else if (memory != VK_NULL_HANDLE)
+    {
+        GFXRECON_LOG_WARNING("VulkanDefaultAllocator freeing a VkDeviceMemory object without allocator data");
     }
 
     functions_.free_memory(device_, memory, allocation_callbacks);
@@ -166,6 +203,11 @@ VkResult VulkanDefaultAllocator::BindBufferMemory(VkBuffer               buffer,
             auto memory_alloc_info    = reinterpret_cast<MemoryAllocInfo*>(allocator_memory_data);
             (*bind_memory_properties) = memory_alloc_info->property_flags;
         }
+        else
+        {
+            GFXRECON_LOG_WARNING(
+                "VulkanDefaultAllocator binding a VkBuffer object to a VkDeviceMemory object without allocator data");
+        }
 
         result = functions_.bind_buffer_memory(device_, buffer, memory, memory_offset);
     }
@@ -194,6 +236,11 @@ VkResult VulkanDefaultAllocator::BindBufferMemory2(uint32_t                     
                 auto memory_alloc_info    = reinterpret_cast<MemoryAllocInfo*>(allocator_memory_data);
                 bind_memory_properties[i] = memory_alloc_info->property_flags;
             }
+            else
+            {
+                GFXRECON_LOG_WARNING("VulkanDefaultAllocator binding a VkBuffer object to a VkDeviceMemory object "
+                                     "without allocator data");
+            }
         }
 
         result = functions_.bind_buffer_memory2(device_, bind_info_count, bind_infos);
@@ -219,6 +266,11 @@ VkResult VulkanDefaultAllocator::BindImageMemory(VkImage                image,
         {
             auto memory_alloc_info    = reinterpret_cast<MemoryAllocInfo*>(allocator_memory_data);
             (*bind_memory_properties) = memory_alloc_info->property_flags;
+        }
+        else
+        {
+            GFXRECON_LOG_WARNING(
+                "VulkanDefaultAllocator binding a VkImage object to a VkDeviceMemory object without allocator data");
         }
 
         result = functions_.bind_image_memory(device_, image, memory, memory_offset);
@@ -248,6 +300,11 @@ VkResult VulkanDefaultAllocator::BindImageMemory2(uint32_t                     b
                 auto memory_alloc_info    = reinterpret_cast<MemoryAllocInfo*>(allocator_memory_data);
                 bind_memory_properties[i] = memory_alloc_info->property_flags;
             }
+            else
+            {
+                GFXRECON_LOG_WARNING("VulkanDefaultAllocator binding a VkImage object to a VkDeviceMemory object "
+                                     "without allocator data");
+            }
         }
 
         result = functions_.bind_image_memory2(device_, bind_info_count, bind_infos);
@@ -265,14 +322,21 @@ VkResult VulkanDefaultAllocator::MapMemory(VkDeviceMemory   memory,
 {
     VkResult result = VK_ERROR_INITIALIZATION_FAILED;
 
-    if ((data != nullptr) && (allocator_data != 0))
+    if (data != nullptr)
     {
         result = functions_.map_memory(device_, memory, offset, size, flags, data);
 
         if (result >= 0)
         {
-            auto memory_alloc_info            = reinterpret_cast<MemoryAllocInfo*>(allocator_data);
-            memory_alloc_info->mapped_pointer = static_cast<uint8_t*>(*data);
+            if (allocator_data != 0)
+            {
+                auto memory_alloc_info            = reinterpret_cast<MemoryAllocInfo*>(allocator_data);
+                memory_alloc_info->mapped_pointer = static_cast<uint8_t*>(*data);
+            }
+            else
+            {
+                GFXRECON_LOG_WARNING("VulkanDefaultAllocator mapping a VkDeviceMemory object without allocator data");
+            }
         }
     }
 
@@ -451,6 +515,7 @@ void VulkanDefaultAllocator::ReportBindIncompatibility(const VkMemoryRequirement
 
 VkResult VulkanDefaultAllocator::Allocate(const VkMemoryAllocateInfo*  allocate_info,
                                           const VkAllocationCallbacks* allocation_callbacks,
+                                          format::HandleId             capture_id,
                                           VkDeviceMemory*              memory,
                                           MemoryData*                  allocator_data)
 {
@@ -463,10 +528,11 @@ VkResult VulkanDefaultAllocator::Allocate(const VkMemoryAllocateInfo*  allocate_
         assert(allocate_info->memoryTypeIndex < memory_properties_.memoryTypeCount);
 
         auto memory_alloc_info               = new MemoryAllocInfo;
+        memory_alloc_info->capture_id        = capture_id;
         memory_alloc_info->memory_type_index = allocate_info->memoryTypeIndex;
         memory_alloc_info->property_flags =
             memory_properties_.memoryTypes[allocate_info->memoryTypeIndex].propertyFlags;
-        (*allocator_data) = reinterpret_cast<uintptr_t>(memory_alloc_info);
+        (*allocator_data) = reinterpret_cast<MemoryData>(memory_alloc_info);
     }
 
     return result;

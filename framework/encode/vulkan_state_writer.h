@@ -78,7 +78,7 @@ class VulkanStateWriter
 
     struct QueryActivationData
     {
-        format::HandleId    pool_id{ 0 };
+        format::HandleId    pool_id{ format::kNullHandleId };
         VkQueryType         type{};
         VkQueryControlFlags flags{ 0 };
         uint32_t            index{ 0 };
@@ -243,6 +243,11 @@ class VulkanStateWriter
     void WriteFillMemoryCmd(format::HandleId memory_id, VkDeviceSize offset, VkDeviceSize size, const void* data);
 
     void WriteResizeWindowCmd(format::HandleId surface_id, uint32_t width, uint32_t height);
+
+    void WriteResizeWindowCmd2(format::HandleId              surface_id,
+                               uint32_t                      width,
+                               uint32_t                      height,
+                               VkSurfaceTransformFlagBitsKHR pre_transform);
 
     void WriteCreateHardwareBufferCmd(format::HandleId                                    memory_id,
                                       AHardwareBuffer*                                    hardware_buffer,

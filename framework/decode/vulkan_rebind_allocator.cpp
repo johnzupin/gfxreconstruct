@@ -21,13 +21,10 @@
 
 #include "decode/vulkan_rebind_allocator.h"
 
-#include "decode/custom_vulkan_struct_decoders.h"
 #include "decode/resource_util.h"
 #include "decode/vulkan_enum_util.h"
-#include "decode/vulkan_object_info.h"
 #include "format/format.h"
 #include "format/format_util.h"
-#include "generated/generated_vulkan_struct_decoders.h"
 #include "util/logging.h"
 #include "util/platform.h"
 
@@ -41,7 +38,8 @@ const format::HandleId kPlaceholderHandleId = static_cast<format::HandleId>(~0);
 const uintptr_t        kPlaceholderAddress  = static_cast<uintptr_t>(~0);
 
 VulkanRebindAllocator::VulkanRebindAllocator() :
-    device_(VK_NULL_HANDLE), allocator_(VK_NULL_HANDLE), capture_device_type_(VK_PHYSICAL_DEVICE_TYPE_OTHER)
+    device_(VK_NULL_HANDLE), allocator_(VK_NULL_HANDLE), vma_functions_{},
+    capture_device_type_(VK_PHYSICAL_DEVICE_TYPE_OTHER), capture_memory_properties_{}, replay_memory_properties_{}
 {}
 
 VulkanRebindAllocator::~VulkanRebindAllocator() {}
@@ -156,10 +154,12 @@ void VulkanRebindAllocator::Destroy()
 
 VkResult VulkanRebindAllocator::CreateBuffer(const VkBufferCreateInfo*    create_info,
                                              const VkAllocationCallbacks* allocation_callbacks,
+                                             format::HandleId             capture_id,
                                              VkBuffer*                    buffer,
                                              ResourceData*                allocator_data)
 {
     GFXRECON_UNREFERENCED_PARAMETER(allocation_callbacks);
+    GFXRECON_UNREFERENCED_PARAMETER(capture_id);
 
     VkResult result = VK_ERROR_INITIALIZATION_FAILED;
 
@@ -215,10 +215,12 @@ void VulkanRebindAllocator::DestroyBuffer(VkBuffer                     buffer,
 
 VkResult VulkanRebindAllocator::CreateImage(const VkImageCreateInfo*     create_info,
                                             const VkAllocationCallbacks* allocation_callbacks,
+                                            format::HandleId             capture_id,
                                             VkImage*                     image,
                                             ResourceData*                allocator_data)
 {
     GFXRECON_UNREFERENCED_PARAMETER(allocation_callbacks);
+    GFXRECON_UNREFERENCED_PARAMETER(capture_id);
 
     VkResult result = VK_ERROR_INITIALIZATION_FAILED;
 
@@ -308,10 +310,12 @@ void VulkanRebindAllocator::GetImageSubresourceLayout(VkImage                   
 
 VkResult VulkanRebindAllocator::AllocateMemory(const VkMemoryAllocateInfo*  allocate_info,
                                                const VkAllocationCallbacks* allocation_callbacks,
+                                               format::HandleId             capture_id,
                                                VkDeviceMemory*              memory,
                                                MemoryData*                  allocator_data)
 {
     GFXRECON_UNREFERENCED_PARAMETER(allocation_callbacks);
+    GFXRECON_UNREFERENCED_PARAMETER(capture_id);
 
     VkResult result = VK_ERROR_INITIALIZATION_FAILED;
 

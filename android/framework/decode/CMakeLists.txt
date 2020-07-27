@@ -40,6 +40,8 @@ target_sources(gfxrecon_decode
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_handle_mapping_util.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_object_info.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_object_info_table.h
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_realign_allocator.h
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_realign_allocator.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_rebind_allocator.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_rebind_allocator.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_remap_allocator.h
@@ -50,6 +52,12 @@ target_sources(gfxrecon_decode
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_resource_allocator.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_resource_initializer.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_resource_initializer.cpp
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_resource_tracking_consumer.h
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_resource_tracking_consumer.cpp
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_tracked_object_info.h
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_tracked_object_info_table.h
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_tracked_object_info.cpp
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_tracked_object_info_table.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/decode/window.h
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_ascii_consumer.h
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_ascii_consumer.cpp

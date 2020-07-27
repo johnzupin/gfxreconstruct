@@ -1,6 +1,6 @@
 /*
-** Copyright (c) 2018-2019 Valve Corporation
-** Copyright (c) 2018-2019 LunarG, Inc.
+** Copyright (c) 2018-2020 Valve Corporation
+** Copyright (c) 2018-2020 LunarG, Inc.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include "application/android_window.h"
 #include "decode/file_processor.h"
 #include "decode/vulkan_replay_options.h"
+#include "decode/vulkan_tracked_object_info_table.h"
 #include "format/format.h"
 #include "generated/generated_vulkan_decoder.h"
 #include "generated/generated_vulkan_replay_consumer.h"
@@ -59,7 +60,7 @@ void android_main(struct android_app* app)
 
     bool run = true;
 
-    if (PrintVersion(kApplicationName, arg_parser))
+    if (CheckOptionPrintUsage(kApplicationName, arg_parser) || CheckOptionPrintVersion(kApplicationName, arg_parser))
     {
         run = false;
     }
@@ -103,9 +104,10 @@ void android_main(struct android_app* app)
                 }
                 else
                 {
+                    gfxrecon::decode::VulkanTrackedObjectInfoTable tracked_object_info_table;
+                    gfxrecon::decode::VulkanReplayConsumer         replay_consumer(
+                        window_factory.get(), GetReplayOptions(arg_parser, filename, &tracked_object_info_table));
                     gfxrecon::decode::VulkanDecoder        decoder;
-                    gfxrecon::decode::VulkanReplayConsumer replay_consumer(window_factory.get(),
-                                                                           GetReplayOptions(arg_parser));
 
                     replay_consumer.SetFatalErrorHandler(
                         [](const char* message) { throw std::runtime_error(message); });
@@ -117,8 +119,8 @@ void android_main(struct android_app* app)
                     // Warn if the capture layer is active.
                     CheckActiveLayers(kLayerProperty);
 
-                    // Start the application in the paused state, preventing replay from starting before the app gained
-                    // focus event is received.
+                    // Start the application in the paused state, preventing replay from starting before the app
+                    // gained focus event is received.
                     application->SetPaused(true);
 
                     app->userData = application.get();

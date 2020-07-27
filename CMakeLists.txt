@@ -1,4 +1,26 @@
-cmake_minimum_required(VERSION 3.1)
+###############################################################################
+# Copyright (c) 2018-2020 LunarG, Inc.
+# Copyright (c) 2019-2020 Advanced Micro Devices, Inc.
+# All rights reserved
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Author: LunarG Team
+# Author: AMD Developer Tools Team
+# Description: CMake script for framework util target
+###############################################################################
+
+cmake_minimum_required(VERSION 3.4.1)
 project(GFXReconstruct)
 
 set_property(GLOBAL PROPERTY TEST_SCRIPT ${CMAKE_ROOT})
@@ -12,13 +34,14 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" "${CMAKE_SOURCE_DIR}/external/
 # Version info
 set(GFXRECONSTRUCT_PROJECT_VERSION_MAJOR 0)
 set(GFXRECONSTRUCT_PROJECT_VERSION_MINOR 9)
-set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 1)
+set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 2)
 
 set(GFXRECON_PROJECT_VERSION_DESIGNATION "-unknown")
 set(GFXRECON_PROJECT_VERSION_SHA1 "unknown-build-source")
 
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+git_get_exact_tag(GIT_TAG)
 set(GIT_BRANCH "")
 
 if (GIT_REFSPEC)
@@ -27,7 +50,6 @@ if (GIT_REFSPEC)
     string(REGEX MATCH "^sdk-[0-9]+\.[0-9]+\.[0-9]+$" GIT_IS_SDK ${GIT_BRANCH})
 
     if (GIT_IS_MASTER OR GIT_IS_SDK)
-        git_get_exact_tag(GIT_TAG)
         if (GIT_TAG)
             set(GIT_BRANCH ${GIT_TAG})
         else()
@@ -36,6 +58,12 @@ if (GIT_REFSPEC)
         set(GFXRECON_PROJECT_VERSION_DESIGNATION "")
     else()
         set(GFXRECON_PROJECT_VERSION_DESIGNATION "-dev")
+    endif()
+elseif(GIT_TAG)
+    string(REGEX MATCH "^v[0-9]+\.[0-9]+\.[0-9]+$" GIT_IS_VERSION_RELEASE_TAG ${GIT_TAG})
+    if (GIT_IS_VERSION_RELEASE_TAG)
+        set(GIT_BRANCH ${GIT_TAG})
+        set(GFXRECON_PROJECT_VERSION_DESIGNATION "")
     endif()
 endif()
 
@@ -58,13 +86,13 @@ configure_file("${CMAKE_SOURCE_DIR}/project_version.h.in" "${CMAKE_BINARY_DIR}/p
 # Code checks
 include("CodeStyle")
 include("Test")
-include("StaticAnalysis")
+include("Lint")
 include("FindVulkanVersion")
 
 # Apply misc build directives to the given target
 macro(common_build_directives TARGET)
     target_code_style_build_directives(${TARGET})
-    target_static_analysis_build_directives(${TARGET})
+    target_lint_build_directives(${TARGET})
     add_target_to_test_package(${TARGET})
 endmacro()
 

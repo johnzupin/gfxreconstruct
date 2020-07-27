@@ -506,6 +506,32 @@ bool FileProcessor::ProcessMetaData(const format::BlockHeader& block_header, for
             HandleBlockReadError(kErrorReadingBlockData, "Failed to read resize window meta-data block");
         }
     }
+    else if (meta_type == format::MetaDataType::kResizeWindowCommand2)
+    {
+        // This command does not support compression.
+        assert(block_header.type != format::BlockType::kCompressedMetaDataBlock);
+
+        format::ResizeWindowCommand2 command;
+
+        success = ReadBytes(&command.thread_id, sizeof(command.thread_id));
+        success = success && ReadBytes(&command.surface_id, sizeof(command.surface_id));
+        success = success && ReadBytes(&command.width, sizeof(command.width));
+        success = success && ReadBytes(&command.height, sizeof(command.height));
+        success = success && ReadBytes(&command.pre_transform, sizeof(command.pre_transform));
+
+        if (success)
+        {
+            for (auto decoder : decoders_)
+            {
+                decoder->DispatchResizeWindowCommand2(
+                    command.thread_id, command.surface_id, command.width, command.height, command.pre_transform);
+            }
+        }
+        else
+        {
+            HandleBlockReadError(kErrorReadingBlockData, "Failed to read resize window 2 meta-data block");
+        }
+    }
     else if (meta_type == format::MetaDataType::kDisplayMessageCommand)
     {
         // This command does not support compression.
@@ -525,7 +551,8 @@ bool FileProcessor::ProcessMetaData(const format::BlockHeader& block_header, for
 
             if (success)
             {
-                std::string message(parameter_buffer_.begin(), parameter_buffer_.end());
+                auto        message_start = parameter_buffer_.begin();
+                std::string message(message_start, std::next(message_start, static_cast<size_t>(message_size)));
 
                 for (auto decoder : decoders_)
                 {

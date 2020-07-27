@@ -67,7 +67,7 @@ class ValueInfo():
                  fullType,
                  pointerCount = 0,
                  arrayLength = None,
-                 altArrayLength = None,
+                 arrayLengthValue = None,
                  arrayCapacity = None,
                  platformBaseType = None,
                  platformFullType = None,
@@ -77,7 +77,7 @@ class ValueInfo():
         self.fullType = fullType
         self.pointerCount = pointerCount
         self.arrayLength = arrayLength
-        self.altArrayLength = altArrayLength
+        self.arrayLengthValue = None
         self.arrayCapacity = arrayCapacity
         self.platformBaseType = platformBaseType
         self.platformFullType = platformFullType
@@ -141,10 +141,19 @@ class BaseGeneratorOptions(GeneratorOptions):
                  addExtensions = _addExtensionsPat,
                  removeExtensions = _removeExtensionsPat,
                  emitExtensions = _emitExtensionsPat):
-        GeneratorOptions.__init__(self, conventions, filename, directory, apiname, profile,
-                                  versions, emitversions, defaultExtensions,
-                                  addExtensions, removeExtensions,
-                                  emitExtensions, sortProcedure)
+        GeneratorOptions.__init__(self,
+                                  conventions=conventions,
+                                  filename=filename,
+                                  directory=directory,
+                                  apiname=apiname,
+                                  profile=profile,
+                                  versions=versions,
+                                  emitversions=emitversions,
+                                  defaultExtensions=defaultExtensions,
+                                  addExtensions=addExtensions,
+                                  removeExtensions=removeExtensions,
+                                  emitExtensions=emitExtensions,
+                                  sortProcedure=sortProcedure)
         self.blacklists = blacklists
         self.platformTypes = platformTypes
         # Khronos CGeneratorOptions
@@ -391,9 +400,12 @@ class BaseGenerator(OutputGenerator):
                 fullType = fullType.replace(baseType, typeInfo['replaceWith'])
                 baseType = typeInfo['baseType']
 
-            # Get array length
-            arrayLength = self.getArrayLen(param)
-            altArrayLength =  param.attrib.get('altlen')
+            # Get array length, always use altlen when available to avoid parsing latexmath
+            if 'altlen' in param.attrib:
+                arrayLength =  param.attrib.get('altlen')
+            else:
+                arrayLength = self.getArrayLen(param)
+
             arrayCapacity = None
             if self.isStaticArray(param):
                 arrayCapacity = arrayLength
@@ -410,11 +422,17 @@ class BaseGenerator(OutputGenerator):
                 fullType = fullType,
                 pointerCount = self.getPointerCount(fullType),
                 arrayLength = arrayLength,
-                altArrayLength = altArrayLength,
                 arrayCapacity = arrayCapacity,
                 platformBaseType = platformBaseType,
                 platformFullType = platformFullType,
                 bitfieldWidth = bitfieldWidth))
+
+        # Link array values to their corresponding length values
+        for arrayValue in [v for v in values if v.arrayLength]:
+            for v in values:
+                if re.search(r'\b{}\b'.format(v.name), arrayValue.arrayLength):
+                    arrayValue.arrayLengthValue = v
+                    break
 
         return values
 
@@ -648,23 +666,6 @@ class BaseGenerator(OutputGenerator):
         return False
 
     #
-    # Extract length value from latexmath expression.  Currently an inflexible solution that looks for specific
-    # patterns that are found in vk.xml.  Will need to be updated when new patterns are introduced.
-    def parseLateXMath(self, source):
-        name = None
-
-        # Extracts a parameter name from expressions similar to:
-        #    'latexmath:[\lceil{\mathit{rasterizationSamples} \over 32}\rceil]'
-        #    'latexmath:[\textrm{dataSize} \over 4]'
-        match = re.match(r'latexmath.*\\(mathit|textrm)\s*\{\s*(\w+)\s*\}.*', source)
-        if match:
-            name = match.group(2)
-        else:
-            raise ValueError('Unrecognized latexmath expression: "' + source + '"')
-
-        return name
-
-    #
     # Indent all lines in a string.
     #  value - String to indent.
     #  spaces - Number of spaces to indent.
@@ -827,6 +828,28 @@ class BaseGenerator(OutputGenerator):
         return None
 
     #
+    # Generate an expression for the length of a given array value
+    def makeArrayLengthExpression(self, value, prefix=''):
+        lengthExpr = value.arrayLength
+        lengthValue = value.arrayLengthValue
+
+        if lengthValue:
+            if lengthValue.isPointer:
+                # Add implicit dereference when length expr == pointer name
+                if lengthValue.name == lengthExpr:
+                    lengthExpr = '*' + lengthExpr
+                # Add null check to length value behind pointer
+                lengthExpr = '({lengthValue.name} != nullptr) ? ({lengthExpr}) : 0'.format(
+                    lengthValue=lengthValue, lengthExpr=lengthExpr)
+            elif lengthValue.baseType == 'VkDeviceSize':
+                # Static cast 64-bit length expression to eliminate warning in 32-bit builds
+                lengthExpr = 'static_cast<size_t>({})'.format(lengthExpr)
+            # Add prefix to parameter in the length expression
+            lengthExpr = lengthExpr.replace(lengthValue.name, prefix + lengthValue.name)
+
+        return lengthExpr
+
+    #
     # Generate a parameter encoder method call invocation.
     def makeEncoderMethodCall(self, value, values, prefix, omitOutputParam=None):
         args = [prefix + value.name]
@@ -850,37 +873,11 @@ class BaseGenerator(OutputGenerator):
             methodCall = 'encoder->Encode' + typeName
 
         if value.isArray and not (isString and not value.isDynamic):  # Make sure strings delcared as 'char s[N]' are not treated as string arrays
-            # Some length parameters are specified as mathmatical expressions, which we need to parse to extract the parameter name from the expression.
-            lengthName = value.arrayLength         # The parameter name that appears in the length expression
-            lengthExpr = value.arrayLength         # The expression that produces the array length (needed for the latexmath case where param name != param expr)
-            if 'latexmath' in value.arrayLength:
-                lengthName = self.parseLateXMath(value.arrayLength)
-                lengthExpr = value.altArrayLength
-
-            if ',' in lengthName:
-                methodCall += '{}DMatrix'.format(lengthName.count(',') + 1)
+            if ',' in value.arrayLength:
+                methodCall += '{}DMatrix'.format(value.arrayLength.count(',') + 1)
             else:
                 methodCall += 'Array'
-
-            # Build a list of parameter names and search for the array length value.
-            lengthValue = None
-            paramNames = []
-            for v in values:
-                if v.name == lengthName:
-                    lengthValue = v
-                paramNames.append(v.name)
-
-            prefixedName = lengthExpr.replace(lengthName, prefix + lengthName)
-
-            if lengthValue and lengthValue.isPointer:
-                args.append('({name} != nullptr) ? (*{name}) : 0'.format(name=prefixedName))
-            elif lengthName in paramNames:
-                if lengthValue and (lengthValue.baseType == 'VkDeviceSize'):
-                    args.append('static_cast<size_t>({})'.format(prefixedName))
-                else:
-                    args.append(prefixedName)
-            else:
-                args.append(lengthExpr)     # Length is a constant value, not a parameter
+            args.append(self.makeArrayLengthExpression(value, prefix))
         elif isStruct:
             if value.isPointer:
                 methodCall += 'Ptr'
@@ -913,7 +910,8 @@ class BaseGenerator(OutputGenerator):
             'xcb' : 'VK_USE_PLATFORM_XCB_KHR',
             'xlib' : 'VK_USE_PLATFORM_XLIB_KHR',
             'xlib_xrandr' : 'VK_USE_PLATFORM_XLIB_XRANDR_EXT',
-            'ggp' : 'VK_USE_PLATFORM_GGP'
+            'ggp' : 'VK_USE_PLATFORM_GGP',
+            'directfb' : 'VK_USE_PLATFORM_DIRECTFB_EXT'
         }
 
         platform = interface.get('platform')

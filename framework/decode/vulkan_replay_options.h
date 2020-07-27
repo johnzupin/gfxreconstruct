@@ -21,19 +21,20 @@
 #include "decode/vulkan_resource_allocator.h"
 #include "util/defines.h"
 
+#include <functional>
 #include <string>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
 
-typedef VulkanResourceAllocator* (*CreateResourceAllocator)();
+typedef std::function<VulkanResourceAllocator*()> CreateResourceAllocator;
 
 struct ReplayOptions
 {
     bool                    skip_failed_allocations{ false };
     bool                    omit_pipeline_cache_data{ false };
     int32_t                 override_gpu_index{ -1 };
-    CreateResourceAllocator create_resource_allocator{ nullptr };
+    CreateResourceAllocator create_resource_allocator;
     std::string             replace_dir{};
 };
 

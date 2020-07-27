@@ -67,6 +67,9 @@ class XcbWindow : public decode::Window
 
     virtual void SetSize(const uint32_t width, const uint32_t height) override;
 
+    virtual void
+    SetSizePreTransform(const uint32_t width, const uint32_t height, const uint32_t pre_transform) override;
+
     virtual void SetVisibility(bool show) override;
 
     virtual void SetForeground() override;
@@ -81,7 +84,10 @@ class XcbWindow : public decode::Window
   private:
     void SetFullscreen(bool fullscreen);
 
-    xcb_atom_t GetAtom(const char* name, uint8_t only_if_exists) const;
+    xcb_intern_atom_cookie_t
+    SendAtomRequest(xcb_connection_t* connection, const char* name, uint8_t only_if_exists) const;
+
+    xcb_atom_t GetAtomReply(xcb_connection_t* connection, const char* name, xcb_intern_atom_cookie_t cookie) const;
 
     void InitializeAtoms();
 

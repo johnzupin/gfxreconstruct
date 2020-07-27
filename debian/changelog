@@ -1,3 +1,81 @@
+gfxreconstruct (0.9.1+45-1lunarg20.04-1) focal; urgency=medium
+
+  [ John Zupin ]
+  * patch as bionic version
+
+  [ Dustin Graves ]
+  * Ensure surfaces are destroyed on replay exit
+  * Update main README for usage doc changes
+  * Set version to 0.9.2
+  * Add missing meta-data types to gfxrecon-compress
+  * Send all Xcb atom requests together
+
+  [ Christophe ]
+  * Fix interaction with vkconfig
+
+  [ KarenGhavam-lunarG ]
+  * Add new LunarG logo to usage docs
+
+  [ Dror Smolarsky ]
+  * Add C++ lint  (using clang-tidy) build directives
+  * Add clang-tidy config file
+  * Add license comments to various CMakeLists files.
+  * Add newline at end of framework/util/CMakeLists.txt
+
+  [ Dustin Graves ]
+  * Update versioning for tag checkouts
+  * Add third party license file
+  * Initial GitHub workflows
+  * Add refspec option for code style check
+  * Enable code style check for CI builds
+  * Fix display message decode
+  * Replay memory allocator changes to aid debugging
+  * Add error logging for compress/decompress
+  * Add option to disable abort() message box
+  * Add -h option to command line utilities
+
+  [ Mike Schuchardt ]
+  * Update header to 1.2.146
+  * Refine vk.xml array length processing
+
+  [ xooi ]
+  * replay: add resource tracking consumer class
+  * replay: add resource tracking consumer base class
+  * replay: memory portability first pass implementation
+  * replay: update offsets calculation and 2nd pass replay
+  * gfxrec-replay: fix resource data tracking and updates
+  * replay: add get resources memory requirement calls
+  * replay: add --enable-mutipass-replay-portabolity|--emrp
+  * replay: fix utility function pointer reference
+  * replay: update binding offset calculation for 2 pass replay
+  * replay: update --emrp argument option usage
+
+  [ Dustin Graves ]
+  * Remove resource tracking code gen
+  * Add handle IDs to resource allocator create calls
+  * Add const to tracked object info get methods
+  * Add custom allocator for binding adjustment
+  * Handle allocations with no bindings for realign
+
+  [ John Zupin ]
+  * copyright: updated for release
+
+  [ Dustin Graves ]
+  * Add constant for null handle IDs
+  * Add missing license text
+  * Add bind2 support to realign allocator
+  * Add flush/invalidate realign support
+  * Use pretransform with Android screen orientation
+  * Add settings file sample and documentation
+  * Update header to 1.2.148
+
+  [ John Zupin ]
+  * copyright: updated for lunarg debian files
+  * patch: gfxrcon-toascii updated for 148 package
+  * patch: updated to patch focal to version
+
+ -- John Zupin <john@odin>  Mon, 27 Jul 2020 17:38:53 -0600
+
 gfxreconstruct (0.9.0+19-0ubuntu18.04) bionic; urgency=medium
 
   [ David Pinedo ]

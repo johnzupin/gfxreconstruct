@@ -11,7 +11,8 @@ Build-Depends: debhelper (>= 10),
  libwayland-dev,
  libxrandr-dev,
  liblz4-dev,
- libzstd-dev
+ libzstd-dev,
+ zlib1g-dev
 Standards-Version: 4.1.2
 Homepage: https://github.com/LunarG/gfxreconstruct
 Vcs-Git: https://github.com/LunarG/gfxreconstruct

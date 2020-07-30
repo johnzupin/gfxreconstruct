@@ -1,3 +1,10 @@
+gfxreconstruct (0.9.1+45-1ubuntu20.04-3) focal; urgency=medium
+
+  * control: add zlib compression lib to build env
+  * rules: build type is now RelWithDebInfo
+
+ -- John Zupin <john@odin>  Wed, 29 Jul 2020 18:27:40 -0600
+
 gfxreconstruct (0.9.1+45-1lunarg20.04-2) focal; urgency=medium
 
   * UNRELEASED

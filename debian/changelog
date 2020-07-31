@@ -1,3 +1,15 @@
+gfxreconstruct (0.9.1+45-1ubuntu18.04-4) bionic; urgency=medium
+
+  [ Dustin Graves ]
+  * Fix invalid block id from compression convert
+  * Fix resize2 block size
+  * Update required package list from BUILD.md
+
+  [ John Zupin ]
+  * debian: remove README.Debian
+
+ -- John Zupin <john@odin>  Fri, 31 Jul 2020 17:28:10 -0600
+
 gfxreconstruct (0.9.1+45-1ubuntu18.04-3) bionic; urgency=medium
 
   * control: add zlib compression lib to build env

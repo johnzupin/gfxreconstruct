@@ -44,6 +44,8 @@ target_sources(gfxrecon_decode
                     ${CMAKE_CURRENT_LIST_DIR}/pointer_decoder.h
                     ${CMAKE_CURRENT_LIST_DIR}/portability.h
                     ${CMAKE_CURRENT_LIST_DIR}/portability.cpp
+                    ${CMAKE_CURRENT_LIST_DIR}/referenced_resource_table.h
+                    ${CMAKE_CURRENT_LIST_DIR}/referenced_resource_table.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/resource_util.h
                     ${CMAKE_CURRENT_LIST_DIR}/resource_util.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/string_array_decoder.h
@@ -66,6 +68,8 @@ target_sources(gfxrecon_decode
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_realign_allocator.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_rebind_allocator.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_rebind_allocator.cpp
+                    ${CMAKE_CURRENT_LIST_DIR}/vulkan_referenced_resource_consumer_base.h
+                    ${CMAKE_CURRENT_LIST_DIR}/vulkan_referenced_resource_consumer_base.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_remap_allocator.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_remap_allocator.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_replay_consumer_base.h
@@ -86,6 +90,8 @@ target_sources(gfxrecon_decode
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_consumer.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_decoder.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_decoder.cpp
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_referenced_resource_consumer.h
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_referenced_resource_consumer.cpp
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_replay_consumer.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_replay_consumer.cpp
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_struct_decoders_forward.h

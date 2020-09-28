@@ -34,7 +34,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" "${CMAKE_SOURCE_DIR}/external/
 # Version info
 set(GFXRECONSTRUCT_PROJECT_VERSION_MAJOR 0)
 set(GFXRECONSTRUCT_PROJECT_VERSION_MINOR 9)
-set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 2)
+set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 3)
 
 set(GFXRECON_PROJECT_VERSION_DESIGNATION "-unknown")
 set(GFXRECON_PROJECT_VERSION_SHA1 "unknown-build-source")
@@ -85,8 +85,8 @@ configure_file("${CMAKE_SOURCE_DIR}/project_version.h.in" "${CMAKE_BINARY_DIR}/p
 
 # Code checks
 include("CodeStyle")
-include("Test")
 include("Lint")
+include("Test")
 include("FindVulkanVersion")
 
 # Apply misc build directives to the given target

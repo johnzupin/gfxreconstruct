@@ -22,6 +22,8 @@
 #include "util/compressor.h"
 #include "util/defines.h"
 
+#include <string>
+
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(format)
 
@@ -66,11 +68,20 @@ inline BlockType RemoveCompressedBlockBit(BlockType type)
     return static_cast<BlockType>(type & ~kCompressedBlockTypeBit);
 }
 
+// Utilities for file encoding.
+template <typename T>
+uint64_t GetMetaDataBlockBaseSize(const T& block)
+{
+    return (sizeof(block) - sizeof(block.meta_header.block_header));
+}
+
 // Utilities for format validation.
 bool ValidateFileHeader(const FileHeader& header);
 
 // Utilities for object creation.
 util::Compressor* CreateCompressor(CompressionType type);
+
+std::string GetCompressionTypeName(CompressionType type);
 
 GFXRECON_END_NAMESPACE(format)
 GFXRECON_END_NAMESPACE(gfxrecon)

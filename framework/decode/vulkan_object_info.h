@@ -150,7 +150,6 @@ struct VulkanObjectInfo
 // Declarations for Vulkan objects without additional replay state info.
 //
 
-typedef VulkanObjectInfo<VkSemaphore>                     SemaphoreInfo;
 typedef VulkanObjectInfo<VkCommandBuffer>                 CommandBufferInfo;
 typedef VulkanObjectInfo<VkFence>                         FenceInfo;
 typedef VulkanObjectInfo<VkEvent>                         EventInfo;
@@ -193,9 +192,9 @@ struct InstanceInfo : public VulkanObjectInfo<VkInstance>
 
     std::unordered_map<VkPhysicalDevice, ReplayDeviceInfo> replay_device_info;
 
-    // Ensure swapchains and surfaces are cleaned up on exit to avoid issues encountered when calling xcb_disconnect
-    // with active xcb surfaces.
-    std::unordered_set<VkSurfaceKHR> active_surfaces;
+    // Ensure surfaces are cleaned up on exit to avoid issues encountered when calling xcb_disconnect with active xcb
+    // surfaces.
+    std::unordered_set<format::HandleId> active_surfaces;
 };
 
 struct PhysicalDeviceInfo : public VulkanObjectInfo<VkPhysicalDevice>
@@ -229,14 +228,19 @@ struct DeviceInfo : public VulkanObjectInfo<VkDevice>
     std::vector<std::string>                   extensions;
     std::unique_ptr<VulkanResourceInitializer> resource_initializer;
 
-    // Ensure swapchains and surfaces are cleaned up on exit to avoid issues encountered when calling xcb_disconnect
-    // with active xcb surfaces.
-    std::unordered_set<VkSwapchainKHR> active_swapchains;
+    // Ensure swapchains are cleaned up on exit to avoid issues encountered when calling xcb_disconnect with active xcb
+    // surfaces.
+    std::unordered_set<format::HandleId> active_swapchains;
 };
 
 struct QueueInfo : public VulkanObjectInfo<VkQueue>
 {
     std::unordered_map<uint32_t, size_t> array_counts;
+};
+
+struct SemaphoreInfo : public VulkanObjectInfo<VkSemaphore>
+{
+    bool is_external{ false };
 };
 
 struct DeviceMemoryInfo : public VulkanObjectInfo<VkDeviceMemory>

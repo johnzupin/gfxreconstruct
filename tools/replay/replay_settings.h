@@ -54,10 +54,12 @@ const char kOmitPipelineCacheDataLongOption[]  = "--omit-pipeline-cache-data";
 const char kWsiArgument[]                      = "--wsi";
 const char kMemoryPortabilityShortOption[]     = "-m";
 const char kMemoryPortabilityLongOption[]      = "--memory-translation";
+const char kSyncShortOption[]                  = "-s";
+const char kSyncLongOption[]                   = "--sync";
 const char kShaderReplaceArgument[]            = "--replace-shaders";
 
-const char kOptions[] = "-h|--help,--version,--no-debug-popup,--paused,--sfa|--skip-failed-allocations,--opcd|--omit-"
-                        "pipeline-cache-data";
+const char kOptions[] = "-h|--help,--version,--no-debug-popup,--paused,-s|--sync,--sfa|--skip-failed-allocations,--"
+                        "opcd|--omit-pipeline-cache-data";
 const char kArguments[] = "--gpu,--pause-frame,--wsi,-m|--memory-translation,--replace-shaders";
 
 enum class WsiPlatform
@@ -88,15 +90,37 @@ static void ProcessDisableDebugPopup(const gfxrecon::util::ArgumentParser& arg_p
 #endif
 }
 
-static void CheckActiveLayers(const char* env_var)
+static void CheckActiveLayers(const std::string& list)
 {
-    std::string result = gfxrecon::util::platform::GetEnv(env_var);
-
-    if (!result.empty())
+    if (!list.empty())
     {
-        if (result.find(kCaptureLayer) != std::string::npos)
+        // Check for the presence of the layer name in the list of active layers.
+        size_t start = list.find(kCaptureLayer);
+
+        if (start != std::string::npos)
         {
-            GFXRECON_LOG_WARNING("Replay tool has detected that the capture layer is enabled");
+            size_t end         = start + gfxrecon::util::platform::StringLength(kCaptureLayer);
+            bool   match_start = false;
+            bool   match_end   = false;
+
+            // For an exact match, the start of the layer name is either at the start of the list or comes after a path
+            // separator.
+            if ((start == 0) || ((list[start - 1] == ';') || (list[start - 1] == ':')))
+            {
+                match_start = true;
+            }
+
+            // For an exact match, the end of the layer name is either at the end of the list or comes before a path
+            // separator.
+            if ((list.length() == end) || ((list[end] == ';') || (list[end] == ':')))
+            {
+                match_end = true;
+            }
+
+            if (match_start && match_end)
+            {
+                GFXRECON_LOG_WARNING("Replay tool has detected that the capture layer is enabled");
+            }
         }
     }
 }
@@ -280,6 +304,11 @@ GetReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parser,
         replay_options.override_gpu_index = std::stoi(override_gpu);
     }
 
+    if (arg_parser.IsOptionSet(kSyncLongOption) || arg_parser.IsOptionSet(kSyncShortOption))
+    {
+        replay_options.sync_queue_submissions = true;
+    }
+
     if (arg_parser.IsOptionSet(kSkipFailedAllocationLongOption) ||
         arg_parser.IsOptionSet(kSkipFailedAllocationShortOption))
     {
@@ -337,14 +366,13 @@ static void PrintUsage(const char* exe_name)
     GFXRECON_WRITE_CONSOLE("\n%s - A tool to replay GFXReconstruct capture files.\n", app_name.c_str());
     GFXRECON_WRITE_CONSOLE("Usage:");
     GFXRECON_WRITE_CONSOLE("  %s\t[-h | --help] [--version] [--gpu <index>]", app_name.c_str());
-    GFXRECON_WRITE_CONSOLE("\t\t\t[--pause-frame <N>] [--paused]");
+    GFXRECON_WRITE_CONSOLE("\t\t\t[--pause-frame <N>] [--paused] [-s | --sync]");
     GFXRECON_WRITE_CONSOLE("\t\t\t[--sfa | --skip-failed-allocations] [--replace-shaders <dir>]");
     GFXRECON_WRITE_CONSOLE("\t\t\t[--opcd | --omit-pipeline-cache-data] [--wsi <platform>]");
 #if defined(WIN32) && defined(_DEBUG)
     GFXRECON_WRITE_CONSOLE("\t\t\t[--no-debug-popup]");
 #endif
-    GFXRECON_WRITE_CONSOLE("\t\t\t[-m <mode> | --memory-translation <mode>]");
-    GFXRECON_WRITE_CONSOLE("\t\t\t[--emrp | --enable-multipass-replay-portability] <file>\n");
+    GFXRECON_WRITE_CONSOLE("\t\t\t[-m <mode> | --memory-translation <mode>] <file>\n");
     GFXRECON_WRITE_CONSOLE("Required arguments:");
     GFXRECON_WRITE_CONSOLE("  <file>\t\tPath to the capture file to replay.");
     GFXRECON_WRITE_CONSOLE("\nOptional arguments:");
@@ -373,6 +401,8 @@ static void PrintUsage(const char* exe_name)
     GFXRECON_WRITE_CONSOLE("  --no-debug-popup\tDisable the 'Abort, Retry, Ignore' message box");
     GFXRECON_WRITE_CONSOLE("       \t\t\tdisplayed when abort() is called (Windows debug only).");
 #endif
+    GFXRECON_WRITE_CONSOLE("  -s\t\t\tSynchronize after each queue submission with vkQueueWaitIdle");
+    GFXRECON_WRITE_CONSOLE("    \t\t\t(same as --sync).");
     GFXRECON_WRITE_CONSOLE("  -m <mode>\t\tEnable memory translation for replay on GPUs with memory");
     GFXRECON_WRITE_CONSOLE("          \t\ttypes that are not compatible with the capture GPU's");
     GFXRECON_WRITE_CONSOLE("          \t\tmemory types.  Available modes are:");

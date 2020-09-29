@@ -1,3 +1,49 @@
+gfxreconstruct (0.9.2+30-1lunarg18.04-1) bionic; urgency=medium
+
+  [ Dustin Graves ]
+  * Set version to 0.9.3
+  * Update compress convert option handling
+  * Add compression format to gfxrecon-info
+  * Add meta-data block size utility func
+  * Ignore wait operations for imported semaphores
+  * Add replay option to sync queue submissions
+  * Update usage documentation for CLI arg changes
+
+  [ Dror Smolarsky ]
+  * Changes to the build output directories
+  * Remove test package generation directory overlap
+
+  [ Mike Schuchardt ]
+  * Try more names when dlopen-ing windowing libs
+
+  [ Dustin Graves ]
+  * Revert "Remove test package generation directory overlap"
+  * Revert "Changes to the build output directories"
+  * Refine replay layer check
+
+  [ Dror Smolarsky ]
+  * Changes to the build output directories
+  * Change code style directive from macro to function
+
+  [ Dustin Graves ]
+  * Add build/install dir options to build.py
+  * Update build.py 32-bit support
+  * Update replay surface management
+  * Track replay surfaces/swapchains with IDs
+  * Fix file processor error reporting
+  * Add buffer/image usage tracker for trimmed files
+  * Add generator for resource reference consumer
+  * Add trimmed gfxr file optimizer
+  * Initial support for descriptor copies
+  * Handle consecutive descriptor binding copies
+  * Improve descriptor update template handling
+  * Stop optimizer when state block not present
+  * Update header to 1.2.154
+  * Remove alternate --sync option
+  * Add file conversion utility to decoder framework
+
+ -- John Zupin <john@odin>  Mon, 28 Sep 2020 18:09:01 -0600
+
 gfxreconstruct (0.9.1+45-1ubuntu18.04-4) bionic; urgency=medium
 
   [ Dustin Graves ]

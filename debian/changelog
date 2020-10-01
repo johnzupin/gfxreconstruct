@@ -1,3 +1,19 @@
+gfxreconstruct (0.9.2+30-1lunarg18.04-2) bionic; urgency=medium
+
+  [ Dustin Graves ]
+  * Initial screenshot support
+  * Add replay options for screenshots
+
+  [ John Zupin ]
+  * packaging: update section in control file
+  * packaging: don't install gfxrecon-optimize
+
+  [ Dustin Graves ]
+  * Initial screenshot support
+  * Add replay options for screenshots
+
+ -- John Zupin <john@odin>  Thu, 01 Oct 2020 17:21:17 -0600
+
 gfxreconstruct (0.9.2+30-1lunarg18.04-1) bionic; urgency=medium
 
   [ Dustin Graves ]

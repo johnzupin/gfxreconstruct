@@ -1,3 +1,19 @@
+gfxreconstruct (0.9.2+30-1lunarg20.04-2) focal; urgency=medium
+
+  [ Dustin Graves ]
+  * Initial screenshot support
+  * Add replay options for screenshots
+
+  [ John Zupin ]
+  * packaging: update section in control file
+  * package: don't install gfxrecon-optimize
+
+  [ Dustin Graves ]
+  * Initial screenshot support
+  * Add replay options for screenshots
+
+ -- John Zupin <john@odin>  Thu, 01 Oct 2020 17:23:01 -0600
+
 gfxreconstruct (0.9.2+30-1lunarg20.04-1) focal; urgency=medium
 
   [ Dustin Graves ]

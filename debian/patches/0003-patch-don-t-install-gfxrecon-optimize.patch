@@ -1,0 +1,18 @@
+From: John Zupin <johnz@lunarg.com>
+Date: Thu, 1 Oct 2020 17:11:52 -0600
+Subject: patch: don't install gfxrecon-optimize
+
+---
+ tools/optimize/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/optimize/CMakeLists.txt b/tools/optimize/CMakeLists.txt
+index ef028bc..55a6646 100644
+--- a/tools/optimize/CMakeLists.txt
++++ b/tools/optimize/CMakeLists.txt
+@@ -34,4 +34,4 @@ target_link_libraries(gfxrecon-optimize gfxrecon_decode gfxrecon_format gfxrecon
+ 
+ common_build_directives(gfxrecon-optimize)
+ 
+-install(TARGETS gfxrecon-optimize RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
++#install(TARGETS gfxrecon-optimize RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

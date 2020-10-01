@@ -1,2 +1,3 @@
 0001-patch-disable-gfxreon-toascii-as-an-install-target.patch
 0002-patch-as-focal-version.patch
+0003-patch-don-t-install-gfxrecon-optimize.patch

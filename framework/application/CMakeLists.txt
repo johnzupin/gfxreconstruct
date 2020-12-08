@@ -30,6 +30,10 @@ target_sources(gfxrecon_application
                     $<$<BOOL:${XCB_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/xcb_window.h>
                     $<$<BOOL:${XCB_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/xcb_application.cpp>
                     $<$<BOOL:${XCB_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/xcb_window.cpp>
+                    $<$<BOOL:${X11_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/xlib_application.h>
+                    $<$<BOOL:${X11_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/xlib_window.h>
+                    $<$<BOOL:${X11_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/xlib_application.cpp>
+                    $<$<BOOL:${X11_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/xlib_window.cpp>
                     $<$<BOOL:${WAYLAND_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/wayland_application.h>
                     $<$<BOOL:${WAYLAND_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/wayland_window.h>
                     $<$<BOOL:${WAYLAND_FOUND}>:${CMAKE_CURRENT_LIST_DIR}/wayland_application.cpp>
@@ -58,6 +62,7 @@ if (${RUN_TESTS})
     add_executable(gfxrecon_application_test "")
     target_sources(gfxrecon_application_test PRIVATE
             ${CMAKE_CURRENT_LIST_DIR}/test/main.cpp)
+    target_link_libraries(gfxrecon_application_test PRIVATE gfxrecon_application)
     common_build_directives(gfxrecon_application_test)
     common_test_directives(gfxrecon_application_test)
 endif()

@@ -1,6 +1,6 @@
 /*
-** Copyright (c) 2018-2019 Valve Corporation
-** Copyright (c) 2018-2019 LunarG, Inc.
+** Copyright (c) 2018-2020 Valve Corporation
+** Copyright (c) 2018-2020 LunarG, Inc.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@
 #include "decode/vulkan_object_info.h"
 #include "format/format.h"
 #include "util/defines.h"
-#include "util/logging.h"
 
 #include "vulkan/vulkan.h"
 
 #include <cassert>
+#include <functional>
 #include <unordered_map>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
@@ -66,7 +66,6 @@ class VulkanObjectInfoTable
     void AddSwapchainKHRInfo(SwapchainKHRInfo&& info)                                   { AddObjectInfo(std::move(info), &swapchain_khr_map_); }
     void AddDisplayKHRInfo(DisplayKHRInfo&& info)                                       { AddObjectInfo(std::move(info), &display_khr_map_); }
     void AddDisplayModeKHRInfo(DisplayModeKHRInfo&& info)                               { AddObjectInfo(std::move(info), &display_mode_khr_map_); }
-    void AddSamplerYcbcrConversionKHRInfo(SamplerYcbcrConversionKHRInfo&& info)         { AddObjectInfo(std::move(info), &sampler_ycbcr_conversion_khr_map_); }
     void AddDebugReportCallbackEXTInfo(DebugReportCallbackEXTInfo&& info)               { AddObjectInfo(std::move(info), &debug_report_callback_ext_map_); }
     void AddIndirectCommandsLayoutNVInfo(IndirectCommandsLayoutNVInfo&& info)           { AddObjectInfo(std::move(info), &indirect_commands_layout_nv_map_); }
     void AddDebugUtilsMessengerEXTInfo(DebugUtilsMessengerEXTInfo&& info)               { AddObjectInfo(std::move(info), &debug_utils_messenger_ext_map_); }
@@ -76,6 +75,47 @@ class VulkanObjectInfoTable
     void AddPerformanceConfigurationINTELInfo(PerformanceConfigurationINTELInfo&& info) { AddObjectInfo(std::move(info), &performance_configuration_intel_map_); }
     void AddDeferredOperationKHRInfo(DeferredOperationKHRInfo&& info)                   { AddObjectInfo(std::move(info), &deferred_operation_khr_map_); }
     void AddPrivateDataSlotEXTInfo(PrivateDataSlotEXTInfo&& info)                       { AddObjectInfo(std::move(info), &private_data_slot_ext_map_); }
+
+    void RemoveInstanceInfo(format::HandleId id)                      { instance_map_.erase(id); }
+    void RemovePhysicalDeviceInfo(format::HandleId id)                { physical_device_map_.erase(id); }
+    void RemoveDeviceInfo(format::HandleId id)                        { device_map_.erase(id); }
+    void RemoveQueueInfo(format::HandleId id)                         { queue_map_.erase(id); }
+    void RemoveSemaphoreInfo(format::HandleId id)                     { semaphore_map_.erase(id); }
+    void RemoveCommandBufferInfo(format::HandleId id)                 { command_buffer_map_.erase(id); }
+    void RemoveFenceInfo(format::HandleId id)                         { fence_map_.erase(id); }
+    void RemoveDeviceMemoryInfo(format::HandleId id)                  { device_memory_map_.erase(id); }
+    void RemoveBufferInfo(format::HandleId id)                        { buffer_map_.erase(id); }
+    void RemoveImageInfo(format::HandleId id)                         { image_map_.erase(id); }
+    void RemoveEventInfo(format::HandleId id)                         { event_map_.erase(id); }
+    void RemoveQueryPoolInfo(format::HandleId id)                     { query_pool_map_.erase(id); }
+    void RemoveBufferViewInfo(format::HandleId id)                    { buffer_view_map_.erase(id); }
+    void RemoveImageViewInfo(format::HandleId id)                     { image_view_map_.erase(id); }
+    void RemoveShaderModuleInfo(format::HandleId id)                  { shader_module_map_.erase(id); }
+    void RemovePipelineCacheInfo(format::HandleId id)                 { pipeline_cache_map_.erase(id); }
+    void RemovePipelineLayoutInfo(format::HandleId id)                { pipeline_layout_map_.erase(id); }
+    void RemoveRenderPassInfo(format::HandleId id)                    { render_pass_map_.erase(id); }
+    void RemovePipelineInfo(format::HandleId id)                      { pipeline_map_.erase(id); }
+    void RemoveDescriptorSetLayoutInfo(format::HandleId id)           { descriptor_set_layout_map_.erase(id); }
+    void RemoveSamplerInfo(format::HandleId id)                       { sampler_map_.erase(id); }
+    void RemoveDescriptorPoolInfo(format::HandleId id)                { descriptor_pool_map_.erase(id); }
+    void RemoveDescriptorSetInfo(format::HandleId id)                 { descriptor_set_map_.erase(id); }
+    void RemoveFramebufferInfo(format::HandleId id)                   { framebuffer_map_.erase(id); }
+    void RemoveCommandPoolInfo(format::HandleId id)                   { command_pool_map_.erase(id); }
+    void RemoveSamplerYcbcrConversionInfo(format::HandleId id)        { sampler_ycbcr_conversion_map_.erase(id); }
+    void RemoveDescriptorUpdateTemplateInfo(format::HandleId id)      { descriptor_update_template_map_.erase(id); }
+    void RemoveSurfaceKHRInfo(format::HandleId id)                    { surface_khr_map_.erase(id); }
+    void RemoveSwapchainKHRInfo(format::HandleId id)                  { swapchain_khr_map_.erase(id); }
+    void RemoveDisplayKHRInfo(format::HandleId id)                    { display_khr_map_.erase(id); }
+    void RemoveDisplayModeKHRInfo(format::HandleId id)                { display_mode_khr_map_.erase(id); }
+    void RemoveDebugReportCallbackEXTInfo(format::HandleId id)        { debug_report_callback_ext_map_.erase(id); }
+    void RemoveIndirectCommandsLayoutNVInfo(format::HandleId id)      { indirect_commands_layout_nv_map_.erase(id); }
+    void RemoveDebugUtilsMessengerEXTInfo(format::HandleId id)        { debug_utils_messenger_ext_map_.erase(id); }
+    void RemoveValidationCacheEXTInfo(format::HandleId id)            { validation_cache_ext_map_.erase(id); }
+    void RemoveAccelerationStructureKHRInfo(format::HandleId id)      { acceleration_structure_khr_map_.erase(id); }
+    void RemoveAccelerationStructureNVInfo(format::HandleId id)       { acceleration_structure_nv_map_.erase(id); }
+    void RemovePerformanceConfigurationINTELInfo(format::HandleId id) { performance_configuration_intel_map_.erase(id); }
+    void RemoveDeferredOperationKHRInfo(format::HandleId id)          { deferred_operation_khr_map_.erase(id); }
+    void RemovePrivateDataSlotEXTInfo(format::HandleId id)            { private_data_slot_ext_map_.erase(id); }
 
     const InstanceInfo*                      GetInstanceInfo(format::HandleId id) const                       { return GetObjectInfo<InstanceInfo>(id, &instance_map_); }
     const PhysicalDeviceInfo*                GetPhysicalDeviceInfo(format::HandleId id) const                 { return GetObjectInfo<PhysicalDeviceInfo>(id, &physical_device_map_); }
@@ -108,7 +148,6 @@ class VulkanObjectInfoTable
     const SwapchainKHRInfo*                  GetSwapchainKHRInfo(format::HandleId id) const                   { return GetObjectInfo<SwapchainKHRInfo>(id, &swapchain_khr_map_); }
     const DisplayKHRInfo*                    GetDisplayKHRInfo(format::HandleId id) const                     { return GetObjectInfo<DisplayKHRInfo>(id, &display_khr_map_); }
     const DisplayModeKHRInfo*                GetDisplayModeKHRInfo(format::HandleId id) const                 { return GetObjectInfo<DisplayModeKHRInfo>(id, &display_mode_khr_map_); }
-    const SamplerYcbcrConversionKHRInfo*     GetSamplerYcbcrConversionKHRInfo(format::HandleId id) const      { return GetObjectInfo<SamplerYcbcrConversionKHRInfo>(id, &sampler_ycbcr_conversion_khr_map_); }
     const DebugReportCallbackEXTInfo*        GetDebugReportCallbackEXTInfo(format::HandleId id) const         { return GetObjectInfo<DebugReportCallbackEXTInfo>(id, &debug_report_callback_ext_map_); }
     const IndirectCommandsLayoutNVInfo*      GetIndirectCommandsLayoutNVInfo(format::HandleId id) const       { return GetObjectInfo<IndirectCommandsLayoutNVInfo>(id, &indirect_commands_layout_nv_map_); }
     const DebugUtilsMessengerEXTInfo*        GetDebugUtilsMessengerEXTInfo(format::HandleId id) const         { return GetObjectInfo<DebugUtilsMessengerEXTInfo>(id, &debug_utils_messenger_ext_map_); }
@@ -150,7 +189,6 @@ class VulkanObjectInfoTable
     SwapchainKHRInfo*                  GetSwapchainKHRInfo(format::HandleId id)                   { return GetObjectInfo<SwapchainKHRInfo>(id, &swapchain_khr_map_); }
     DisplayKHRInfo*                    GetDisplayKHRInfo(format::HandleId id)                     { return GetObjectInfo<DisplayKHRInfo>(id, &display_khr_map_); }
     DisplayModeKHRInfo*                GetDisplayModeKHRInfo(format::HandleId id)                 { return GetObjectInfo<DisplayModeKHRInfo>(id, &display_mode_khr_map_); }
-    SamplerYcbcrConversionKHRInfo*     GetSamplerYcbcrConversionKHRInfo(format::HandleId id)      { return GetObjectInfo<SamplerYcbcrConversionKHRInfo>(id, &sampler_ycbcr_conversion_khr_map_); }
     DebugReportCallbackEXTInfo*        GetDebugReportCallbackEXTInfo(format::HandleId id)         { return GetObjectInfo<DebugReportCallbackEXTInfo>(id, &debug_report_callback_ext_map_); }
     IndirectCommandsLayoutNVInfo*      GetIndirectCommandsLayoutNVInfo(format::HandleId id)       { return GetObjectInfo<IndirectCommandsLayoutNVInfo>(id, &indirect_commands_layout_nv_map_); }
     DebugUtilsMessengerEXTInfo*        GetDebugUtilsMessengerEXTInfo(format::HandleId id)         { return GetObjectInfo<DebugUtilsMessengerEXTInfo>(id, &debug_utils_messenger_ext_map_); }
@@ -160,6 +198,47 @@ class VulkanObjectInfoTable
     PerformanceConfigurationINTELInfo* GetPerformanceConfigurationINTELInfo(format::HandleId id)  { return GetObjectInfo<PerformanceConfigurationINTELInfo>(id, &performance_configuration_intel_map_); }
     DeferredOperationKHRInfo*          GetDeferredOperationKHRInfo(format::HandleId id)           { return GetObjectInfo<DeferredOperationKHRInfo>(id, &deferred_operation_khr_map_); }
     PrivateDataSlotEXTInfo*            GetPrivateDataSlotEXTInfo(format::HandleId id)             { return GetObjectInfo<PrivateDataSlotEXTInfo>(id, &private_data_slot_ext_map_); }
+
+    void VisitInstanceInfo(std::function<void(const InstanceInfo*)> visitor) const                                           { for (const auto& entry : instance_map_) { visitor(&entry.second); } }
+    void VisitPhysicalDeviceInfo(std::function<void(const PhysicalDeviceInfo*)> visitor) const                               { for (const auto& entry : physical_device_map_) { visitor(&entry.second); } }
+    void VisitDeviceInfo(std::function<void(const DeviceInfo*)> visitor) const                                               { for (const auto& entry : device_map_) { visitor(&entry.second); } }
+    void VisitQueueInfo(std::function<void(const QueueInfo*)> visitor) const                                                 { for (const auto& entry : queue_map_) { visitor(&entry.second); } }
+    void VisitSemaphoreInfo(std::function<void(const SemaphoreInfo*)> visitor) const                                         { for (const auto& entry : semaphore_map_) { visitor(&entry.second); } }
+    void VisitCommandBufferInfo(std::function<void(const CommandBufferInfo*)> visitor) const                                 { for (const auto& entry : command_buffer_map_) { visitor(&entry.second); } }
+    void VisitFenceInfo(std::function<void(const FenceInfo*)> visitor) const                                                 { for (const auto& entry : fence_map_) { visitor(&entry.second); } }
+    void VisitDeviceMemoryInfo(std::function<void(const DeviceMemoryInfo*)> visitor) const                                   { for (const auto& entry : device_memory_map_) { visitor(&entry.second); } }
+    void VisitBufferInfo(std::function<void(const BufferInfo*)> visitor) const                                               { for (const auto& entry : buffer_map_) { visitor(&entry.second); } }
+    void VisitImageInfo(std::function<void(const ImageInfo*)> visitor) const                                                 { for (const auto& entry : image_map_) { visitor(&entry.second); } }
+    void VisitEventInfo(std::function<void(const EventInfo*)> visitor) const                                                 { for (const auto& entry : event_map_) { visitor(&entry.second); } }
+    void VisitQueryPoolInfo(std::function<void(const QueryPoolInfo*)> visitor) const                                         { for (const auto& entry : query_pool_map_) { visitor(&entry.second); } }
+    void VisitBufferViewInfo(std::function<void(const BufferViewInfo*)> visitor) const                                       { for (const auto& entry : buffer_view_map_) { visitor(&entry.second); } }
+    void VisitImageViewInfo(std::function<void(const ImageViewInfo*)> visitor) const                                         { for (const auto& entry : image_view_map_) { visitor(&entry.second); } }
+    void VisitShaderModuleInfo(std::function<void(const ShaderModuleInfo*)> visitor) const                                   { for (const auto& entry : shader_module_map_) { visitor(&entry.second); } }
+    void VisitPipelineCacheInfo(std::function<void(const PipelineCacheInfo*)> visitor) const                                 { for (const auto& entry : pipeline_cache_map_) { visitor(&entry.second); } }
+    void VisitPipelineLayoutInfo(std::function<void(const PipelineLayoutInfo*)> visitor) const                               { for (const auto& entry : pipeline_layout_map_) { visitor(&entry.second); } }
+    void VisitRenderPassInfo(std::function<void(const RenderPassInfo*)> visitor) const                                       { for (const auto& entry : render_pass_map_) { visitor(&entry.second); } }
+    void VisitPipelineInfo(std::function<void(const PipelineInfo*)> visitor) const                                           { for (const auto& entry : pipeline_map_) { visitor(&entry.second); } }
+    void VisitDescriptorSetLayoutInfo(std::function<void(const DescriptorSetLayoutInfo*)> visitor) const                     { for (const auto& entry : descriptor_set_layout_map_) { visitor(&entry.second); } }
+    void VisitSamplerInfo(std::function<void(const SamplerInfo*)> visitor) const                                             { for (const auto& entry : sampler_map_) { visitor(&entry.second); } }
+    void VisitDescriptorPoolInfo(std::function<void(const DescriptorPoolInfo*)> visitor) const                               { for (const auto& entry : descriptor_pool_map_) { visitor(&entry.second); } }
+    void VisitDescriptorSetInfo(std::function<void(const DescriptorSetInfo*)> visitor) const                                 { for (const auto& entry : descriptor_set_map_) { visitor(&entry.second); } }
+    void VisitFramebufferInfo(std::function<void(const FramebufferInfo*)> visitor) const                                     { for (const auto& entry : framebuffer_map_) { visitor(&entry.second); } }
+    void VisitCommandPoolInfo(std::function<void(const CommandPoolInfo*)> visitor) const                                     { for (const auto& entry : command_pool_map_) { visitor(&entry.second); } }
+    void VisitSamplerYcbcrConversionInfo(std::function<void(const SamplerYcbcrConversionInfo*)> visitor) const               { for (const auto& entry : sampler_ycbcr_conversion_map_) { visitor(&entry.second); } }
+    void VisitDescriptorUpdateTemplateInfo(std::function<void(const DescriptorUpdateTemplateInfo*)> visitor) const           { for (const auto& entry : descriptor_update_template_map_) { visitor(&entry.second); } }
+    void VisitSurfaceKHRInfo(std::function<void(const SurfaceKHRInfo*)> visitor) const                                       { for (const auto& entry : surface_khr_map_) { visitor(&entry.second); } }
+    void VisitSwapchainKHRInfo(std::function<void(const SwapchainKHRInfo*)> visitor) const                                   { for (const auto& entry : swapchain_khr_map_) { visitor(&entry.second); } }
+    void VisitDisplayKHRInfo(std::function<void(const DisplayKHRInfo*)> visitor) const                                       { for (const auto& entry : display_khr_map_) { visitor(&entry.second); } }
+    void VisitDisplayModeKHRInfo(std::function<void(const DisplayModeKHRInfo*)> visitor) const                               { for (const auto& entry : display_mode_khr_map_) { visitor(&entry.second); } }
+    void VisitDebugReportCallbackEXTInfo(std::function<void(const DebugReportCallbackEXTInfo*)> visitor) const               { for (const auto& entry : debug_report_callback_ext_map_) { visitor(&entry.second); } }
+    void VisitIndirectCommandsLayoutNVInfo(std::function<void(const IndirectCommandsLayoutNVInfo*)> visitor) const           { for (const auto& entry : indirect_commands_layout_nv_map_) { visitor(&entry.second); } }
+    void VisitDebugUtilsMessengerEXTInfo(std::function<void(const DebugUtilsMessengerEXTInfo*)> visitor) const               { for (const auto& entry : debug_utils_messenger_ext_map_) { visitor(&entry.second); } }
+    void VisitValidationCacheEXTInfo(std::function<void(const ValidationCacheEXTInfo*)> visitor) const                       { for (const auto& entry : validation_cache_ext_map_) { visitor(&entry.second); } }
+    void VisitAccelerationStructureKHRInfo(std::function<void(const AccelerationStructureKHRInfo*)> visitor) const           { for (const auto& entry : acceleration_structure_khr_map_) { visitor(&entry.second); } }
+    void VisitAccelerationStructureNVInfo(std::function<void(const AccelerationStructureNVInfo*)> visitor) const             { for (const auto& entry : acceleration_structure_nv_map_) { visitor(&entry.second); } }
+    void VisitPerformanceConfigurationINTELInfo(std::function<void(const PerformanceConfigurationINTELInfo*)> visitor) const { for (const auto& entry : performance_configuration_intel_map_) { visitor(&entry.second); } }
+    void VisitDeferredOperationKHRInfo(std::function<void(const DeferredOperationKHRInfo*)> visitor) const                   { for (const auto& entry : deferred_operation_khr_map_) { visitor(&entry.second); } }
+    void VisitPrivateDataSlotEXTInfo(std::function<void(const PrivateDataSlotEXTInfo*)> visitor) const                       { for (const auto& entry : private_data_slot_ext_map_) { visitor(&entry.second); } }
     // clang-format on
 
     void ReplaceSemaphore(VkSemaphore target, VkSemaphore replacement)
@@ -230,10 +309,6 @@ class VulkanObjectInfoTable
             {
                 object_info = &entry->second;
             }
-            else
-            {
-                GFXRECON_LOG_WARNING("Failed to map handle for object id %" PRIu64, id);
-            }
         }
 
         return object_info;
@@ -253,10 +328,6 @@ class VulkanObjectInfoTable
             if (entry != map->end())
             {
                 object_info = &entry->second;
-            }
-            else
-            {
-                GFXRECON_LOG_WARNING("Failed to map handle for object id %" PRIu64, id);
             }
         }
 
@@ -295,7 +366,6 @@ class VulkanObjectInfoTable
     std::unordered_map<format::HandleId, SwapchainKHRInfo>                  swapchain_khr_map_;
     std::unordered_map<format::HandleId, DisplayKHRInfo>                    display_khr_map_;
     std::unordered_map<format::HandleId, DisplayModeKHRInfo>                display_mode_khr_map_;
-    std::unordered_map<format::HandleId, SamplerYcbcrConversionKHRInfo>     sampler_ycbcr_conversion_khr_map_;
     std::unordered_map<format::HandleId, DebugReportCallbackEXTInfo>        debug_report_callback_ext_map_;
     std::unordered_map<format::HandleId, IndirectCommandsLayoutNVInfo>      indirect_commands_layout_nv_map_;
     std::unordered_map<format::HandleId, DebugUtilsMessengerEXTInfo>        debug_utils_messenger_ext_map_;

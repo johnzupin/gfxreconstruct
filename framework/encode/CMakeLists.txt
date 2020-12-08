@@ -40,6 +40,7 @@ target_sources(gfxrecon_encode
                     ${CMAKE_CURRENT_LIST_DIR}/trace_manager.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_handle_wrappers.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_handle_wrapper_util.h
+                    ${CMAKE_CURRENT_LIST_DIR}/vulkan_handle_wrapper_util.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_state_info.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_state_table.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_state_tracker.h
@@ -59,8 +60,8 @@ target_sources(gfxrecon_encode
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_struct_handle_wrappers.cpp
 )
 
-if (MSVC AND (MSVC_VERSION LESS 1910))
-    # This file fails to compile with VS2015, requiring the default section limit of 2^16 to be increased.
+if (MSVC AND (MSVC_VERSION LESS 1920))
+    # This file may fail to compile with VS2017 and older, requiring the default section limit of 2^16 to be increased.
     set_source_files_properties(${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_api_call_encoders.cpp PROPERTIES COMPILE_FLAGS /bigobj)
 endif()
 
@@ -77,6 +78,7 @@ if (${RUN_TESTS})
     add_executable(gfxrecon_encode_test "")
     target_sources(gfxrecon_encode_test PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/test/main.cpp)
+    target_link_libraries(gfxrecon_encode_test PRIVATE gfxrecon_encode)
     common_build_directives(gfxrecon_encode_test)
     common_test_directives(gfxrecon_encode_test)
 endif()

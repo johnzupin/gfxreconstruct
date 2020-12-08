@@ -30,6 +30,8 @@
 #include "util/platform.h"
 
 #include <android_native_app_glue.h>
+#include <android/log.h>
+#include <android/window.h>
 
 #include <cstdlib>
 #include <exception>
@@ -51,6 +53,9 @@ void        DestroyActivity(struct android_app* app);
 void android_main(struct android_app* app)
 {
     gfxrecon::util::Log::Init();
+
+    // Keep screen on while window is active.
+    ANativeActivity_setWindowFlags(app->activity, AWINDOW_FLAG_KEEP_SCREEN_ON, 0);
 
     std::string                    args = GetIntentExtra(app, kArgsExtentKey);
     gfxrecon::util::ArgumentParser arg_parser(false, args.c_str(), kOptions, kArguments);
@@ -107,7 +112,7 @@ void android_main(struct android_app* app)
                     gfxrecon::decode::VulkanTrackedObjectInfoTable tracked_object_info_table;
                     gfxrecon::decode::VulkanReplayConsumer         replay_consumer(
                         window_factory.get(), GetReplayOptions(arg_parser, filename, &tracked_object_info_table));
-                    gfxrecon::decode::VulkanDecoder        decoder;
+                    gfxrecon::decode::VulkanDecoder decoder;
 
                     replay_consumer.SetFatalErrorHandler(
                         [](const char* message) { throw std::runtime_error(message); });
@@ -144,6 +149,7 @@ void android_main(struct android_app* app)
     gfxrecon::util::Log::Release();
 
     DestroyActivity(app);
+    raise(SIGTERM);
 }
 
 // Retrieve the program argument string from the intent extras

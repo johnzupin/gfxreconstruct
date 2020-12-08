@@ -151,16 +151,25 @@ class VulkanStructHandleMappersBodyGenerator(BaseGenerator):
     # Performs C++ code generation for the feature.
     def generateFeature(self):
         for struct in self.getFilteredStructNames():
-            if struct in self.structsWithHandles:
-                members = self.structsWithHandles[struct]
+            if (struct in self.structsWithHandles) or (struct in self.GENERIC_HANDLE_STRUCTS):
+                handleMembers = dict()
+                genericHandleMembers = dict()
+
+                if struct in self.structsWithHandles:
+                    handleMembers = self.structsWithHandles[struct]
+                if struct in self.GENERIC_HANDLE_STRUCTS:
+                    genericHandleMembers = self.GENERIC_HANDLE_STRUCTS[struct]
 
                 # Determine if the struct only contains members that are structs that contain handles or static arrays of handles,
                 # and does not need a temporary variable referencing the struct value.
                 needsValuePtr = False
-                for member in members:
-                    if self.isHandle(member.baseType) and not (member.isArray and not member.isDynamic):
-                        needsValuePtr = True
-                        break
+                if genericHandleMembers:
+                    needsValuePtr = True
+                else:
+                    for member in handleMembers:
+                        if self.isHandle(member.baseType) and not (member.isArray and not member.isDynamic):
+                            needsValuePtr = True
+                            break
 
                 body = '\n'
                 body += 'void MapStructHandles(Decoded_{}* wrapper, const VulkanObjectInfoTable& object_info_table)\n'.format(struct)
@@ -174,7 +183,7 @@ class VulkanStructHandleMappersBodyGenerator(BaseGenerator):
                     body += '    {\n'
                     body += '        {}* value = wrapper->decoded_value;\n'.format(struct)
 
-                body += self.makeStructHandleMappings(struct, members)
+                body += self.makeStructHandleMappings(struct, handleMembers, genericHandleMembers)
                 body += '    }\n'
                 body += '}'
 
@@ -182,10 +191,10 @@ class VulkanStructHandleMappersBodyGenerator(BaseGenerator):
 
     #
     # Generating expressions for mapping struct handles read from the capture file to handles created at replay.
-    def makeStructHandleMappings(self, name, members):
+    def makeStructHandleMappings(self, name, handleMembers, genericHandleMembers):
         body = ''
 
-        for member in members:
+        for member in handleMembers:
             body += '\n'
 
             if 'pNext' in member.name:
@@ -211,12 +220,16 @@ class VulkanStructHandleMappersBodyGenerator(BaseGenerator):
                 else:
                     body += '        value->{name} = handle_mapping::MapHandle<{type}Info>(wrapper->{name}, object_info_table, &VulkanObjectInfoTable::Get{type}Info);\n'.format(type=member.baseType[2:], name=member.name)
 
+        for member in genericHandleMembers:
+            body += '\n'
+            body += '        value->{name} = handle_mapping::MapHandle(wrapper->{name}, value->{}, object_info_table);\n'.format(genericHandleMembers[member], name=member);
+
         return body
 
     #
     # Generating expressions for adding mappings for handles created at replay that are embedded in structs
     def makeStructHandleAdditions(self, name, members):
-        body = 'void AddStructHandles(const Decoded_{name}* id_wrapper, const {name}* handle_struct, VulkanObjectInfoTable* object_info_table)\n'.format(name=name)
+        body = 'void AddStructHandles(format::HandleId parent_id, const Decoded_{name}* id_wrapper, const {name}* handle_struct, VulkanObjectInfoTable* object_info_table)\n'.format(name=name)
         body +='{\n'
         body +='    if (id_wrapper != nullptr)\n'
         body +='    {\n'
@@ -226,25 +239,25 @@ class VulkanStructHandleMappersBodyGenerator(BaseGenerator):
             if 'pNext' in member.name:
                 body += '        if (id_wrapper->pNext)\n'
                 body += '        {\n'
-                body += '            AddPNextStructHandles(id_wrapper->pNext->GetPointer(), id_wrapper->pNext->GetMetaStructPointer(), handle_struct->pNext, object_info_table);\n'
+                body += '            AddPNextStructHandles(parent_id, id_wrapper->pNext->GetPointer(), id_wrapper->pNext->GetMetaStructPointer(), handle_struct->pNext, object_info_table);\n'
                 body += '        }\n'
             elif self.isStruct(member.baseType):
                 # This is a struct that includes handles.
                 if member.isArray:
-                    body += '        AddStructArrayHandles<Decoded_{}>(id_wrapper->{name}->GetMetaStructPointer(), id_wrapper->{name}->GetLength(), handle_struct->{name}, static_cast<size_t>(handle_struct->{length}), object_info_table);\n'.format(member.baseType, name=member.name, length=member.arrayLength)
+                    body += '        AddStructArrayHandles<Decoded_{}>(parent_id, id_wrapper->{name}->GetMetaStructPointer(), id_wrapper->{name}->GetLength(), handle_struct->{name}, static_cast<size_t>(handle_struct->{length}), object_info_table);\n'.format(member.baseType, name=member.name, length=member.arrayLength)
                 elif member.isPointer:
-                    body += '        AddStructArrayHandles<Decoded_{}>(id_wrapper->{name}->GetMetaStructPointer(), 1, handle_struct->{name}, 1, object_info_table);\n'.format(member.baseType, name=member.name)
+                    body += '        AddStructArrayHandles<Decoded_{}>(parent_id, id_wrapper->{name}->GetMetaStructPointer(), 1, handle_struct->{name}, 1, object_info_table);\n'.format(member.baseType, name=member.name)
                 else:
-                    body += '        AddStructHandles(id_wrapper->{name}.get(), &handle_struct->{name}, object_info_table);\n'.format(name=member.name)
+                    body += '        AddStructHandles(parent_id, id_wrapper->{name}.get(), &handle_struct->{name}, object_info_table);\n'.format(name=member.name)
             else:
                 # If it is an array or pointer, add with the utility function.
                 if (member.isArray or member.isPointer):
                     if member.isArray:
-                        body += '        handle_mapping::AddHandleArray<{type}Info>(id_wrapper->{name}.GetPointer(), id_wrapper->{name}.GetLength(), handle_struct->{name}, handle_struct->{length}, object_info_table, &VulkanObjectInfoTable::Add{type}Info);\n'.format(type=member.baseType[2:], name=member.name, length=member.arrayLength)
+                        body += '        handle_mapping::AddHandleArray<{type}Info>(parent_id, id_wrapper->{name}.GetPointer(), id_wrapper->{name}.GetLength(), handle_struct->{name}, handle_struct->{length}, object_info_table, &VulkanObjectInfoTable::Add{type}Info);\n'.format(type=member.baseType[2:], name=member.name, length=member.arrayLength)
                     else:
-                        body += '        handle_mapping::AddHandleArray<{type}Info>(id_wrapper->{name}.GetPointer(), 1, handle_struct->{name}, 1, object_info_table, &VulkanObjectInfoTable::Add{type}Info);\n'.format(type=member.baseType[2:], name=member.name)
+                        body += '        handle_mapping::AddHandleArray<{type}Info>(parent_id, id_wrapper->{name}.GetPointer(), 1, handle_struct->{name}, 1, object_info_table, &VulkanObjectInfoTable::Add{type}Info);\n'.format(type=member.baseType[2:], name=member.name)
                 else:
-                    body += '        handle_mapping::AddHandle<{type}Info>(id_wrapper->{name}, handle_struct->{name}, object_info_table, &VulkanObjectInfoTable::Add{type}Info);\n'.format(type=member.baseType[2:], name=member.name)
+                    body += '        handle_mapping::AddHandle<{type}Info>(parent_id, id_wrapper->{name}, handle_struct->{name}, object_info_table, &VulkanObjectInfoTable::Add{type}Info);\n'.format(type=member.baseType[2:], name=member.name)
 
         body += '    }\n'
         body += '}'

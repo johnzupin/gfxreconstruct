@@ -27,10 +27,11 @@ Vulkan API calls on Desktop systems.
     1. [Command Line Arguments](#command-line-arguments)
     2. [Keyboard Controls](#keyboard-controls)
 3. [Other Capture File Processing Tools](#other-capture-file-processing-tools)
-    1. [Capture File Compression](#capture-file-compression)
-    2. [Shader Extraction](#shader-extraction)
-    3. [Capture File Info](#capture-file-info)
-    4. [Command Launcher](#command-launcher)
+    1. [Capture File Info](#capture-file-info)
+    2. [Capture File Compression](#capture-file-compression)
+    3. [Shader Extraction](#shader-extraction)
+    4. [Trimmed File Optimizer](#trimmed-file-optimizer)
+    5. [Command Launcher](#command-launcher)
 
 ## Capturing API calls
 
@@ -328,12 +329,14 @@ arguments:
 
 ```text
 gfxrecon-replay         [-h | --help] [--version] [--gpu <index>]
-                        [--pause-frame <N>] [--paused] [--sync]
+                        [--pause-frame <N>] [--paused] [--sync] [--screenshot-all]
                         [--screenshots <N1(-N2),...>] [--screenshot-format <format>]
                         [--screenshot-dir <dir>] [--screenshot-prefix <file-prefix>]
                         [--sfa | --skip-failed-allocations] [--replace-shaders <dir>]
                         [--opcd | --omit-pipeline-cache-data] [--wsi <platform>]
-                        [-m <mode> | --memory-translation <mode>] <file>
+                        [--surface-index <N>] [--remove-unsupported]
+                        [-m <mode> | --memory-translation <mode>]
+                        <file>
 
 Required arguments:
   <file>                Path to the capture file to replay.
@@ -349,6 +352,9 @@ Optional arguments:
   --pause-frame <N>     Pause after replaying frame number N.
   --paused              Pause after replaying the first frame (same
                         as --pause-frame 1).
+  --screenshot-all
+                        Generate screenshots for all frames.  When this
+                        option is specified, --screenshots is ignored.
   --screenshots <N1[-N2][,...]>
                         Generate screenshots for the specified frames.
                         Target frames are specified as a comma separated
@@ -378,10 +384,17 @@ Optional arguments:
                         <handle_id> is the handle id of the CreateShaderModule call.
                         See gfxrecon-extract.
   --opcd                Omit pipeline cache data from calls to
-                        vkCreatePipelineCache (same as --omit-pipeline-cache-data).
+                        vkCreatePipelineCache and skip calls to
+                        vkGetPipelineCacheData (same as
+                        --omit-pipeline-cache-data).
   --wsi <platform>      Force replay to use the specified wsi platform.
-                        Available platforms are: auto,win32,xcb,wayland
+                        Available platforms are: auto,win32,xlib,xcb,wayland
+  --surface-index <N>   Restrict rendering to the Nth surface object created.
+                        Used with captures that include multiple surfaces.  Default
+                        is -1 (render to all surfaces).
   --sync                Synchronize after each queue submission with vkQueueWaitIdle.
+  --remove-unsupported  Remove unsupported extensions and features from instance
+                        and device creation parameters.
   -m <mode>             Enable memory translation for replay on GPUs with memory
                         types that are not compatible with the capture GPU's
                         memory types.  Available modes are:
@@ -412,6 +425,26 @@ Right arrow, n | Advance to the next frame when paused.
 
 ## Other Capture File Processing Tools
 
+### Capture File Info
+
+The `gfxrecon-info` tool prints statistics for a GFXReconstruct capture file, including
+information about the application,
+the physical device , device memory allocation, and device pipelines.
+
+```text
+gfxrecon-info - Print statistics for a GFXReconstruct capture file.
+
+Usage:
+  gfxrecon-info [-h | --help] [--version] <file>
+
+Required arguments:
+  <file>      The GFXReconstruct capture file to be processed.
+
+Optional arguments:
+  -h          Print usage information and exit (same as --help).
+  --version   Print version information and exit.
+```
+
 ### Capture File Compression
 
 The `gfxrecon-compress` tool compresses or decompresses GFXReconstruct
@@ -422,7 +455,7 @@ in a capture file.
 gfxrecon-compress - A tool to compress/decompress GFXReconstruct capture files.
 
 Usage:
-  gfxrecon-compress [--version] <input_file> <output_file> <compression_format>
+  gfxrecon-compress [-h | --help] [--version] <input_file> <output_file> <compression_format>
 
 Required arguments:
   <input_file>    Path to the input file to process.
@@ -435,7 +468,8 @@ Required arguments:
                           NONE - Remove compression.
 
 Optional arguments:
-  --version       Print version information and exit
+  -h              Print usage information and exit (same as --help).
+  --version       Print version information and exit.
 ```
 
 ### Shader Extraction
@@ -447,9 +481,11 @@ file. The extracted shaders are placed into a specified directory.
 gfxrecon-extract - Extract shaders from a GFXReconstruct capture file.
 
 Usage:
-  gfxrecon-extract [--dir <dir>] <file>
+  gfxrecon-extract [-h | --help] [--version] [--dir <dir>] <file>
 
 Optional arguments:
+  -h          Print usage information and exit (same as --help).
+  --version   Print version information and exit.
   --dir <dir> Place extracted shaders into directory <dir>. Otherwise
               use <file>.shaders in working directory. Create directory
               if necessary. Each shader is placed in individual file
@@ -459,23 +495,37 @@ Required arguments:
   <file>      The GFXReconstruct capture file to be processed.
 ```
 
-### Capture File Info
+### Trimmed File Optimizer
 
-The `gfxrecon-info` tool prints statistics for a GFXReconstruct capture file, including
-information about the application,
-the physical device , device memory allocation, and device pipelines.
+The `gfxrecon-optimize` tool removes unused buffer and image initialization
+data from trimmed capture files.
+
+For trimmed capture files, a snapshot of the Vulkan API state is written at
+the start of the file. This state snapshot includes the data for all buffers
+and images that were live at the time that capture started. Some of the buffer
+and image objects captured in the state snapshot may go unreferenced by the
+captured frames and their data can be removed from the capture file. The
+`gfxrecon-optimize` tool will process a trimmed file to identify buffer and
+image objects that were initialized in the state snapshot, but were not used
+by any of the captured frames, and generate a new capture file that omits the
+data for these unused buffer and image objects.
 
 ```text
-gfxrecon-info - Print statistics for a GFXReconstruct capture file.
+gfxrecon-optimize - Remove unused resource initialization data from trimmed
+                    GFXReconstruct capture files.
 
 Usage:
-  gfxrecon-info [--version] <file>
+  gfxrecon-optimize [-h | --help] [--version] <input-file> <output-file>
 
 Required arguments:
-  <file>      The GFXReconstruct capture file to be processed.
+  <input-file>          The trimmed GFXReconstruct capture file to be
+                        processed.
+  <output-file>         The name of the new GFXReconstruct capture file to be
+                        created.
 
 Optional arguments:
-  --version   Print version information and exit.
+  -h                    Print usage information and exit (same as --help).
+  --version             Print version information and exit.
 ```
 
 ### Command Launcher
@@ -489,10 +539,10 @@ usage: gfxrecon.py [-h] command ...
 GFXReconstruct utility launcher.
 
 positional arguments:
-  command     Command to execute. Valid options are [capture, compress,
-              extract, info, replay]
-  args        Command-specific argument list. Specify -h after command name
-              for command help.
+  command     Command to execute. Valid options are [capture, compress, extract, info,
+              optimize, replay]
+  args        Command-specific argument list. Specify -h after command name for command
+              help.
 
 optional arguments:
   -h, --help  show this help message and exit

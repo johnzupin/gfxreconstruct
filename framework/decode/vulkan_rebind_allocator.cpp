@@ -233,6 +233,7 @@ VkResult VulkanRebindAllocator::CreateImage(const VkImageCreateInfo*     create_
             auto resource_alloc_info      = new ResourceAllocInfo;
             resource_alloc_info->usage    = create_info->usage;
             resource_alloc_info->tiling   = create_info->tiling;
+            resource_alloc_info->height   = create_info->extent.height;
             resource_alloc_info->is_image = true;
             (*allocator_data)             = reinterpret_cast<uintptr_t>(resource_alloc_info);
 
@@ -915,7 +916,8 @@ void VulkanRebindAllocator::WriteBoundResource(ResourceAllocInfo* resource_alloc
                                                              copy_dst_offset,
                                                              copy_size,
                                                              rebind_row_pitch,
-                                                             original_row_pitch);
+                                                             original_row_pitch,
+                                                             resource_alloc_info->height);
                     }
                     else
                     {
@@ -1299,6 +1301,35 @@ void VulkanRebindAllocator::ReportBindIncompatibility(const ResourceData* alloca
             }
         }
     }
+}
+
+VkResult VulkanRebindAllocator::MapResourceMemoryDirect(VkDeviceSize     size,
+                                                        VkMemoryMapFlags flags,
+                                                        void**           data,
+                                                        ResourceData     allocator_data)
+{
+    VkResult result = VK_ERROR_MEMORY_MAP_FAILED;
+
+    if ((data != nullptr) && (allocator_data != 0))
+    {
+        auto resource_alloc_info = reinterpret_cast<ResourceAllocInfo*>(allocator_data);
+
+        if (resource_alloc_info->mapped_pointer == nullptr)
+        {
+            result = vmaMapMemory(allocator_, resource_alloc_info->allocation, &resource_alloc_info->mapped_pointer);
+        }
+        else
+        {
+            result = VK_SUCCESS;
+        }
+
+        if (result == VK_SUCCESS)
+        {
+            (*data) = reinterpret_cast<uint8_t*>(resource_alloc_info->mapped_pointer);
+        }
+    }
+
+    return result;
 }
 
 GFXRECON_END_NAMESPACE(decode)

@@ -48,13 +48,15 @@ struct ReplayOptions
     bool                         sync_queue_submissions{ false };
     bool                         skip_failed_allocations{ false };
     bool                         omit_pipeline_cache_data{ false };
+    bool                         remove_unsupported_features{ false };
     int32_t                      override_gpu_index{ -1 };
+    int32_t                      surface_index{ -1 };
     CreateResourceAllocator      create_resource_allocator;
-    std::string                  replace_dir{};
     ScreenshotFormat             screenshot_format{ ScreenshotFormat::kBmp };
     std::vector<ScreenshotRange> screenshot_ranges;
     std::string                  screenshot_dir;
     std::string                  screenshot_file_prefix{ kDefaultScreenshotFilePrefix };
+    std::string                  replace_dir;
 };
 
 GFXRECON_END_NAMESPACE(decode)

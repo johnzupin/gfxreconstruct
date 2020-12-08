@@ -48,6 +48,7 @@ class VulkanDispatchTableGenerator(BaseGenerator):
                                  'VkBool32' : 'VK_TRUE',
                                  'PFN_vkVoidFunction' : 'nullptr',
                                  'VkDeviceAddress' : '0',
+                                 'VkDeviceSize' : '0',
                                  'uint32_t' : '0',
                                  'uint64_t' : '0' }
 
@@ -60,6 +61,7 @@ class VulkanDispatchTableGenerator(BaseGenerator):
 
         write('#include "format/platform_types.h"', file=self.outFile)
         write('#include "util/defines.h"', file=self.outFile)
+        write('#include "util/logging.h"', file=self.outFile)
         self.newline()
         write('#include "vulkan/vk_layer.h"', file=self.outFile)
         write('#include "vulkan/vulkan.h"', file=self.outFile)
@@ -151,9 +153,9 @@ class VulkanDispatchTableGenerator(BaseGenerator):
                         proto = info[1]
 
                         if not firstParam.baseType in ['VkInstance', 'VkPhysicalDevice']:
-                            self.deviceCmdNames[name] = self.makeCmdDecl(returnType, proto, values)
+                            self.deviceCmdNames[name] = self.makeCmdDecl(returnType, proto, values, name)
                         else:
-                            self.instanceCmdNames[name] = self.makeCmdDecl(returnType, proto, values)
+                            self.instanceCmdNames[name] = self.makeCmdDecl(returnType, proto, values, name)
 
     #
     # Generate instance dispatch table structure
@@ -239,10 +241,10 @@ class VulkanDispatchTableGenerator(BaseGenerator):
 
     #
     # Generate a function prototype for the NoOp functions, with a parameter list that only includes types
-    def makeCmdDecl(self, returnType, proto, values):
+    def makeCmdDecl(self, returnType, proto, values, name):
         params = ', '.join([self.makeFullTypename(value) for value in values])
         if returnType == 'void':
-            return 'static {}({}) {{}}'.format(proto, params)
+            return 'static {}({}) {{ GFXRECON_LOG_WARNING("Unsupported function {} was called, resulting in no-op behavior."); }}'.format(proto, params, name)
         else:
             returnValue = ''
             if returnType in self.RETURN_DEFAULTS:
@@ -250,4 +252,4 @@ class VulkanDispatchTableGenerator(BaseGenerator):
             else:
                 print('Unrecognized return type {} for no-op function generation; returning a zero initialized value'.format(returnType))
                 returnValue = '{}{{}}'.format(returnType)
-            return 'static {}({}) {{ return {}; }}'.format(proto, params, returnValue)
+            return 'static {}({}) {{ GFXRECON_LOG_WARNING("Unsupported function {} was called, resulting in no-op behavior."); return {}; }}'.format(proto, params, name, returnValue)

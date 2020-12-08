@@ -175,8 +175,18 @@ class VulkanReplayConsumerBase : public VulkanConsumer
         return handle_mapping::MapHandle(id, object_info_table_, MapFunc);
     }
 
+    uint64_t MapHandle(uint64_t object, VkObjectType object_type)
+    {
+        return handle_mapping::MapHandle(object, object_type, object_info_table_);
+    }
+
+    uint64_t MapHandle(uint64_t object, VkDebugReportObjectTypeEXT object_type)
+    {
+        return handle_mapping::MapHandle(object, object_type, object_info_table_);
+    }
+
     template <typename T>
-    typename T::HandleType* MapHandles(HandlePointerDecoder<typename T::HandleType>* handle_pointer,
+    typename T::HandleType* MapHandles(HandlePointerDecoder<typename T::HandleType>* handles_pointer,
                                        size_t                                        handles_len,
                                        const T* (VulkanObjectInfoTable::*MapFunc)(format::HandleId) const) const
     {
@@ -185,42 +195,46 @@ class VulkanReplayConsumerBase : public VulkanConsumer
 
         typename T::HandleType* handles = nullptr;
 
-        if ((handle_pointer != nullptr) && !handle_pointer->IsNull())
+        if (handles_pointer != nullptr)
         {
             // The handle and ID array sizes are expected to be the same for mapping operations.
-            assert(handles_len == handle_pointer->GetLength());
+            assert(handles_len == handles_pointer->GetLength());
 
-            handles = handle_mapping::MapHandleArray(handle_pointer, object_info_table_, MapFunc);
+            handles = handle_mapping::MapHandleArray(handles_pointer, object_info_table_, MapFunc);
         }
 
         return handles;
     }
 
     template <typename T>
-    void AddHandle(const format::HandleId*       id,
+    void AddHandle(format::HandleId              parent_id,
+                   const format::HandleId*       id,
                    const typename T::HandleType* handle,
                    T&&                           initial_info,
                    void (VulkanObjectInfoTable::*AddFunc)(T&&))
     {
         if ((id != nullptr) && (handle != nullptr))
         {
-            handle_mapping::AddHandle(*id, *handle, std::forward<T>(initial_info), &object_info_table_, AddFunc);
+            handle_mapping::AddHandle(
+                parent_id, *id, *handle, std::forward<T>(initial_info), &object_info_table_, AddFunc);
         }
     }
 
     template <typename T>
-    void AddHandle(const format::HandleId*       id,
+    void AddHandle(format::HandleId              parent_id,
+                   const format::HandleId*       id,
                    const typename T::HandleType* handle,
                    void (VulkanObjectInfoTable::*AddFunc)(T&&))
     {
         if ((id != nullptr) && (handle != nullptr))
         {
-            handle_mapping::AddHandle(*id, *handle, &object_info_table_, AddFunc);
+            handle_mapping::AddHandle(parent_id, *id, *handle, &object_info_table_, AddFunc);
         }
     }
 
     template <typename T>
-    void AddHandles(const format::HandleId*       ids,
+    void AddHandles(format::HandleId              parent_id,
+                    const format::HandleId*       ids,
                     size_t                        ids_len,
                     const typename T::HandleType* handles,
                     size_t                        handles_len,
@@ -228,17 +242,88 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                     void (VulkanObjectInfoTable::*AddFunc)(T&&))
     {
         handle_mapping::AddHandleArray(
-            ids, ids_len, handles, handles_len, std::move(initial_infos), &object_info_table_, AddFunc);
+            parent_id, ids, ids_len, handles, handles_len, std::move(initial_infos), &object_info_table_, AddFunc);
     }
 
     template <typename T>
-    void AddHandles(const format::HandleId*       ids,
+    void AddHandles(format::HandleId              parent_id,
+                    const format::HandleId*       ids,
                     size_t                        ids_len,
                     const typename T::HandleType* handles,
                     size_t                        handles_len,
                     void (VulkanObjectInfoTable::*AddFunc)(T&&))
     {
-        handle_mapping::AddHandleArray(ids, ids_len, handles, handles_len, &object_info_table_, AddFunc);
+        handle_mapping::AddHandleArray(parent_id, ids, ids_len, handles, handles_len, &object_info_table_, AddFunc);
+    }
+
+    template <typename S, typename T>
+    void AddPoolHandles(format::HandleId              parent_id,
+                        format::HandleId              pool_id,
+                        const format::HandleId*       ids,
+                        size_t                        ids_len,
+                        const typename T::HandleType* handles,
+                        size_t                        handles_len,
+                        std::vector<T>&&              initial_infos,
+                        S* (VulkanObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                        void (VulkanObjectInfoTable::*AddFunc)(T&&))
+    {
+        handle_mapping::AddHandleArray(parent_id,
+                                       pool_id,
+                                       ids,
+                                       ids_len,
+                                       handles,
+                                       handles_len,
+                                       std::move(initial_infos),
+                                       &object_info_table_,
+                                       GetPoolInfoFunc,
+                                       AddFunc);
+    }
+
+    template <typename S, typename T>
+    void AddPoolHandles(format::HandleId              parent_id,
+                        format::HandleId              pool_id,
+                        const format::HandleId*       ids,
+                        size_t                        ids_len,
+                        const typename T::HandleType* handles,
+                        size_t                        handles_len,
+                        S* (VulkanObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                        void (VulkanObjectInfoTable::*AddFunc)(T&&))
+    {
+        handle_mapping::AddHandleArray(
+            parent_id, pool_id, ids, ids_len, handles, handles_len, &object_info_table_, GetPoolInfoFunc, AddFunc);
+    }
+
+    void RemoveHandle(format::HandleId id, void (VulkanObjectInfoTable::*RemoveFunc)(format::HandleId))
+    {
+        handle_mapping::RemoveHandle(id, &object_info_table_, RemoveFunc);
+    }
+
+    template <typename T>
+    void RemovePoolHandle(format::HandleId id,
+                          T* (VulkanObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                          void (VulkanObjectInfoTable::*RemovePoolFunc)(format::HandleId),
+                          void (VulkanObjectInfoTable::*RemoveObjectFunc)(format::HandleId))
+    {
+        handle_mapping::RemovePoolHandle(id, &object_info_table_, GetPoolInfoFunc, RemovePoolFunc, RemoveObjectFunc);
+    }
+
+    template <typename S, typename T>
+    void RemovePoolHandles(format::HandleId                                    pool_id,
+                           const HandlePointerDecoder<typename T::HandleType>* handles_pointer,
+                           size_t                                              handles_len,
+                           S* (VulkanObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                           void (VulkanObjectInfoTable::*RemoveFunc)(format::HandleId))
+    {
+        // This parameter is only referenced by debug builds.
+        GFXRECON_UNREFERENCED_PARAMETER(handles_len);
+
+        if (handles_pointer != nullptr)
+        {
+            // The handle and ID array sizes are expected to be the same for mapping operations.
+            assert(handles_len == handles_pointer->GetLength());
+            handle_mapping::RemoveHandleArray<S, T>(
+                pool_id, handles_pointer, &object_info_table_, GetPoolInfoFunc, RemoveFunc);
+        }
     }
 
     template <typename HandleInfoT>
@@ -305,10 +390,6 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                     const StructPointerDecoder<Decoded_VkInstanceCreateInfo>*  pCreateInfo,
                                     const StructPointerDecoder<Decoded_VkAllocationCallbacks>* pAllocator,
                                     HandlePointerDecoder<VkInstance>*                          pInstance);
-
-    void OverrideDestroyInstance(PFN_vkDestroyInstance                                      func,
-                                 const InstanceInfo*                                        instance_info,
-                                 const StructPointerDecoder<Decoded_VkAllocationCallbacks>* pAllocator);
 
     VkResult OverrideCreateDevice(VkResult                                                   original_result,
                                   PhysicalDeviceInfo*                                        physical_device_info,
@@ -387,12 +468,17 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                      const StructPointerDecoder<Decoded_VkBindSparseInfo>* pBindInfo,
                                      const FenceInfo*                                      fence_info);
 
-    VkResult
-    OverrideAllocateCommandBuffers(PFN_vkAllocateCommandBuffers                                     func,
-                                   VkResult                                                         original_result,
-                                   const DeviceInfo*                                                device_info,
-                                   const StructPointerDecoder<Decoded_VkCommandBufferAllocateInfo>* pAllocateInfo,
-                                   HandlePointerDecoder<VkCommandBuffer>*                           pCommandBuffers);
+    VkResult OverrideCreateDescriptorPool(PFN_vkCreateDescriptorPool func,
+                                          VkResult                   original_result,
+                                          const DeviceInfo*          device_info,
+                                          const StructPointerDecoder<Decoded_VkDescriptorPoolCreateInfo>* pCreateInfo,
+                                          const StructPointerDecoder<Decoded_VkAllocationCallbacks>*      pAllocator,
+                                          HandlePointerDecoder<VkDescriptorPool>* pDescriptorPool);
+
+    void OverrideDestroyDescriptorPool(PFN_vkDestroyDescriptorPool                                func,
+                                       const DeviceInfo*                                          device_info,
+                                       DescriptorPoolInfo*                                        descriptor_pool_info,
+                                       const StructPointerDecoder<Decoded_VkAllocationCallbacks>* pAllocator);
 
     VkResult
     OverrideAllocateDescriptorSets(PFN_vkAllocateDescriptorSets                                     func,
@@ -400,6 +486,13 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                    const DeviceInfo*                                                device_info,
                                    const StructPointerDecoder<Decoded_VkDescriptorSetAllocateInfo>* pAllocateInfo,
                                    HandlePointerDecoder<VkDescriptorSet>*                           pDescriptorSets);
+
+    VkResult
+    OverrideAllocateCommandBuffers(PFN_vkAllocateCommandBuffers                                     func,
+                                   VkResult                                                         original_result,
+                                   const DeviceInfo*                                                device_info,
+                                   const StructPointerDecoder<Decoded_VkCommandBufferAllocateInfo>* pAllocateInfo,
+                                   HandlePointerDecoder<VkCommandBuffer>*                           pCommandBuffers);
 
     VkResult OverrideAllocateMemory(PFN_vkAllocateMemory                                       func,
                                     VkResult                                                   original_result,
@@ -513,12 +606,25 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                         const StructPointerDecoder<Decoded_VkAllocationCallbacks>*    pAllocator,
                                         HandlePointerDecoder<VkShaderModule>*                         pShaderModule);
 
+    VkResult OverrideGetPipelineCacheData(PFN_vkGetPipelineCacheData func,
+                                          VkResult                   original_result,
+                                          const DeviceInfo*          device_info,
+                                          const PipelineCacheInfo*   pipeline_cache_info,
+                                          PointerDecoder<size_t>*    pDataSize,
+                                          PointerDecoder<uint8_t>*   pData);
+
     VkResult OverrideCreatePipelineCache(PFN_vkCreatePipelineCache                                      func,
                                          VkResult                                                       original_result,
                                          const DeviceInfo*                                              device_info,
                                          const StructPointerDecoder<Decoded_VkPipelineCacheCreateInfo>* pCreateInfo,
                                          const StructPointerDecoder<Decoded_VkAllocationCallbacks>*     pAllocator,
                                          HandlePointerDecoder<VkPipelineCache>*                         pPipelineCache);
+
+    VkResult OverrideResetDescriptorPool(PFN_vkResetDescriptorPool  func,
+                                         VkResult                   original_result,
+                                         const DeviceInfo*          device_info,
+                                         DescriptorPoolInfo*        pool_info,
+                                         VkDescriptorPoolResetFlags flags);
 
     VkResult OverrideCreateDebugReportCallbackEXT(
         PFN_vkCreateDebugReportCallbackEXT                                      func,
@@ -558,10 +664,10 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     VkResult OverrideAcquireNextImageKHR(PFN_vkAcquireNextImageKHR func,
                                          VkResult                  original_result,
                                          const DeviceInfo*         device_info,
-                                         const SwapchainKHRInfo*   swapchain_info,
+                                         SwapchainKHRInfo*         swapchain_info,
                                          uint64_t                  timeout,
-                                         const SemaphoreInfo*      semaphore_info,
-                                         const FenceInfo*          fence_info,
+                                         SemaphoreInfo*            semaphore_info,
+                                         FenceInfo*                fence_info,
                                          PointerDecoder<uint32_t>* pImageIndex);
 
     VkResult OverrideAcquireNextImage2KHR(PFN_vkAcquireNextImage2KHR func,
@@ -713,6 +819,20 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     void GetImportedSemaphores(const HandlePointerDecoder<VkSemaphore>& semaphore_data,
                                std::vector<const SemaphoreInfo*>*       imported_semaphores);
 
+    void GetShadowSemaphores(const HandlePointerDecoder<VkSemaphore>& semaphore_data,
+                             std::vector<const SemaphoreInfo*>*       shadow_semaphores);
+
+    void TrackSemaphoreForwardProgress(const HandlePointerDecoder<VkSemaphore>& semaphore_data,
+                                       std::vector<const SemaphoreInfo*>*       removed_semaphores);
+
+    void GetNonForwardProgress(const HandlePointerDecoder<VkSemaphore>& semaphore_data,
+                               std::vector<const SemaphoreInfo*>*       non_forward_progress_semaphores);
+
+    VkResult CreateSwapchainImage(const DeviceInfo*        device_info,
+                                  const VkImageCreateInfo* image_create_info,
+                                  VkImage*                 image,
+                                  ImageInfo*               image_info);
+
     // When processing swapchain image state for the trimming state setup, acquire all swapchain images to transition to
     // the expected layout and keep them acquired until first use.
     void ProcessSetSwapchainImageStatePreAcquire(VkDevice                                            device,
@@ -729,9 +849,13 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                                   uint32_t       last_presented_image,
                                                   const std::vector<format::SwapchainImageStateInfo>& image_info);
 
+    void ProcessCreateInstanceDebugCallbackInfo(const Decoded_VkInstanceCreateInfo* instance_info);
+
     void ProcessSwapchainFullScreenExclusiveInfo(const Decoded_VkSwapchainCreateInfoKHR* swapchain_info);
 
     void ProcessImportAndroidHardwareBufferInfo(const Decoded_VkMemoryAllocateInfo* allocate_info);
+
+    void SetSwapchainWindowSize(const Decoded_VkSwapchainCreateInfoKHR* swapchain_info);
 
     void InitializeScreenshotHandler();
 
@@ -752,6 +876,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
         uint64_t replay_offset;
         uint32_t capture_row_pitch;
         uint32_t replay_row_pitch;
+        uint32_t height;
     };
 
     struct HardwareBufferMemoryInfo
@@ -782,10 +907,13 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     SwapchainImageTracker                                            swapchain_image_tracker_;
     HardwareBufferMap                                                hardware_buffers_;
     HardwareBufferMemoryMap                                          hardware_buffer_memory_info_;
-    std::unordered_set<format::HandleId>                             active_instance_ids_;
-    std::unordered_set<format::HandleId>                             active_device_ids_;
     std::unique_ptr<ScreenshotHandler>                               screenshot_handler_;
     std::string                                                      screenshot_file_prefix_;
+    int32_t                                                          create_surface_count_;
+
+    // Used to track if any shadow sync objects are active to avoid checking if not needed
+    std::unordered_set<VkSemaphore> shadow_semaphores_;
+    std::unordered_set<VkFence>     shadow_fences_;
 };
 
 GFXRECON_END_NAMESPACE(decode)

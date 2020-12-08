@@ -65,6 +65,7 @@ enum PhysicalDeviceArrayIndices : uint32_t
     kPhysicalDeviceArrayGetPhysicalDeviceSurfacePresentModes2EXT                        = 13,
     kPhysicalDeviceArrayEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR   = 14,
     kPhysicalDeviceArrayGetPhysicalDeviceToolPropertiesEXT                              = 15,
+    kPhysicalDeviceArrayGetPhysicalDeviceFragmentShadingRatesKHR                        = 16,
     // Aliases for extensions functions that were promoted to core.
     kPhysicalDeviceArrayGetPhysicalDeviceQueueFamilyProperties2KHR =
         kPhysicalDeviceArrayGetPhysicalDeviceQueueFamilyProperties2,
@@ -144,14 +145,28 @@ struct VulkanObjectInfo
     // Standard info stored for all Vulkan objects.
     HandleType       handle{ VK_NULL_HANDLE };            // Handle created for the object during replay.
     format::HandleId capture_id{ format::kNullHandleId }; // ID assigned to the object at capture.
+    format::HandleId parent_id{ format::kNullHandleId };  // ID of the object's parent instance/device object.
+};
+
+// Info for a pool object which other objects will be allocated from.
+template <typename T>
+struct VulkanPoolInfo : public VulkanObjectInfo<T>
+{
+    std::unordered_set<format::HandleId> child_ids; // IDs of objects allocated from the pool.
+};
+
+// Info for objects that are allocated from pools.
+template <typename T>
+struct VulkanPoolObjectInfo : public VulkanObjectInfo<T>
+{
+    format::HandleId pool_id{ format::kNullHandleId }; // ID of the pool that the object was allocated from.
 };
 
 //
 // Declarations for Vulkan objects without additional replay state info.
 //
 
-typedef VulkanObjectInfo<VkCommandBuffer>                 CommandBufferInfo;
-typedef VulkanObjectInfo<VkFence>                         FenceInfo;
+typedef VulkanPoolObjectInfo<VkCommandBuffer>             CommandBufferInfo;
 typedef VulkanObjectInfo<VkEvent>                         EventInfo;
 typedef VulkanObjectInfo<VkQueryPool>                     QueryPoolInfo;
 typedef VulkanObjectInfo<VkBufferView>                    BufferViewInfo;
@@ -161,10 +176,9 @@ typedef VulkanObjectInfo<VkPipelineLayout>                PipelineLayoutInfo;
 typedef VulkanObjectInfo<VkRenderPass>                    RenderPassInfo;
 typedef VulkanObjectInfo<VkDescriptorSetLayout>           DescriptorSetLayoutInfo;
 typedef VulkanObjectInfo<VkSampler>                       SamplerInfo;
-typedef VulkanObjectInfo<VkDescriptorPool>                DescriptorPoolInfo;
-typedef VulkanObjectInfo<VkDescriptorSet>                 DescriptorSetInfo;
+typedef VulkanPoolObjectInfo<VkDescriptorSet>             DescriptorSetInfo;
 typedef VulkanObjectInfo<VkFramebuffer>                   FramebufferInfo;
-typedef VulkanObjectInfo<VkCommandPool>                   CommandPoolInfo;
+typedef VulkanPoolInfo<VkCommandPool>                     CommandPoolInfo;
 typedef VulkanObjectInfo<VkSamplerYcbcrConversion>        SamplerYcbcrConversionInfo;
 typedef VulkanObjectInfo<VkDisplayModeKHR>                DisplayModeKHRInfo;
 typedef VulkanObjectInfo<VkDebugReportCallbackEXT>        DebugReportCallbackEXTInfo;
@@ -183,6 +197,7 @@ typedef VulkanObjectInfo<VkPrivateDataSlotEXT>            PrivateDataSlotEXTInfo
 struct InstanceInfo : public VulkanObjectInfo<VkInstance>
 {
     uint32_t                             api_version{ 0 };
+    std::vector<std::string>             enabled_extensions;
     std::unordered_map<uint32_t, size_t> array_counts;
 
     // Capture and replay devices sorted in the order that they were originally retrieved from
@@ -191,17 +206,13 @@ struct InstanceInfo : public VulkanObjectInfo<VkInstance>
     std::vector<VkPhysicalDevice> replay_devices;
 
     std::unordered_map<VkPhysicalDevice, ReplayDeviceInfo> replay_device_info;
-
-    // Ensure surfaces are cleaned up on exit to avoid issues encountered when calling xcb_disconnect with active xcb
-    // surfaces.
-    std::unordered_set<format::HandleId> active_surfaces;
 };
 
 struct PhysicalDeviceInfo : public VulkanObjectInfo<VkPhysicalDevice>
 {
     VkInstance                           parent{ VK_NULL_HANDLE };
-    format::HandleId                     parent_id{ format::kNullHandleId };
     uint32_t                             parent_api_version{ 0 };
+    std::vector<std::string>             parent_enabled_extensions;
     std::unordered_map<uint32_t, size_t> array_counts;
 
     // Capture device properties.
@@ -227,10 +238,6 @@ struct DeviceInfo : public VulkanObjectInfo<VkDevice>
     // The following values are only used when loading the initial state for trimmed files.
     std::vector<std::string>                   extensions;
     std::unique_ptr<VulkanResourceInitializer> resource_initializer;
-
-    // Ensure swapchains are cleaned up on exit to avoid issues encountered when calling xcb_disconnect with active xcb
-    // surfaces.
-    std::unordered_set<format::HandleId> active_swapchains;
 };
 
 struct QueueInfo : public VulkanObjectInfo<VkQueue>
@@ -241,6 +248,20 @@ struct QueueInfo : public VulkanObjectInfo<VkQueue>
 struct SemaphoreInfo : public VulkanObjectInfo<VkSemaphore>
 {
     bool is_external{ false };
+
+    // If a null-swapchain/surface interacts with a semaphore, replay needs to shadow signal it until a future call
+    // waits on it.
+    bool shadow_signaled{ false };
+    // Fences can be reset, semaphores can't, so replay needs to know when a semaphore will not be submitted for a wait
+    // operation to prevent validation errors around queue forward progress.
+    bool forward_progress{ true };
+};
+
+struct FenceInfo : public VulkanObjectInfo<VkFence>
+{
+    // If a null-swapchain/surface interacts with a fence, replay needs to to shadow signal it until a future call waits
+    // on it.
+    bool shadow_signaled{ false };
 };
 
 struct DeviceMemoryInfo : public VulkanObjectInfo<VkDeviceMemory>
@@ -255,10 +276,7 @@ struct BufferInfo : public VulkanObjectInfo<VkBuffer>
     VulkanResourceAllocator::ResourceData allocator_data{ 0 };
 
     // The following values are only used when loading the initial state for trimmed files.
-    VkDeviceMemory                      memory{ VK_NULL_HANDLE };
-    VulkanResourceAllocator::MemoryData memory_allocator_data{ 0 };
     VkMemoryPropertyFlags               memory_property_flags{ 0 };
-    VkDeviceSize                        bind_offset{ 0 };
     VkBufferUsageFlags                  usage{ 0 };
     uint32_t                            queue_family_index{ 0 };
 };
@@ -267,14 +285,16 @@ struct ImageInfo : public VulkanObjectInfo<VkImage>
 {
     std::unordered_map<uint32_t, size_t> array_counts;
 
+    bool is_swapchain_image{ false };
+
     // The following values are only used for memory portability.
     VulkanResourceAllocator::ResourceData allocator_data{ 0 };
 
-    // The following values are only used when loading the initial state for trimmed files.
+    // The following values are used when loading the initial state for trimmed files, and for null-swapchain/surface
+    // creation.
     VkDeviceMemory                      memory{ VK_NULL_HANDLE };
     VulkanResourceAllocator::MemoryData memory_allocator_data{ 0 };
     VkMemoryPropertyFlags               memory_property_flags{ 0 };
-    VkDeviceSize                        bind_offset{ 0 };
     VkImageUsageFlags                   usage{ 0 };
     VkImageType                         type{};
     VkFormat                            format{};
@@ -295,6 +315,15 @@ struct PipelineCacheInfo : public VulkanObjectInfo<VkPipelineCache>
 struct PipelineInfo : public VulkanObjectInfo<VkPipeline>
 {
     std::unordered_map<uint32_t, size_t> array_counts;
+};
+
+struct DescriptorPoolInfo : public VulkanPoolInfo<VkDescriptorPool>
+{
+    VkDescriptorPoolCreateFlags       flags{};
+    uint32_t                          max_sets{ 0 };
+    uint32_t                          max_inline_uniform_block_bindings{ 0 }; // For VK_EXT_inline_uniform_block.
+    std::vector<VkDescriptorPoolSize> pool_sizes;
+    std::vector<VkDescriptorPool>     retired_pools;
 };
 
 struct DescriptorUpdateTemplateInfo : public VulkanObjectInfo<VkDescriptorUpdateTemplate>
@@ -321,10 +350,21 @@ struct SwapchainKHRInfo : public VulkanObjectInfo<VkSwapchainKHR>
     uint32_t                             height{ 0 };
     VkFormat                             format{ VK_FORMAT_UNDEFINED };
     std::vector<VkImage>                 images;
+    std::vector<uint32_t>                acquired_indices;
     std::unordered_map<uint32_t, size_t> array_counts;
 
     // The following values are only used when loading the initial state for trimmed files.
     uint32_t queue_family_index{ 0 };
+
+    // When replay is restricted to a specific surface, a dummy swapchain is created for the omitted surfaces, requiring
+    // backing images.
+    std::vector<ImageInfo>    image_infos;
+    VkSwapchainCreateFlagsKHR image_flags;
+    VkFormat                  image_format;
+    VkExtent2D                image_extent;
+    uint32_t                  image_array_layers;
+    VkImageUsageFlags         image_usage;
+    VkSharingMode             image_sharing_mode;
 };
 
 struct ValidationCacheEXTInfo : public VulkanObjectInfo<VkValidationCacheEXT>

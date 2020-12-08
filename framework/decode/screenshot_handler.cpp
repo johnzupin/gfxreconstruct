@@ -28,8 +28,12 @@ GFXRECON_BEGIN_NAMESPACE(decode)
 const uint32_t kDefaultQueueFamilyIndex = 0;
 const uint32_t kDefaultQueueIndex       = 0;
 
-const VkFormat kImageFormats[] = {
-    VK_FORMAT_B8G8R8A8_UNORM // Vulkan image format for ScreenshotFormat::kBmp
+const size_t kUnormIndex = 0;
+const size_t kSrgbIndex  = 1;
+
+const VkFormat kImageFormats[][2] = {
+    // Vulkan image formats for ScreenshotFormat::kBmp
+    { VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_B8G8R8A8_SRGB }
 };
 
 ScreenshotHandler::ScreenshotHandler(ScreenshotFormat                    screenshot_format,
@@ -138,7 +142,7 @@ void ScreenshotHandler::WriteImage(const std::string&                      filen
         if (create_resource)
         {
             // Need to create/recreate resource.
-            DestroyCopyResource(device, device_table, &copy_resource);
+            DestroyCopyResource(device, &copy_resource);
 
             result = CreateCopyResource(
                 device, device_table, memory_properties, buffer_size, format, width, height, &copy_resource);
@@ -357,12 +361,8 @@ void ScreenshotHandler::WriteImage(const std::string&                      filen
                 if (result == VK_SUCCESS)
                 {
                     void* data = nullptr;
-                    result     = allocator->MapMemory(copy_resource.buffer_memory,
-                                                  0,
-                                                  copy_resource.buffer_size,
-                                                  0,
-                                                  &data,
-                                                  copy_resource.buffer_memory_data);
+                    result     = allocator->MapResourceMemoryDirect(
+                        copy_resource.buffer_size, 0, &data, copy_resource.buffer_data);
 
                     if (result == VK_SUCCESS)
                     {
@@ -375,7 +375,8 @@ void ScreenshotHandler::WriteImage(const std::string&                      filen
                             invalidate_range.offset              = 0;
                             invalidate_range.size                = copy_resource.buffer_size;
 
-                            device_table->InvalidateMappedMemoryRanges(device, 1, &invalidate_range);
+                            allocator->InvalidateMappedMemoryRangesDirect(
+                                1, &invalidate_range, &copy_resource.buffer_memory_data);
                         }
 
                         std::string filename = filename_prefix;
@@ -387,7 +388,7 @@ void ScreenshotHandler::WriteImage(const std::string&                      filen
                                                filename.c_str());
                         }
 
-                        allocator->UnmapMemory(copy_resource.buffer_memory, copy_resource.buffer_memory_data);
+                        allocator->UnmapResourceMemoryDirect(copy_resource.buffer_data);
                     }
                 }
                 else
@@ -405,20 +406,76 @@ void ScreenshotHandler::WriteImage(const std::string&                      filen
     }
 }
 
-void ScreenshotHandler::DestroyDevice(VkDevice device, const encode::DeviceTable* device_table)
+void ScreenshotHandler::DestroyDeviceResources(VkDevice device, const encode::DeviceTable* device_table)
 {
     auto entry = copy_resources_.find(device);
     if (entry != copy_resources_.end())
     {
+        auto& copy_resource = entry->second;
+
         if (device_table != nullptr)
         {
-            auto& copy_resource = entry->second;
             device_table->DestroyCommandPool(entry->first, copy_resource.command_pool, nullptr);
-
-            DestroyCopyResource(device, device_table, &copy_resource);
         }
 
+        DestroyCopyResource(device, &copy_resource);
+
         copy_resources_.erase(entry);
+    }
+}
+
+bool ScreenshotHandler::IsSrgbFormat(VkFormat image_format) const
+{
+    switch (image_format)
+    {
+        case VK_FORMAT_R8_SRGB:
+        case VK_FORMAT_R8G8_SRGB:
+        case VK_FORMAT_R8G8B8_SRGB:
+        case VK_FORMAT_B8G8R8_SRGB:
+        case VK_FORMAT_R8G8B8A8_SRGB:
+        case VK_FORMAT_B8G8R8A8_SRGB:
+        case VK_FORMAT_A8B8G8R8_SRGB_PACK32:
+        case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
+        case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+        case VK_FORMAT_BC2_SRGB_BLOCK:
+        case VK_FORMAT_BC3_SRGB_BLOCK:
+        case VK_FORMAT_BC7_SRGB_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_5x4_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_5x5_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_6x5_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_6x6_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_8x5_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_8x6_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_8x8_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_10x5_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_10x6_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_10x8_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_10x10_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:
+        case VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG:
+        case VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG:
+        case VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG:
+        case VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG:
+            return true;
+        default:
+            return false;
+    }
+}
+
+VkFormat ScreenshotHandler::GetConversionFormat(VkFormat image_format) const
+{
+    if (IsSrgbFormat(image_format))
+    {
+        return kImageFormats[static_cast<size_t>(screenshot_format_)][kSrgbIndex];
+    }
+    else
+    {
+        return kImageFormats[static_cast<size_t>(screenshot_format_)][kUnormIndex];
     }
 }
 
@@ -493,7 +550,8 @@ VkResult ScreenshotHandler::CreateCopyResource(VkDevice                         
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    auto allocator = copy_resource->allocator;
+    auto allocator         = copy_resource->allocator;
+    auto screenshot_format = GetConversionFormat(image_format);
 
     VkBufferCreateInfo create_info    = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     create_info.pNext                 = nullptr;
@@ -504,8 +562,8 @@ VkResult ScreenshotHandler::CreateCopyResource(VkDevice                         
     create_info.queueFamilyIndexCount = 0;
     create_info.pQueueFamilyIndices   = nullptr;
 
-    VkResult result = allocator->CreateBuffer(
-        &create_info, nullptr, format::kNullHandleId, &copy_resource->buffer, &copy_resource->buffer_data);
+    VkResult result =
+        allocator->CreateBufferDirect(&create_info, nullptr, &copy_resource->buffer, &copy_resource->buffer_data);
 
     if (result == VK_SUCCESS)
     {
@@ -524,24 +582,21 @@ VkResult ScreenshotHandler::CreateCopyResource(VkDevice                         
         allocate_info.allocationSize       = memory_requirements.size;
         allocate_info.memoryTypeIndex      = memory_type_index;
 
-        result = allocator->AllocateMemory(&allocate_info,
-                                           nullptr,
-                                           format::kNullHandleId,
-                                           &copy_resource->buffer_memory,
-                                           &copy_resource->buffer_memory_data);
+        result = allocator->AllocateMemoryDirect(
+            &allocate_info, nullptr, &copy_resource->buffer_memory, &copy_resource->buffer_memory_data);
     }
 
     if (result == VK_SUCCESS)
     {
-        result = allocator->BindBufferMemory(copy_resource->buffer,
-                                             copy_resource->buffer_memory,
-                                             0,
-                                             copy_resource->buffer_data,
-                                             copy_resource->buffer_memory_data,
-                                             &copy_resource->memory_property_flags);
+        result = allocator->BindBufferMemoryDirect(copy_resource->buffer,
+                                                   copy_resource->buffer_memory,
+                                                   0,
+                                                   copy_resource->buffer_data,
+                                                   copy_resource->buffer_memory_data,
+                                                   &copy_resource->memory_property_flags);
     }
 
-    if ((result == VK_SUCCESS) && (image_format != kImageFormats[static_cast<size_t>(screenshot_format_)]))
+    if ((result == VK_SUCCESS) && (image_format != screenshot_format))
     {
         // The source image format does not match the image file format and requires a format conversion.  Create an
         // image to serve as the tranfer destination of a blit based color conversion.
@@ -549,7 +604,7 @@ VkResult ScreenshotHandler::CreateCopyResource(VkDevice                         
         image_create_info.pNext                 = nullptr;
         image_create_info.flags                 = 0;
         image_create_info.imageType             = VK_IMAGE_TYPE_2D;
-        image_create_info.format                = image_format;
+        image_create_info.format                = screenshot_format;
         image_create_info.extent                = { width, height, 1 };
         image_create_info.mipLevels             = 1;
         image_create_info.arrayLayers           = 1;
@@ -561,11 +616,8 @@ VkResult ScreenshotHandler::CreateCopyResource(VkDevice                         
         image_create_info.pQueueFamilyIndices   = nullptr;
         image_create_info.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        result = allocator->CreateImage(&image_create_info,
-                                        nullptr,
-                                        format::kNullHandleId,
-                                        &copy_resource->convert_image,
-                                        &copy_resource->convert_image_data);
+        result = allocator->CreateImageDirect(
+            &image_create_info, nullptr, &copy_resource->convert_image, &copy_resource->convert_image_data);
 
         if (result == VK_SUCCESS)
         {
@@ -582,52 +634,47 @@ VkResult ScreenshotHandler::CreateCopyResource(VkDevice                         
             allocate_info.allocationSize       = memory_requirements.size;
             allocate_info.memoryTypeIndex      = memory_type_index;
 
-            result = allocator->AllocateMemory(&allocate_info,
-                                               nullptr,
-                                               format::kNullHandleId,
-                                               &copy_resource->convert_image_memory,
-                                               &copy_resource->convert_image_memory_data);
+            result = allocator->AllocateMemoryDirect(&allocate_info,
+                                                     nullptr,
+                                                     &copy_resource->convert_image_memory,
+                                                     &copy_resource->convert_image_memory_data);
         }
 
         if (result == VK_SUCCESS)
         {
             VkMemoryPropertyFlags image_memory_property_flags = 0;
 
-            result = allocator->BindImageMemory(copy_resource->convert_image,
-                                                copy_resource->convert_image_memory,
-                                                0,
-                                                copy_resource->convert_image_data,
-                                                copy_resource->convert_image_memory_data,
-                                                &image_memory_property_flags);
+            result = allocator->BindImageMemoryDirect(copy_resource->convert_image,
+                                                      copy_resource->convert_image_memory,
+                                                      0,
+                                                      copy_resource->convert_image_data,
+                                                      copy_resource->convert_image_memory_data,
+                                                      &image_memory_property_flags);
         }
     }
 
     if (result != VK_SUCCESS)
     {
-        DestroyCopyResource(device, device_table, copy_resource);
+        DestroyCopyResource(device, copy_resource);
     }
 
     return result;
 }
 
-void ScreenshotHandler::DestroyCopyResource(VkDevice                   device,
-                                            const encode::DeviceTable* device_table,
-                                            CopyResource*              copy_resource) const
+void ScreenshotHandler::DestroyCopyResource(VkDevice device, CopyResource* copy_resource) const
 {
-    assert(device_table != nullptr);
-
     if (copy_resource != nullptr)
     {
         if (copy_resource->buffer != VK_NULL_HANDLE)
         {
-            copy_resource->allocator->DestroyBuffer(copy_resource->buffer, nullptr, copy_resource->buffer_data);
+            copy_resource->allocator->DestroyBufferDirect(copy_resource->buffer, nullptr, copy_resource->buffer_data);
             copy_resource->buffer      = VK_NULL_HANDLE;
             copy_resource->buffer_data = 0;
         }
 
         if (copy_resource->buffer_memory != VK_NULL_HANDLE)
         {
-            copy_resource->allocator->FreeMemory(
+            copy_resource->allocator->FreeMemoryDirect(
                 copy_resource->buffer_memory, nullptr, copy_resource->buffer_memory_data);
             copy_resource->buffer_memory         = VK_NULL_HANDLE;
             copy_resource->buffer_memory_data    = 0;
@@ -636,7 +683,7 @@ void ScreenshotHandler::DestroyCopyResource(VkDevice                   device,
 
         if (copy_resource->convert_image != VK_NULL_HANDLE)
         {
-            copy_resource->allocator->DestroyImage(
+            copy_resource->allocator->DestroyImageDirect(
                 copy_resource->convert_image, nullptr, copy_resource->convert_image_data);
             copy_resource->convert_image      = VK_NULL_HANDLE;
             copy_resource->convert_image_data = 0;
@@ -644,7 +691,7 @@ void ScreenshotHandler::DestroyCopyResource(VkDevice                   device,
 
         if (copy_resource->convert_image_memory != VK_NULL_HANDLE)
         {
-            copy_resource->allocator->FreeMemory(
+            copy_resource->allocator->FreeMemoryDirect(
                 copy_resource->convert_image_memory, nullptr, copy_resource->convert_image_memory_data);
             copy_resource->convert_image_memory      = VK_NULL_HANDLE;
             copy_resource->convert_image_memory_data = 0;

@@ -20,7 +20,7 @@
 # Description: CMake script for framework util target
 ###############################################################################
 
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.10.2)
 project(GFXReconstruct)
 
 set_property(GLOBAL PROPERTY TEST_SCRIPT ${CMAKE_ROOT})
@@ -34,7 +34,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" "${CMAKE_SOURCE_DIR}/external/
 # Version info
 set(GFXRECONSTRUCT_PROJECT_VERSION_MAJOR 0)
 set(GFXRECONSTRUCT_PROJECT_VERSION_MINOR 9)
-set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 3)
+set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 4)
 
 set(GFXRECON_PROJECT_VERSION_DESIGNATION "-unknown")
 set(GFXRECON_PROJECT_VERSION_SHA1 "unknown-build-source")
@@ -83,6 +83,8 @@ endif()
 
 configure_file("${CMAKE_SOURCE_DIR}/project_version.h.in" "${CMAKE_BINARY_DIR}/project_version.h")
 
+option(BUILD_WERROR "Build with warnings as errors" ON)
+
 # Code checks
 include("CodeStyle")
 include("Lint")
@@ -124,7 +126,6 @@ endif(UNIX)
 
 add_library(windows_specific INTERFACE)
 target_compile_definitions(windows_specific INTERFACE WIN32_LEAN_AND_MEAN NOMINMAX VK_USE_PLATFORM_WIN32_KHR)
-target_compile_options(windows_specific INTERFACE /WX)
 
 add_library(linux_specific INTERFACE)
 target_compile_definitions(linux_specific INTERFACE _FILE_OFFSET_BITS=64 PAGE_GUARD_ENABLE_UCONTEXT_WRITE_DETECTION
@@ -132,12 +133,19 @@ target_compile_definitions(linux_specific INTERFACE _FILE_OFFSET_BITS=64 PAGE_GU
     $<$<BOOL:${X11_Xrandr_FOUND}>:VK_USE_PLATFORM_XLIB_XRANDR_EXT>
     $<$<BOOL:${XCB_FOUND}>:VK_USE_PLATFORM_XCB_KHR>
     $<$<BOOL:${WAYLAND_FOUND}>:VK_USE_PLATFORM_WAYLAND_KHR>)
-target_compile_options(linux_specific INTERFACE -Werror)
 
 add_library(platform_specific INTERFACE)
 target_link_libraries(platform_specific INTERFACE
     $<$<BOOL:${WIN32}>:windows_specific>
     $<$<NOT:$<BOOL:${WIN32}>>:linux_specific>)
+
+if(BUILD_WERROR)
+    if(MSVC)
+        target_compile_options(platform_specific INTERFACE /WX)
+    else()
+        target_compile_options(platform_specific INTERFACE -Werror)
+    endif()
+endif()
 
 add_library(vulkan_registry INTERFACE)
 target_include_directories(vulkan_registry INTERFACE ${CMAKE_SOURCE_DIR}/external/Vulkan-Headers/include)

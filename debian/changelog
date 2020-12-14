@@ -1,3 +1,11 @@
+gfxreconstruct (0.9.3+53-1lunarg20.04-2) focal; urgency=medium
+
+  [ Dustin Graves ]
+  * Change to MIT license
+  * Remove unused code generator
+
+ -- John Zupin <john@odin>  Mon, 14 Dec 2020 09:35:11 -0700
+
 gfxreconstruct (0.9.3+53-1lunarg20.04-1) focal; urgency=medium
 
   [ Dustin Graves ]

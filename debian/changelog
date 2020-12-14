@@ -1,3 +1,11 @@
+gfxreconstruct (0.9.3+53-1lunarg18.04-2) bionic; urgency=medium
+
+  [ Dustin Graves ]
+  * Change to MIT license
+  * Remove unused code generator
+
+ -- John Zupin <john@odin>  Mon, 14 Dec 2020 09:33:22 -0700
+
 gfxreconstruct (0.9.3+53-1lunarg18.04-1) bionic; urgency=medium
 
   [ Dustin Graves ]

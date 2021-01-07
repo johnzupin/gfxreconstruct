@@ -97,7 +97,7 @@ format::ThreadId TraceManager::ThreadData::GetThreadId()
 }
 
 TraceManager::TraceManager() :
-    force_file_flush_(false), bytes_written_(0), timestamp_filename_(true),
+    force_file_flush_(false), timestamp_filename_(true),
     memory_tracking_mode_(CaptureSettings::MemoryTrackingMode::kPageGuard), page_guard_align_buffer_sizes_(false),
     page_guard_track_ahb_memory_(false), page_guard_memory_mode_(kMemoryModeShadowInternal), trim_enabled_(false),
     trim_current_range_(0), current_frame_(kFirstFrame), capture_mode_(kModeWrite), previous_hotkey_state_(false)
@@ -420,10 +420,10 @@ void TraceManager::EndApiCallTrace(ParameterEncoder* encoder)
             std::lock_guard<std::mutex> lock(file_lock_);
 
             // Write appropriate function call block header.
-            bytes_written_ += file_stream_->Write(header_pointer, header_size);
+            file_stream_->Write(header_pointer, header_size);
 
             // Write parameter data.
-            bytes_written_ += file_stream_->Write(data_pointer, data_size);
+            file_stream_->Write(data_pointer, data_size);
 
             if (force_file_flush_)
             {
@@ -629,8 +629,8 @@ void TraceManager::WriteFileHeader()
     file_header.minor_version = 0;
     file_header.num_options   = static_cast<uint32_t>(option_list.size());
 
-    bytes_written_ += file_stream_->Write(&file_header, sizeof(file_header));
-    bytes_written_ += file_stream_->Write(option_list.data(), option_list.size() * sizeof(format::FileOptionPair));
+    file_stream_->Write(&file_header, sizeof(file_header));
+    file_stream_->Write(option_list.data(), option_list.size() * sizeof(format::FileOptionPair));
 
     if (force_file_flush_)
     {
@@ -661,8 +661,8 @@ void TraceManager::WriteDisplayMessageCmd(const char* message)
         {
             std::lock_guard<std::mutex> lock(file_lock_);
 
-            bytes_written_ += file_stream_->Write(&message_cmd, sizeof(message_cmd));
-            bytes_written_ += file_stream_->Write(message, message_length);
+            file_stream_->Write(&message_cmd, sizeof(message_cmd));
+            file_stream_->Write(message, message_length);
 
             if (force_file_flush_)
             {
@@ -688,7 +688,7 @@ void TraceManager::WriteResizeWindowCmd(format::HandleId surface_id, uint32_t wi
 
         {
             std::lock_guard<std::mutex> lock(file_lock_);
-            bytes_written_ += file_stream_->Write(&resize_cmd, sizeof(resize_cmd));
+            file_stream_->Write(&resize_cmd, sizeof(resize_cmd));
 
             if (force_file_flush_)
             {
@@ -739,7 +739,7 @@ void TraceManager::WriteResizeWindowCmd2(format::HandleId              surface_i
 
         {
             std::lock_guard<std::mutex> lock(file_lock_);
-            bytes_written_ += file_stream_->Write(&resize_cmd2, sizeof(resize_cmd2));
+            file_stream_->Write(&resize_cmd2, sizeof(resize_cmd2));
 
             if (force_file_flush_)
             {
@@ -793,8 +793,8 @@ void TraceManager::WriteFillMemoryCmd(format::HandleId memory_id,
         {
             std::lock_guard<std::mutex> lock(file_lock_);
 
-            bytes_written_ += file_stream_->Write(&fill_cmd, sizeof(fill_cmd));
-            bytes_written_ += file_stream_->Write(write_address, write_size);
+            file_stream_->Write(&fill_cmd, sizeof(fill_cmd));
+            file_stream_->Write(write_address, write_size);
 
             if (force_file_flush_)
             {
@@ -853,11 +853,11 @@ void TraceManager::WriteCreateHardwareBufferCmd(format::HandleId                
         {
             std::lock_guard<std::mutex> lock(file_lock_);
 
-            bytes_written_ += file_stream_->Write(&create_buffer_cmd, sizeof(create_buffer_cmd));
+            file_stream_->Write(&create_buffer_cmd, sizeof(create_buffer_cmd));
 
             if (planes_size > 0)
             {
-                bytes_written_ += file_stream_->Write(plane_info.data(), planes_size);
+                file_stream_->Write(plane_info.data(), planes_size);
             }
 
             if (force_file_flush_)
@@ -896,7 +896,7 @@ void TraceManager::WriteDestroyHardwareBufferCmd(AHardwareBuffer* buffer)
         {
             std::lock_guard<std::mutex> lock(file_lock_);
 
-            bytes_written_ += file_stream_->Write(&destroy_buffer_cmd, sizeof(destroy_buffer_cmd));
+            file_stream_->Write(&destroy_buffer_cmd, sizeof(destroy_buffer_cmd));
 
             if (force_file_flush_)
             {
@@ -939,8 +939,8 @@ void TraceManager::WriteSetDevicePropertiesCommand(format::HandleId             
         {
             std::lock_guard<std::mutex> lock(file_lock_);
 
-            bytes_written_ += file_stream_->Write(&properties_cmd, sizeof(properties_cmd));
-            bytes_written_ += file_stream_->Write(properties.deviceName, properties_cmd.device_name_len);
+            file_stream_->Write(&properties_cmd, sizeof(properties_cmd));
+            file_stream_->Write(properties.deviceName, properties_cmd.device_name_len);
 
             if (force_file_flush_)
             {
@@ -974,7 +974,7 @@ void TraceManager::WriteSetDeviceMemoryPropertiesCommand(format::HandleId       
         {
             std::lock_guard<std::mutex> lock(file_lock_);
 
-            bytes_written_ += file_stream_->Write(&memory_properties_cmd, sizeof(memory_properties_cmd));
+            file_stream_->Write(&memory_properties_cmd, sizeof(memory_properties_cmd));
 
             format::DeviceMemoryType type;
             for (uint32_t i = 0; i < memory_properties.memoryTypeCount; ++i)
@@ -982,7 +982,7 @@ void TraceManager::WriteSetDeviceMemoryPropertiesCommand(format::HandleId       
                 type.property_flags = memory_properties.memoryTypes[i].propertyFlags;
                 type.heap_index     = memory_properties.memoryTypes[i].heapIndex;
 
-                bytes_written_ += file_stream_->Write(&type, sizeof(type));
+                file_stream_->Write(&type, sizeof(type));
             }
 
             format::DeviceMemoryHeap heap;
@@ -991,8 +991,40 @@ void TraceManager::WriteSetDeviceMemoryPropertiesCommand(format::HandleId       
                 heap.size  = memory_properties.memoryHeaps[i].size;
                 heap.flags = memory_properties.memoryHeaps[i].flags;
 
-                bytes_written_ += file_stream_->Write(&heap, sizeof(heap));
+                file_stream_->Write(&heap, sizeof(heap));
             }
+
+            if (force_file_flush_)
+            {
+                file_stream_->Flush();
+            }
+        }
+    }
+}
+
+void TraceManager::WriteSetBufferAddressCommand(format::HandleId device_id,
+                                                format::HandleId buffer_id,
+                                                uint64_t         address)
+{
+    if ((capture_mode_ & kModeWrite) == kModeWrite)
+    {
+        format::SetBufferAddressCommand buffer_address_cmd;
+
+        auto thread_data = GetThreadData();
+        assert(thread_data != nullptr);
+
+        buffer_address_cmd.meta_header.block_header.type = format::BlockType::kMetaDataBlock;
+        buffer_address_cmd.meta_header.block_header.size = format::GetMetaDataBlockBaseSize(buffer_address_cmd);
+        buffer_address_cmd.meta_header.meta_data_type    = format::MetaDataType::kSetBufferAddressCommand;
+        buffer_address_cmd.thread_id                     = thread_data->thread_id_;
+        buffer_address_cmd.device_id                     = device_id;
+        buffer_address_cmd.buffer_id                     = buffer_id;
+        buffer_address_cmd.address                       = address;
+
+        {
+            std::lock_guard<std::mutex> lock(file_lock_);
+
+            file_stream_->Write(&buffer_address_cmd, sizeof(buffer_address_cmd));
 
             if (force_file_flush_)
             {
@@ -1169,6 +1201,12 @@ VkResult TraceManager::OverrideCreateInstance(const VkInstanceCreateInfo*  pCrea
         }
     }
 
+    if ((result == VK_SUCCESS) && (pCreateInfo->pApplicationInfo != nullptr))
+    {
+        auto instance_wrapper         = reinterpret_cast<InstanceWrapper*>(*pInstance);
+        instance_wrapper->api_version = pCreateInfo->pApplicationInfo->apiVersion;
+    }
+
     return result;
 }
 
@@ -1182,25 +1220,85 @@ VkResult TraceManager::OverrideCreateDevice(VkPhysicalDevice             physica
     VkDeviceCreateInfo* pCreateInfo_unwrapped =
         const_cast<VkDeviceCreateInfo*>(UnwrapStructPtrHandles(pCreateInfo, handle_unwrap_memory));
 
-    if (page_guard_memory_mode_ == kMemoryModeExternal)
+    assert(pCreateInfo_unwrapped != nullptr);
+
+    const InstanceTable* instance_table          = GetInstanceTable(physicalDevice);
+    auto                 physical_device_wrapper = reinterpret_cast<PhysicalDeviceWrapper*>(physicalDevice);
+
+    // Force bufferDeviceAddressCaptureReplay on if bufferDeviceAddress feature is enabled
+    VkBaseOutStructure* current_struct = reinterpret_cast<VkBaseOutStructure*>(pCreateInfo_unwrapped)->pNext;
+    VkPhysicalDeviceBufferDeviceAddressFeatures* modified_buffer_address_features = nullptr;
+    VkPhysicalDeviceBufferDeviceAddressFeatures  incoming_buffer_address_features{};
+    while (current_struct != nullptr)
     {
-        assert(pCreateInfo_unwrapped != nullptr);
-
-        // TODO: Only enable KHR_external_memory_capabilities for 1.0 API version.
-        size_t                   extension_count = pCreateInfo_unwrapped->enabledExtensionCount;
-        const char* const*       extensions      = pCreateInfo_unwrapped->ppEnabledExtensionNames;
-        std::vector<const char*> modified_extensions;
-
-        bool has_ext_mem_caps = false;
-        bool has_ext_mem      = false;
-        bool has_ext_mem_host = false;
-
-        for (size_t i = 0; i < extension_count; ++i)
+        switch (current_struct->sType)
         {
-            auto entry = pCreateInfo_unwrapped->ppEnabledExtensionNames[i];
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES:
+            {
+                VkPhysicalDeviceBufferDeviceAddressFeatures* buffer_address_features =
+                    reinterpret_cast<VkPhysicalDeviceBufferDeviceAddressFeatures*>(current_struct);
+                if (buffer_address_features->bufferDeviceAddress)
+                {
+                    // Get buffer_address properties
+                    VkPhysicalDeviceFeatures2 features2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+                    VkPhysicalDeviceBufferDeviceAddressFeatures supported_features{
+                        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES
+                    };
+                    features2.pNext = &supported_features;
+                    if (physical_device_wrapper->instance_api_version >= VK_MAKE_VERSION(1, 1, 0))
+                    {
+                        instance_table->GetPhysicalDeviceFeatures2(physicalDevice_unwrapped, &features2);
+                    }
+                    else
+                    {
+                        instance_table->GetPhysicalDeviceFeatures2KHR(physicalDevice_unwrapped, &features2);
+                    }
 
-            modified_extensions.push_back(entry);
+                    // Enable bufferDeviceAddressCaptureReplay if it is supported
+                    if (supported_features.bufferDeviceAddressCaptureReplay)
+                    {
+                        incoming_buffer_address_features                          = *buffer_address_features;
+                        modified_buffer_address_features                          = buffer_address_features;
+                        buffer_address_features->bufferDeviceAddressCaptureReplay = true;
+                    }
+                    else
+                    {
+                        GFXRECON_LOG_ERROR(
+                            "VkPhysicalDeviceBufferDeviceAddressFeatures::bufferDeviceAddressCaptureReplay "
+                            "is needed to capture device addresses, but it is not supported by the capture device.");
+                    }
+                }
+            }
+            break;
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_EXT:
+            {
+                GFXRECON_LOG_ERROR("Extension %s is not supported by GFXReconstruct.",
+                                   VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+            }
+            break;
+            default:
+                break;
+        }
+        current_struct = current_struct->pNext;
+    }
 
+    // TODO: Only enable KHR_external_memory_capabilities for 1.0 API version.
+    size_t                   extension_count = pCreateInfo_unwrapped->enabledExtensionCount;
+    const char* const*       extensions      = pCreateInfo_unwrapped->ppEnabledExtensionNames;
+    std::vector<const char*> modified_extensions;
+
+    bool has_ext_mem_caps = false;
+    bool has_ext_mem      = false;
+    bool has_ext_mem_host = false;
+
+    for (size_t i = 0; i < extension_count; ++i)
+    {
+        auto entry = pCreateInfo_unwrapped->ppEnabledExtensionNames[i];
+
+        modified_extensions.push_back(entry);
+
+        if (page_guard_memory_mode_ == kMemoryModeExternal)
+        {
             if (util::platform::StringCompare(entry, VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) == 0)
             {
                 has_ext_mem_caps = true;
@@ -1214,7 +1312,10 @@ VkResult TraceManager::OverrideCreateDevice(VkPhysicalDevice             physica
                 has_ext_mem_host = true;
             }
         }
+    }
 
+    if (page_guard_memory_mode_ == kMemoryModeExternal)
+    {
         if (!has_ext_mem_caps)
         {
             modified_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
@@ -1229,29 +1330,107 @@ VkResult TraceManager::OverrideCreateDevice(VkPhysicalDevice             physica
         {
             modified_extensions.push_back(VK_EXT_EXTERNAL_MEMORY_HOST_EXTENSION_NAME);
         }
+    }
 
-        pCreateInfo_unwrapped->enabledExtensionCount   = static_cast<uint32_t>(modified_extensions.size());
-        pCreateInfo_unwrapped->ppEnabledExtensionNames = modified_extensions.data();
+    pCreateInfo_unwrapped->enabledExtensionCount   = static_cast<uint32_t>(modified_extensions.size());
+    pCreateInfo_unwrapped->ppEnabledExtensionNames = modified_extensions.data();
 
-        VkResult result =
-            layer_table_.CreateDevice(physicalDevice_unwrapped, pCreateInfo_unwrapped, pAllocator, pDevice);
+    VkResult result = layer_table_.CreateDevice(physicalDevice_unwrapped, pCreateInfo_unwrapped, pAllocator, pDevice);
 
-        if ((result == VK_SUCCESS) && (capture_mode_ & kModeTrack) != kModeTrack)
-        {
-            assert((pDevice != nullptr) && (*pDevice != VK_NULL_HANDLE));
+    // restore modified state of VkPhysicalDeviceBufferDeviceAddressFeatures
+    if (modified_buffer_address_features != nullptr)
+    {
+        *modified_buffer_address_features = incoming_buffer_address_features;
+    }
 
-            // The state tracker will set this value when it is enabled. When state tracking is disabled it is set
-            // here to ensure it is available for memory allocation.
-            auto wrapper             = reinterpret_cast<DeviceWrapper*>(*pDevice);
-            wrapper->physical_device = reinterpret_cast<PhysicalDeviceWrapper*>(physicalDevice);
-        }
+    if ((result == VK_SUCCESS) && ((capture_mode_ & kModeTrack) != kModeTrack))
+    {
+        assert((pDevice != nullptr) && (*pDevice != VK_NULL_HANDLE));
 
-        return result;
+        // The state tracker will set this value when it is enabled. When state tracking is disabled it is set
+        // here to ensure it is available.
+        auto wrapper             = reinterpret_cast<DeviceWrapper*>(*pDevice);
+        wrapper->physical_device = physical_device_wrapper;
+    }
+
+    return result;
+}
+
+VkResult TraceManager::OverrideCreateBuffer(VkDevice                     device,
+                                            const VkBufferCreateInfo*    pCreateInfo,
+                                            const VkAllocationCallbacks* pAllocator,
+                                            VkBuffer*                    pBuffer)
+{
+    VkResult result           = VK_SUCCESS;
+    auto     device_unwrapped = GetWrappedHandle<VkDevice>(device);
+    auto     device_table     = GetDeviceTable(device);
+
+    bool uses_address = false;
+    if ((pCreateInfo->usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) == VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+    {
+        uses_address = true;
+    }
+
+    // NOTE: VkBufferCreateInfo does not currently support pNext structures with handles, so does not have a handle
+    // unwrapping function.  If a pNext struct with handles is added in the future, it will be necessary to unwrap
+    // pCreateInfo before calling CreateBuffer.  The unwrapping process will create a mutable copy of the original
+    // pCreateInfo, with unwrapped handles, which can be modified directly and would not require the
+    // 'modified_create_info' copy performed below.
+    if (uses_address && ((pCreateInfo->flags & VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT) !=
+                         VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT))
+    {
+        // If the buffer has shader device address usage, but the device address capture replay flag was not set, it
+        // needs to be set here.  We create copy from an override to prevent the modificatied pCreateInfo from being
+        // written to the capture file.
+        VkBufferCreateInfo modified_create_info = (*pCreateInfo);
+        modified_create_info.flags |= VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT;
+
+        result = device_table->CreateBuffer(device_unwrapped, &modified_create_info, pAllocator, pBuffer);
     }
     else
     {
-        return layer_table_.CreateDevice(physicalDevice_unwrapped, pCreateInfo_unwrapped, pAllocator, pDevice);
+        result = device_table->CreateBuffer(device_unwrapped, pCreateInfo, pAllocator, pBuffer);
     }
+
+    if ((result == VK_SUCCESS) && (pBuffer != nullptr))
+    {
+        CreateWrappedHandle<DeviceWrapper, NoParentWrapper, BufferWrapper>(
+            device, NoParentWrapper::kHandleValue, pBuffer, TraceManager::GetUniqueId);
+
+        if (uses_address)
+        {
+            // If the buffer has a device address, write the 'set buffer address' command before writing the API call to
+            // create the buffer.  The address will need to be passed to vkCreateBuffer through the pCreateInfo pNext
+            // list.
+            auto                      device_wrapper = reinterpret_cast<DeviceWrapper*>(device);
+            auto                      buffer_wrapper = reinterpret_cast<BufferWrapper*>(*pBuffer);
+            VkBufferDeviceAddressInfo info           = { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+            info.pNext                               = nullptr;
+            info.buffer                              = buffer_wrapper->handle;
+            uint64_t address                         = 0;
+
+            if (device_wrapper->physical_device->instance_api_version >= VK_MAKE_VERSION(1, 2, 0))
+            {
+                address = device_table->GetBufferOpaqueCaptureAddress(device_unwrapped, &info);
+            }
+            else
+            {
+                address = device_table->GetBufferOpaqueCaptureAddressKHR(device_unwrapped, &info);
+            }
+
+            if (address != 0)
+            {
+                WriteSetBufferAddressCommand(device_wrapper->handle_id, buffer_wrapper->handle_id, address);
+
+                if ((capture_mode_ & kModeTrack) == kModeTrack)
+                {
+                    state_tracker_->TrackBufferDeviceAddress(device, *pBuffer, address);
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 VkResult TraceManager::OverrideAllocateMemory(VkDevice                     device,
@@ -1631,6 +1810,8 @@ void TraceManager::PostProcess_vkEnumeratePhysicalDevices(VkResult          resu
                         // When not tracking state, set the memory types directly.
                         physical_device_wrapper->memory_properties = std::move(memory_properties);
                     }
+
+                    physical_device_wrapper->instance_api_version = instance_wrapper->api_version;
 
                     WriteSetDevicePropertiesCommand(physical_device_id, properties);
                     WriteSetDeviceMemoryPropertiesCommand(physical_device_id,

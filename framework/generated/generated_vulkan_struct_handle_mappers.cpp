@@ -247,7 +247,7 @@ void MapStructHandles(Decoded_VkComputePipelineCreateInfo* wrapper, const Vulkan
     {
         VkComputePipelineCreateInfo* value = wrapper->decoded_value;
 
-        MapStructHandles(wrapper->stage.get(), object_info_table);
+        MapStructHandles(wrapper->stage, object_info_table);
 
         value->layout = handle_mapping::MapHandle<PipelineLayoutInfo>(wrapper->layout, object_info_table, &VulkanObjectInfoTable::GetPipelineLayoutInfo);
 
@@ -793,7 +793,7 @@ void MapStructHandles(Decoded_VkDisplayProperties2KHR* wrapper, const VulkanObje
 {
     if (wrapper != nullptr)
     {
-        MapStructHandles(wrapper->displayProperties.get(), object_info_table);
+        MapStructHandles(wrapper->displayProperties, object_info_table);
     }
 }
 
@@ -801,7 +801,7 @@ void MapStructHandles(Decoded_VkDisplayPlaneProperties2KHR* wrapper, const Vulka
 {
     if (wrapper != nullptr)
     {
-        MapStructHandles(wrapper->displayPlaneProperties.get(), object_info_table);
+        MapStructHandles(wrapper->displayPlaneProperties, object_info_table);
     }
 }
 
@@ -809,7 +809,7 @@ void MapStructHandles(Decoded_VkDisplayModeProperties2KHR* wrapper, const Vulkan
 {
     if (wrapper != nullptr)
     {
-        MapStructHandles(wrapper->displayModeProperties.get(), object_info_table);
+        MapStructHandles(wrapper->displayModeProperties, object_info_table);
     }
 }
 
@@ -1073,9 +1073,9 @@ void MapStructHandles(Decoded_VkGeometryDataNV* wrapper, const VulkanObjectInfoT
 {
     if (wrapper != nullptr)
     {
-        MapStructHandles(wrapper->triangles.get(), object_info_table);
+        MapStructHandles(wrapper->triangles, object_info_table);
 
-        MapStructHandles(wrapper->aabbs.get(), object_info_table);
+        MapStructHandles(wrapper->aabbs, object_info_table);
     }
 }
 
@@ -1083,7 +1083,7 @@ void MapStructHandles(Decoded_VkGeometryNV* wrapper, const VulkanObjectInfoTable
 {
     if (wrapper != nullptr)
     {
-        MapStructHandles(wrapper->geometry.get(), object_info_table);
+        MapStructHandles(wrapper->geometry, object_info_table);
     }
 }
 
@@ -1099,7 +1099,7 @@ void MapStructHandles(Decoded_VkAccelerationStructureCreateInfoNV* wrapper, cons
 {
     if (wrapper != nullptr)
     {
-        MapStructHandles(wrapper->info.get(), object_info_table);
+        MapStructHandles(wrapper->info, object_info_table);
     }
 }
 
@@ -1212,6 +1212,18 @@ void MapStructHandles(Decoded_VkGeneratedCommandsMemoryRequirementsInfoNV* wrapp
         value->pipeline = handle_mapping::MapHandle<PipelineInfo>(wrapper->pipeline, object_info_table, &VulkanObjectInfoTable::GetPipelineInfo);
 
         value->indirectCommandsLayout = handle_mapping::MapHandle<IndirectCommandsLayoutNVInfo>(wrapper->indirectCommandsLayout, object_info_table, &VulkanObjectInfoTable::GetIndirectCommandsLayoutNVInfo);
+    }
+}
+
+void MapStructHandles(Decoded_VkAccelerationStructureBuildGeometryInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table)
+{
+    if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
+    {
+        VkAccelerationStructureBuildGeometryInfoKHR* value = wrapper->decoded_value;
+
+        value->srcAccelerationStructure = handle_mapping::MapHandle<AccelerationStructureKHRInfo>(wrapper->srcAccelerationStructure, object_info_table, &VulkanObjectInfoTable::GetAccelerationStructureKHRInfo);
+
+        value->dstAccelerationStructure = handle_mapping::MapHandle<AccelerationStructureKHRInfo>(wrapper->dstAccelerationStructure, object_info_table, &VulkanObjectInfoTable::GetAccelerationStructureKHRInfo);
     }
 }
 
@@ -1383,7 +1395,7 @@ void AddStructHandles(format::HandleId parent_id, const Decoded_VkDisplayPropert
 {
     if (id_wrapper != nullptr)
     {
-        AddStructHandles(parent_id, id_wrapper->displayProperties.get(), &handle_struct->displayProperties, object_info_table);
+        AddStructHandles(parent_id, id_wrapper->displayProperties, &handle_struct->displayProperties, object_info_table);
     }
 }
 
@@ -1391,7 +1403,7 @@ void AddStructHandles(format::HandleId parent_id, const Decoded_VkDisplayPlanePr
 {
     if (id_wrapper != nullptr)
     {
-        AddStructHandles(parent_id, id_wrapper->displayPlaneProperties.get(), &handle_struct->displayPlaneProperties, object_info_table);
+        AddStructHandles(parent_id, id_wrapper->displayPlaneProperties, &handle_struct->displayPlaneProperties, object_info_table);
     }
 }
 
@@ -1399,7 +1411,7 @@ void AddStructHandles(format::HandleId parent_id, const Decoded_VkDisplayModePro
 {
     if (id_wrapper != nullptr)
     {
-        AddStructHandles(parent_id, id_wrapper->displayModeProperties.get(), &handle_struct->displayModeProperties, object_info_table);
+        AddStructHandles(parent_id, id_wrapper->displayModeProperties, &handle_struct->displayModeProperties, object_info_table);
     }
 }
 

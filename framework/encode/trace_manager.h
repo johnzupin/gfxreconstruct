@@ -308,6 +308,12 @@ class TraceManager
                                   const VkDeviceCreateInfo*    pCreateInfo,
                                   const VkAllocationCallbacks* pAllocator,
                                   VkDevice*                    pDevice);
+
+    VkResult OverrideCreateBuffer(VkDevice                     device,
+                                  const VkBufferCreateInfo*    pCreateInfo,
+                                  const VkAllocationCallbacks* pAllocator,
+                                  VkBuffer*                    pBuffer);
+
     VkResult OverrideAllocateMemory(VkDevice                     device,
                                     const VkMemoryAllocateInfo*  pAllocateInfo,
                                     const VkAllocationCallbacks* pAllocator,
@@ -969,6 +975,7 @@ class TraceManager
                                          const VkPhysicalDeviceProperties& properties);
     void WriteSetDeviceMemoryPropertiesCommand(format::HandleId                        physical_device_id,
                                                const VkPhysicalDeviceMemoryProperties& memory_properties);
+    void WriteSetBufferAddressCommand(format::HandleId device_id, format::HandleId buffer_id, uint64_t address);
 
     void SetDescriptorUpdateTemplateInfo(VkDescriptorUpdateTemplate                  update_template,
                                          const VkDescriptorUpdateTemplateCreateInfo* create_info);
@@ -998,7 +1005,6 @@ class TraceManager
     std::mutex                                      file_lock_;
     bool                                            timestamp_filename_;
     bool                                            force_file_flush_;
-    uint64_t                                        bytes_written_;
     std::unique_ptr<util::Compressor>               compressor_;
     CaptureSettings::MemoryTrackingMode             memory_tracking_mode_;
     bool                                            page_guard_align_buffer_sizes_;

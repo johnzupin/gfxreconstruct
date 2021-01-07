@@ -602,6 +602,19 @@ void VulkanReplayConsumerBase::ProcessSetDeviceMemoryPropertiesCommand(
     }
 }
 
+void VulkanReplayConsumerBase::ProcessSetBufferAddressCommand(format::HandleId device_id,
+                                                              format::HandleId buffer_id,
+                                                              uint64_t         address)
+{
+    DeviceInfo* device_info = object_info_table_.GetDeviceInfo(device_id);
+
+    if (device_info != nullptr)
+    {
+        // Store the buffer address to use at device creation.
+        device_info->buffer_addresses[buffer_id] = address;
+    }
+}
+
 void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateCommand(
     format::HandleId                                    device_id,
     format::HandleId                                    swapchain_id,
@@ -1526,9 +1539,11 @@ void* VulkanReplayConsumerBase::PreProcessExternalObject(uint64_t          objec
 
     if ((call_id == format::ApiCallId::ApiCall_vkGetPhysicalDeviceXlibPresentationSupportKHR) ||
         (call_id == format::ApiCallId::ApiCall_vkGetPhysicalDeviceXcbPresentationSupportKHR) ||
-        (call_id == format::ApiCallId::ApiCall_vkGetPhysicalDeviceWaylandPresentationSupportKHR))
+        (call_id == format::ApiCallId::ApiCall_vkGetPhysicalDeviceWaylandPresentationSupportKHR) ||
+        (call_id == format::ApiCallId::ApiCall_vkCmdSetCheckpointNV))
     {
         // The window system related handles are ignored by replay.
+        // The checkpoint marker is ignored by replay.
     }
     else
     {
@@ -2412,6 +2427,62 @@ VulkanReplayConsumerBase::OverrideCreateDevice(VkResult            original_resu
 
         modified_create_info.enabledExtensionCount   = static_cast<uint32_t>(modified_extensions.size());
         modified_create_info.ppEnabledExtensionNames = modified_extensions.data();
+
+        VkBaseOutStructure* current_struct = reinterpret_cast<VkBaseOutStructure*>(&modified_create_info)->pNext;
+        while (current_struct != nullptr)
+        {
+            switch (current_struct->sType)
+            {
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES:
+                {
+                    VkPhysicalDeviceBufferDeviceAddressFeatures* buffer_address_features =
+                        reinterpret_cast<VkPhysicalDeviceBufferDeviceAddressFeatures*>(current_struct);
+
+                    if (buffer_address_features->bufferDeviceAddress)
+                    {
+                        auto table = GetInstanceTable(physical_device);
+                        assert(table != nullptr);
+
+                        // Get buffer_address properties
+                        VkPhysicalDeviceFeatures2 features2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+                        VkPhysicalDeviceBufferDeviceAddressFeatures supported_features{
+                            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES
+                        };
+                        features2.pNext = &supported_features;
+                        if (physical_device_info->parent_api_version >= VK_MAKE_VERSION(1, 1, 0))
+                        {
+                            table->GetPhysicalDeviceFeatures2(physical_device, &features2);
+                        }
+                        else
+                        {
+                            table->GetPhysicalDeviceFeatures2KHR(physical_device, &features2);
+                        }
+
+                        // Enable bufferDeviceAddressCaptureReplay if it is supported
+                        if (supported_features.bufferDeviceAddressCaptureReplay)
+                        {
+                            buffer_address_features->bufferDeviceAddressCaptureReplay = true;
+                        }
+                        else
+                        {
+                            GFXRECON_LOG_ERROR("VkPhysicalDeviceBufferDeviceAddressFeatures::"
+                                               "bufferDeviceAddressCaptureReplay is needed to replay captured device "
+                                               "addresses, but it is not supported by the replay device.");
+                        }
+                    }
+                }
+                break;
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_EXT:
+                {
+                    GFXRECON_LOG_ERROR("Extension %s is not supported by GFXReconstruct.",
+                                       VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+                }
+                break;
+                default:
+                    break;
+            }
+            current_struct = current_struct->pNext;
+        }
 
         result = create_device_proc(
             physical_device, &modified_create_info, GetAllocationCallbacks(pAllocator), replay_device);
@@ -3614,14 +3685,49 @@ VulkanReplayConsumerBase::OverrideCreateBuffer(PFN_vkCreateBuffer               
     auto allocator = device_info->allocator.get();
     assert(allocator != nullptr);
 
+    VkResult                              result = VK_SUCCESS;
     VulkanResourceAllocator::ResourceData allocator_data;
-    auto                                  replay_buffer = pBuffer->GetHandlePointer();
-    auto                                  capture_id    = (*pBuffer->GetPointer());
+    auto                                  replay_buffer      = pBuffer->GetHandlePointer();
+    auto                                  capture_id         = (*pBuffer->GetPointer());
+    auto                                  replay_create_info = pCreateInfo->GetPointer();
 
-    VkResult result = allocator->CreateBuffer(
-        pCreateInfo->GetPointer(), GetAllocationCallbacks(pAllocator), capture_id, replay_buffer, &allocator_data);
+    // Check for a buffer device address.
+    if ((replay_create_info != nullptr) && ((replay_create_info->usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) ==
+                                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT))
+    {
+        VkBufferCreateInfo modified_create_info = (*replay_create_info);
 
-    auto replay_create_info = pCreateInfo->GetPointer();
+        VkBufferOpaqueCaptureAddressCreateInfo address_info = {
+            VK_STRUCTURE_TYPE_BUFFER_OPAQUE_CAPTURE_ADDRESS_CREATE_INFO
+        };
+
+        auto entry = device_info->buffer_addresses.find(capture_id);
+        if (entry != device_info->buffer_addresses.end())
+        {
+            address_info.opaqueCaptureAddress = entry->second;
+
+            // The shallow copy of VkBufferCreateInfo references the same pNext list from the copy source.  We insert
+            // the buffer address extension struct at the start of the list to avoid modifying the original by appending
+            // to the end.
+            address_info.pNext         = modified_create_info.pNext;
+            modified_create_info.pNext = &address_info;
+
+            modified_create_info.flags |= VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT;
+        }
+        else
+        {
+            GFXRECON_LOG_DEBUG("Buffer device address is not available for VkBuffer object (ID = %" PRIu64 ")",
+                               capture_id);
+        }
+
+        result = allocator->CreateBuffer(
+            &modified_create_info, GetAllocationCallbacks(pAllocator), capture_id, replay_buffer, &allocator_data);
+    }
+    else
+    {
+        result = allocator->CreateBuffer(
+            replay_create_info, GetAllocationCallbacks(pAllocator), capture_id, replay_buffer, &allocator_data);
+    }
 
     if ((result == VK_SUCCESS) && (replay_create_info != nullptr) && ((*replay_buffer) != VK_NULL_HANDLE))
     {

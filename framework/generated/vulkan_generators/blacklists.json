@@ -9,10 +9,7 @@
     "vkEnumerateInstanceVersion",
     "vkUpdateDescriptorSetWithTemplate",
     "vkUpdateDescriptorSetWithTemplateKHR",
-    "vkCmdPushDescriptorSetWithTemplateKHR",
-    "vkBuildAccelerationStructuresKHR",
-    "vkCmdBuildAccelerationStructuresKHR",
-    "vkCmdBuildAccelerationStructuresIndirectKHR"
+    "vkCmdPushDescriptorSetWithTemplateKHR"
   ],
   "structures": [
     "VkBaseOutStructure",
@@ -20,6 +17,6 @@
     "VkDescriptorImageInfo",
     "VkWriteDescriptorSet",
     "VkPerformanceValueINTEL",
-    "VkAccelerationStructureBuildGeometryInfoKHR"
+    "VkAccelerationStructureGeometryKHR"
   ]
 }

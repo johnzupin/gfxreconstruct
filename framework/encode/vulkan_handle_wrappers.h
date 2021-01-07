@@ -102,6 +102,7 @@ struct PhysicalDeviceWrapper : public HandleWrapper<VkPhysicalDevice>
 {
     InstanceTable*                  layer_table_ref{ nullptr };
     std::vector<DisplayKHRWrapper*> child_displays;
+    uint32_t                        instance_api_version{ 0 };
 
     // Track memory types for use when creating snapshots of buffer and image resource memory content.
     VkPhysicalDeviceMemoryProperties memory_properties{};
@@ -120,6 +121,7 @@ struct InstanceWrapper : public HandleWrapper<VkInstance>
     InstanceTable                       layer_table;
     std::vector<PhysicalDeviceWrapper*> child_physical_devices;
     bool                                have_device_properties{ false };
+    uint32_t                            api_version{ VK_MAKE_VERSION(1, 0, 0) };
 };
 
 struct QueueWrapper : public HandleWrapper<VkQueue>
@@ -169,6 +171,10 @@ struct BufferWrapper : public HandleWrapper<VkBuffer>
     VkDeviceSize     bind_offset{ 0 };
     uint32_t         queue_family_index{ 0 };
     VkDeviceSize     created_size{ 0 };
+
+    // State tracking info for buffers with device addresses.
+    format::HandleId device_id{ format::kNullHandleId };
+    VkDeviceAddress  address{ 0 };
 };
 
 struct ImageWrapper : public HandleWrapper<VkImage>

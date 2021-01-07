@@ -1,3 +1,52 @@
+gfxreconstruct (0.9.5~rc1-1lunarg18.04-1) bionic; urgency=medium
+
+  [ Dustin Graves ]
+  * Set version to 0.9.5
+
+  [ Mike Schuchardt ]
+  * Add encode/decode support for 2d arrays
+  * Remove ray tracing from blacklist
+  * Add encode/decode support for RT geometry union
+  * Remove some warnings on RT vkWriteDescriptorSets
+
+  [ Dustin Graves ]
+  * Initial support for opaque buffer addresses
+
+  [ David Donaldson ]
+  * Enable bufferDeviceAddressCaptureReplay bit
+  * Default initialize replay API version to 1.0
+
+  [ Dustin Graves ]
+  * Fix descriptor set failed alloc issue
+
+  [ David Donaldson ]
+  * Add MonotonicAllocator utility class
+  * Create class interface for decode allocations
+  * Use DecodeAllocator when decoding structs
+  * Use DecodeAllocator when decoding pointer types
+  * Use DecodeAllocater when decoding pNext structs
+  * Fix unhandled enumeration values warning
+  * Cleanup: remove unused variable
+
+  [ locke-lunarg ]
+  * Bug fix & Modify build.md
+
+  [ David Donaldson ]
+  * Read outer array length when decoding 2D arrays
+  * Enable KHR acceleration structure wrapping
+
+  [ Dustin Graves ]
+  * Ignore checkpoint data
+  * Prevent cmd.exe from closing on replay exit
+
+  [ David Donaldson ]
+  * Add logging options to gfxrecon-replay
+
+  [ John Zupin ]
+  * packaging: rebase patches
+
+ -- John Zupin <john@odin>  Thu, 07 Jan 2021 11:52:00 -0700
+
 gfxreconstruct (0.9.3+53-1lunarg18.04-2) bionic; urgency=medium
 
   [ Dustin Graves ]

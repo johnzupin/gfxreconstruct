@@ -1,5 +1,6 @@
+
 /*
-** Copyright (c) 2019-2020 LunarG, Inc.
+** Copyright (c) 2020 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -20,26 +21,41 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef GFXRECON_DECODE_CUSTOM_STRUCT_HANDLE_MAPPERS_H
-#define GFXRECON_DECODE_CUSTOM_STRUCT_HANDLE_MAPPERS_H
-
-#include "decode/custom_vulkan_struct_decoders_forward.h"
-#include "decode/pnext_node.h"
-#include "decode/vulkan_object_info_table.h"
-#include "util/defines.h"
-
-#include "vulkan/vulkan.h"
+#include "decode/decode_allocator.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
 
-void MapStructHandles(VkDescriptorType               type,
-                      Decoded_VkDescriptorImageInfo* wrapper,
-                      const VulkanObjectInfoTable&   object_info_table);
+DecodeAllocator* DecodeAllocator::instance_{ nullptr };
 
-void MapStructHandles(Decoded_VkWriteDescriptorSet* wrapper, const VulkanObjectInfoTable& object_info_table);
+void DecodeAllocator::Begin()
+{
+    if (instance_ == nullptr)
+    {
+        instance_ = new DecodeAllocator();
+    }
+    assert(!instance_->can_allocate_);
+    instance_->can_allocate_ = true;
+}
+
+void DecodeAllocator::End()
+{
+    assert((instance_ != nullptr) && instance_->can_allocate_);
+    instance_->allocator_.Clear(false);
+    instance_->can_allocate_ = false;
+}
+
+void DecodeAllocator::FreeSystemMemory()
+{
+    assert((instance_ != nullptr) && !instance_->can_allocate_);
+    instance_->allocator_.Clear(true);
+}
+
+void DecodeAllocator::DestroyInstance()
+{
+    delete instance_;
+    instance_ = nullptr;
+}
 
 GFXRECON_END_NAMESPACE(decode)
 GFXRECON_END_NAMESPACE(gfxrecon)
-
-#endif // GFXRECON_DECODE_CUSTOM_STRUCT_HANDLE_MAPPERS_H

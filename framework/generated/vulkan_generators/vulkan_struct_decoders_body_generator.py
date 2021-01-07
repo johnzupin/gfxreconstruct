@@ -57,13 +57,14 @@ class VulkanStructDecodersBodyGenerator(BaseGenerator):
         write('#include "generated/generated_vulkan_struct_decoders.h"', file=self.outFile)
         self.newline()
         write('#include "decode/custom_vulkan_struct_decoders.h"', file=self.outFile)
+        write('#include "decode/decode_allocator.h"', file=self.outFile)
         self.newline()
         write('#include <cassert>', file=self.outFile)
         self.newline()
         write('GFXRECON_BEGIN_NAMESPACE(gfxrecon)', file=self.outFile)
         write('GFXRECON_BEGIN_NAMESPACE(decode)', file=self.outFile)
         self.newline()
-        write('size_t DecodePNextStruct(const uint8_t* buffer, size_t buffer_size, std::unique_ptr<PNextNode>* pNext);', file=self.outFile)
+        write('size_t DecodePNextStruct(const uint8_t* buffer, size_t buffer_size, PNextNode** pNext);', file=self.outFile)
 
     # Method override
     def endFile(self):
@@ -151,7 +152,7 @@ class VulkanStructDecodersBodyGenerator(BaseGenerator):
                 accessOp = '.'
 
                 if isStruct:
-                    body += '    wrapper->{} = std::make_unique<{}>();\n'.format(value.name, self.makeDecodedParamType(value))
+                    body += '    wrapper->{} = DecodeAllocator::Allocate<{}>();\n'.format(value.name, self.makeDecodedParamType(value))
                     accessOp = '->'
 
                 if isStaticArray:
@@ -172,9 +173,9 @@ class VulkanStructDecodersBodyGenerator(BaseGenerator):
                         body += '    value->{name} = wrapper->{name}{}GetPointer();\n'.format(accessOp, name=value.name)
         else:
             if isStruct:
-                body += '    wrapper->{} = std::make_unique<{}>();\n'.format(value.name, self.makeDecodedParamType(value))
+                body += '    wrapper->{} = DecodeAllocator::Allocate<{}>();\n'.format(value.name, self.makeDecodedParamType(value))
                 body += '    wrapper->{name}->decoded_value = &(value->{name});\n'.format(name=value.name)
-                body += '    bytes_read += DecodeStruct({}, wrapper->{}.get());\n'.format(bufferArgs, value.name)
+                body += '    bytes_read += DecodeStruct({}, wrapper->{});\n'.format(bufferArgs, value.name)
             elif isFuncp:
                 body += '    bytes_read += ValueDecoder::DecodeAddress({}, &(wrapper->{}));\n'.format(bufferArgs, value.name)
                 body += '    value->{} = nullptr;\n'.format(value.name)

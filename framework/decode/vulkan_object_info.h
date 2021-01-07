@@ -202,7 +202,7 @@ typedef VulkanObjectInfo<VkPrivateDataSlotEXT>            PrivateDataSlotEXTInfo
 
 struct InstanceInfo : public VulkanObjectInfo<VkInstance>
 {
-    uint32_t                             api_version{ 0 };
+    uint32_t                             api_version{ VK_MAKE_VERSION(1, 0, 0) };
     std::vector<std::string>             enabled_extensions;
     std::unordered_map<uint32_t, size_t> array_counts;
 
@@ -240,6 +240,8 @@ struct DeviceInfo : public VulkanObjectInfo<VkDevice>
     VkPhysicalDevice                         parent{ VK_NULL_HANDLE };
     std::unique_ptr<VulkanResourceAllocator> allocator;
     std::unordered_map<uint32_t, size_t>     array_counts;
+
+    std::unordered_map<format::HandleId, uint64_t> buffer_addresses;
 
     // The following values are only used when loading the initial state for trimmed files.
     std::vector<std::string>                   extensions;

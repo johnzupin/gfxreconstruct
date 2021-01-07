@@ -7,10 +7,10 @@ Subject: patch: disable gfxreon-toascii as an install target
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/tools/toascii/CMakeLists.txt b/tools/toascii/CMakeLists.txt
-index 07e565b..5c9e724 100644
+index 961313a..fede7ed 100644
 --- a/tools/toascii/CMakeLists.txt
 +++ b/tools/toascii/CMakeLists.txt
-@@ -33,4 +33,4 @@ target_link_libraries(gfxrecon-toascii gfxrecon_decode gfxrecon_format gfxrecon_
+@@ -39,4 +39,4 @@ target_link_libraries(gfxrecon-toascii gfxrecon_decode gfxrecon_format gfxrecon_
  
  common_build_directives(gfxrecon-toascii)
  

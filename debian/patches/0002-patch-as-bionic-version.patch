@@ -7,10 +7,10 @@ Subject: patch as bionic version
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/project_version.h.in b/project_version.h.in
-index c773cbe..326fb57 100644
+index 3dcd035..1d38e3c 100644
 --- a/project_version.h.in
 +++ b/project_version.h.in
-@@ -21,8 +21,8 @@
+@@ -27,8 +27,8 @@
  #define GFXRECON_PROJECT_VERSION_MINOR @GFXRECONSTRUCT_PROJECT_VERSION_MINOR@
  #define GFXRECON_PROJECT_VERSION_PATCH @GFXRECONSTRUCT_PROJECT_VERSION_PATCH@
  

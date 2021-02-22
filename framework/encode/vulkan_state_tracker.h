@@ -320,6 +320,10 @@ class VulkanStateTracker
                             uint32_t                    image_barrier_count,
                             const VkImageMemoryBarrier* image_barriers);
 
+    void TrackImageBarriers2KHR(VkCommandBuffer                 command_buffer,
+                                uint32_t                        image_barrier_count,
+                                const VkImageMemoryBarrier2KHR* image_barriers);
+
     void TrackCommandBufferSubmissions(uint32_t submit_count, const VkSubmitInfo* submits);
 
     void TrackUpdateDescriptorSets(uint32_t                    write_count,
@@ -358,6 +362,14 @@ class VulkanStateTracker
                               const VkSwapchainKHR* swapchains,
                               const uint32_t*       image_indices,
                               VkQueue               queue);
+
+    void TrackAccelerationStructureKHRDeviceAddress(VkDevice                   device,
+                                                    VkAccelerationStructureKHR accel_struct,
+                                                    VkDeviceAddress            address);
+
+    void TrackDeviceMemoryDeviceAddress(VkDevice device, VkDeviceMemory memory, VkDeviceAddress address);
+
+    void TrackRayTracingShaderGroupHandles(VkDevice device, VkPipeline pipeline, size_t data_size, const void* data);
 
   private:
     template <typename ParentHandle, typename SecondaryHandle, typename Wrapper, typename CreateInfo>

@@ -1,6 +1,6 @@
 /*
-** Copyright (c) 2018-2020 Valve Corporation
-** Copyright (c) 2018-2020 LunarG, Inc.
+** Copyright (c) 2018-2021 Valve Corporation
+** Copyright (c) 2018-2021 LunarG, Inc.
 ** Copyright (c) 2019 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
@@ -314,6 +314,11 @@ class TraceManager
                                   const VkAllocationCallbacks* pAllocator,
                                   VkBuffer*                    pBuffer);
 
+    VkResult OverrideCreateAccelerationStructureKHR(VkDevice                                    device,
+                                                    const VkAccelerationStructureCreateInfoKHR* pCreateInfo,
+                                                    const VkAllocationCallbacks*                pAllocator,
+                                                    VkAccelerationStructureKHR* pAccelerationStructureKHR);
+
     VkResult OverrideAllocateMemory(VkDevice                     device,
                                     const VkMemoryAllocateInfo*  pAllocateInfo,
                                     const VkAllocationCallbacks* pAllocator,
@@ -323,10 +328,23 @@ class TraceManager
                                                         uint32_t*                          pToolCount,
                                                         VkPhysicalDeviceToolPropertiesEXT* pToolProperties);
 
+    VkResult OverrideCreateRayTracingPipelinesKHR(VkDevice                                 device,
+                                                  VkDeferredOperationKHR                   deferredOperation,
+                                                  VkPipelineCache                          pipelineCache,
+                                                  uint32_t                                 createInfoCount,
+                                                  const VkRayTracingPipelineCreateInfoKHR* pCreateInfos,
+                                                  const VkAllocationCallbacks*             pAllocator,
+                                                  VkPipeline*                              pPipelines);
+
     void PostProcess_vkEnumeratePhysicalDevices(VkResult          result,
                                                 VkInstance        instance,
                                                 uint32_t*         pPhysicalDeviceCount,
                                                 VkPhysicalDevice* pPhysicalDevices);
+
+    void PostProcess_vkEnumeratePhysicalDeviceGroups(VkResult                         result,
+                                                     VkInstance                       instance,
+                                                     uint32_t*                        pPhysicalDeviceGroupCount,
+                                                     VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties);
 
     void PostProcess_vkGetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice         physicalDevice,
                                                               uint32_t*                pQueueFamilyPropertyCount,
@@ -656,6 +674,16 @@ class TraceManager
         }
     }
 
+    void PostProcess_vkCmdPipelineBarrier2KHR(VkCommandBuffer commandBuffer, const VkDependencyInfoKHR* pDependencyInfo)
+    {
+        if ((capture_mode_ & kModeTrack) == kModeTrack)
+        {
+            assert(state_tracker_ != nullptr);
+            state_tracker_->TrackImageBarriers2KHR(
+                commandBuffer, pDependencyInfo->imageMemoryBarrierCount, pDependencyInfo->pImageMemoryBarriers);
+        }
+    }
+
     void PostProcess_vkCmdExecuteCommands(VkCommandBuffer        commandBuffer,
                                           uint32_t               commandBufferCount,
                                           const VkCommandBuffer* pCommandBuffers)
@@ -879,6 +907,15 @@ class TraceManager
                                                         const VkAllocationCallbacks*                pAllocator,
                                                         VkDescriptorUpdateTemplate* pDescriptorUpdateTemplate);
 
+    void PreProcess_vkGetBufferDeviceAddress(VkDevice device, const VkBufferDeviceAddressInfo* pInfo);
+
+    void
+    PreProcess_vkGetAccelerationStructureDeviceAddressKHR(VkDevice                                           device,
+                                                          const VkAccelerationStructureDeviceAddressInfoKHR* pInfo);
+
+    void PreProcess_vkGetRayTracingShaderGroupHandlesKHR(
+        VkDevice device, VkPipeline pipeline, uint32_t firstGroup, uint32_t groupCount, size_t dataSize, void* pData);
+
 #if defined(__ANDROID__)
     void OverrideGetPhysicalDeviceSurfacePresentModesKHR(uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes);
 #endif
@@ -975,7 +1012,12 @@ class TraceManager
                                          const VkPhysicalDeviceProperties& properties);
     void WriteSetDeviceMemoryPropertiesCommand(format::HandleId                        physical_device_id,
                                                const VkPhysicalDeviceMemoryProperties& memory_properties);
-    void WriteSetBufferAddressCommand(format::HandleId device_id, format::HandleId buffer_id, uint64_t address);
+    void WriteSetOpaqueAddressCommand(format::HandleId device_id, format::HandleId object_id, uint64_t address);
+
+    void WriteSetRayTracingShaderGroupHandlesCommand(format::HandleId device_id,
+                                                     format::HandleId pipeline_id,
+                                                     size_t           data_size,
+                                                     const void*      data);
 
     void SetDescriptorUpdateTemplateInfo(VkDescriptorUpdateTemplate                  update_template,
                                          const VkDescriptorUpdateTemplateCreateInfo* create_info);
@@ -983,6 +1025,9 @@ class TraceManager
     void TrackUpdateDescriptorSetWithTemplate(VkDescriptorSet            set,
                                               VkDescriptorUpdateTemplate update_templat,
                                               const void*                data);
+
+    void
+    ProcessEnumeratePhysicalDevices(VkResult result, VkInstance instance, uint32_t count, VkPhysicalDevice* devices);
 
     VkMemoryPropertyFlags GetMemoryProperties(DeviceWrapper* device_wrapper, uint32_t memory_type_index);
 

@@ -77,7 +77,7 @@ target_include_directories(gfxrecon_encode
                                ${CMAKE_BINARY_DIR}
                                ${CMAKE_SOURCE_DIR}/framework)
 
-target_link_libraries(gfxrecon_encode gfxrecon_format gfxrecon_util vulkan_registry platform_specific)
+target_link_libraries(gfxrecon_encode gfxrecon_graphics gfxrecon_format gfxrecon_util vulkan_registry platform_specific)
 
 common_build_directives(gfxrecon_encode)
 

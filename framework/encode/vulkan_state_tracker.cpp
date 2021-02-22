@@ -23,6 +23,7 @@
 #include "encode/vulkan_state_tracker.h"
 
 #include "encode/vulkan_state_info.h"
+#include "graphics/vulkan_util.h"
 
 #include <algorithm>
 
@@ -372,6 +373,26 @@ void VulkanStateTracker::TrackImageBarriers(VkCommandBuffer             command_
     }
 }
 
+void VulkanStateTracker::TrackImageBarriers2KHR(VkCommandBuffer                 command_buffer,
+                                                uint32_t                        image_barrier_count,
+                                                const VkImageMemoryBarrier2KHR* image_barriers)
+{
+    assert(command_buffer != VK_NULL_HANDLE);
+
+    if ((image_barrier_count > 0) && (image_barriers != nullptr))
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+
+        auto wrapper = reinterpret_cast<CommandBufferWrapper*>(command_buffer);
+
+        for (uint32_t i = 0; i < image_barrier_count; ++i)
+        {
+            auto image_wrapper                      = reinterpret_cast<ImageWrapper*>(image_barriers[i].image);
+            wrapper->pending_layouts[image_wrapper] = image_barriers[i].newLayout;
+        }
+    }
+}
+
 void VulkanStateTracker::TrackCommandBufferSubmissions(uint32_t submit_count, const VkSubmitInfo* submits)
 {
     if ((submit_count > 0) && (submits != nullptr) && (submits->commandBufferCount > 0))
@@ -460,6 +481,12 @@ void VulkanStateTracker::TrackUpdateDescriptorSets(uint32_t                    w
                 bool* written_start = &binding.written[current_dst_array_element];
                 std::fill(written_start, written_start + current_writes, true);
 
+                if (binding.type == VK_DESCRIPTOR_TYPE_MUTABLE_VALVE)
+                {
+                    VkDescriptorType* mutable_type_start = &binding.mutable_type[current_dst_array_element];
+                    std::fill(mutable_type_start, mutable_type_start + current_writes, write->descriptorType);
+                }
+
                 switch (write->descriptorType)
                 {
                     case VK_DESCRIPTOR_TYPE_SAMPLER:
@@ -541,6 +568,28 @@ void VulkanStateTracker::TrackUpdateDescriptorSets(uint32_t                    w
                     case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
                         // TODO
                         break;
+                    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+                    {
+                        VkWriteDescriptorSetAccelerationStructureKHR* write_accel_struct =
+                            graphics::GetPNextStruct<VkWriteDescriptorSetAccelerationStructureKHR>(
+                                write, VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR);
+
+                        if (write_accel_struct != nullptr)
+                        {
+                            format::HandleId* dst_accel_struct_ids = &binding.handle_ids[current_dst_array_element];
+                            VkAccelerationStructureKHR* dst_accel_struct =
+                                &binding.acceleration_structures[current_dst_array_element];
+                            const VkAccelerationStructureKHR* src_accel_struct =
+                                &write_accel_struct->pAccelerationStructures[current_src_array_element];
+
+                            for (uint32_t i = 0; i < current_writes; ++i)
+                            {
+                                dst_accel_struct_ids[i] = GetWrappedId(src_accel_struct[i]);
+                                dst_accel_struct[i]     = src_accel_struct[i];
+                            }
+                        }
+                    }
+                    break;
                     default:
                         GFXRECON_LOG_WARNING("Attempting to track descriptor state for unrecognized descriptor type");
                         break;
@@ -608,17 +657,29 @@ void VulkanStateTracker::TrackUpdateDescriptorSets(uint32_t                    w
                            &src_binding.images[current_src_array_element],
                            (sizeof(VkDescriptorImageInfo) * current_copies));
                 }
-                else if (src_binding.buffers != nullptr)
+                if (src_binding.buffers != nullptr)
                 {
                     memcpy(&dst_binding.buffers[current_dst_array_element],
                            &src_binding.buffers[current_src_array_element],
                            (sizeof(VkDescriptorBufferInfo) * current_copies));
                 }
-                else
+                if (src_binding.acceleration_structures != nullptr)
+                {
+                    memcpy(&dst_binding.acceleration_structures[current_dst_array_element],
+                           &src_binding.acceleration_structures[current_src_array_element],
+                           (sizeof(VkWriteDescriptorSetAccelerationStructureKHR) * current_copies));
+                }
+                if (src_binding.texel_buffer_views != nullptr)
                 {
                     memcpy(&dst_binding.texel_buffer_views[current_dst_array_element],
                            &src_binding.texel_buffer_views[current_src_array_element],
                            (sizeof(VkBufferView) * current_copies));
+                }
+                if (src_binding.mutable_type != nullptr)
+                {
+                    memcpy(&dst_binding.mutable_type[current_dst_array_element],
+                           &src_binding.mutable_type[current_src_array_element],
+                           (sizeof(VkDescriptorType) * current_copies));
                 }
 
                 // Check for consecutive update.
@@ -831,6 +892,55 @@ void VulkanStateTracker::TrackUpdateDescriptorSetWithTemplate(VkDescriptorSet   
                 }
             }
         }
+
+        for (const auto& entry : template_info->acceleration_structure_khr)
+        {
+            // Descriptor update rules specify that a write descriptorCount that is greater than the binding's count
+            // will result in updates to consecutive bindings.
+            uint32_t current_count         = entry.count;
+            uint32_t current_binding       = entry.binding;
+            uint32_t current_array_element = entry.array_element;
+            size_t   current_offset        = entry.offset;
+
+            for (;;)
+            {
+                auto& binding = wrapper->bindings[current_binding];
+
+                assert(binding.acceleration_structures != nullptr);
+
+                // Check count for consecutive updates.
+                uint32_t current_writes = std::min(current_count, (binding.count - current_array_element));
+
+                bool* written_start = &binding.written[current_array_element];
+                std::fill(written_start, written_start + current_writes, true);
+
+                format::HandleId*           dst_view_ids = &binding.handle_ids[current_array_element];
+                VkAccelerationStructureKHR* dst_info     = &binding.acceleration_structures[current_array_element];
+                const uint8_t*              src_address  = bytes + current_offset;
+
+                for (uint32_t i = 0; i < current_writes; ++i)
+                {
+                    auto accel_struct = reinterpret_cast<const VkAccelerationStructureKHR*>(src_address);
+                    dst_view_ids[i]   = GetWrappedId(*accel_struct);
+                    dst_info[i]       = *accel_struct;
+
+                    src_address += entry.stride;
+                }
+
+                // Check for consecutive update.
+                if (current_count == current_writes)
+                {
+                    break;
+                }
+                else
+                {
+                    current_count -= current_writes;
+                    current_binding += 1;
+                    current_array_element = 0;
+                    current_offset += (current_writes * entry.stride);
+                }
+            }
+        }
     }
 }
 
@@ -978,6 +1088,45 @@ void VulkanStateTracker::TrackPresentedImages(uint32_t              count,
         wrapper->image_acquired_info[image_index].is_acquired          = false;
         wrapper->image_acquired_info[image_index].last_presented_queue = queue;
     }
+}
+
+void VulkanStateTracker::TrackAccelerationStructureKHRDeviceAddress(VkDevice                   device,
+                                                                    VkAccelerationStructureKHR accel_struct,
+                                                                    VkDeviceAddress            address)
+{
+    assert((device != VK_NULL_HANDLE) && (accel_struct != VK_NULL_HANDLE));
+
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    auto wrapper       = reinterpret_cast<AccelerationStructureKHRWrapper*>(accel_struct);
+    wrapper->device_id = GetWrappedId(device);
+    wrapper->address   = address;
+}
+
+void VulkanStateTracker::TrackDeviceMemoryDeviceAddress(VkDevice device, VkDeviceMemory memory, VkDeviceAddress address)
+{
+    assert((device != VK_NULL_HANDLE) && (memory != VK_NULL_HANDLE));
+
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    auto wrapper       = reinterpret_cast<DeviceMemoryWrapper*>(memory);
+    wrapper->device_id = GetWrappedId(device);
+    wrapper->address   = address;
+}
+
+void VulkanStateTracker::TrackRayTracingShaderGroupHandles(VkDevice    device,
+                                                           VkPipeline  pipeline,
+                                                           size_t      data_size,
+                                                           const void* data)
+{
+    assert((device != VK_NULL_HANDLE) && (pipeline != VK_NULL_HANDLE));
+
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    auto           wrapper   = reinterpret_cast<PipelineWrapper*>(pipeline);
+    const uint8_t* byte_data = reinterpret_cast<const uint8_t*>(data);
+    wrapper->device_id       = GetWrappedId(device);
+    wrapper->shader_group_handle_data.assign(byte_data, byte_data + data_size);
 }
 
 void VulkanStateTracker::DestroyState(InstanceWrapper* wrapper)

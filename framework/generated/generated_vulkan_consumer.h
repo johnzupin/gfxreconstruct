@@ -1695,6 +1695,51 @@ class VulkanConsumer : public VulkanConsumerBase
         PointerDecoder<uint32_t>*                   pInternalRepresentationCount,
         StructPointerDecoder<Decoded_VkPipelineExecutableInternalRepresentationKHR>* pInternalRepresentations) {}
 
+    virtual void Process_vkCmdSetEvent2KHR(
+        format::HandleId                            commandBuffer,
+        format::HandleId                            event,
+        StructPointerDecoder<Decoded_VkDependencyInfoKHR>* pDependencyInfo) {}
+
+    virtual void Process_vkCmdResetEvent2KHR(
+        format::HandleId                            commandBuffer,
+        format::HandleId                            event,
+        VkPipelineStageFlags2KHR                    stageMask) {}
+
+    virtual void Process_vkCmdWaitEvents2KHR(
+        format::HandleId                            commandBuffer,
+        uint32_t                                    eventCount,
+        HandlePointerDecoder<VkEvent>*              pEvents,
+        StructPointerDecoder<Decoded_VkDependencyInfoKHR>* pDependencyInfos) {}
+
+    virtual void Process_vkCmdPipelineBarrier2KHR(
+        format::HandleId                            commandBuffer,
+        StructPointerDecoder<Decoded_VkDependencyInfoKHR>* pDependencyInfo) {}
+
+    virtual void Process_vkCmdWriteTimestamp2KHR(
+        format::HandleId                            commandBuffer,
+        VkPipelineStageFlags2KHR                    stage,
+        format::HandleId                            queryPool,
+        uint32_t                                    query) {}
+
+    virtual void Process_vkQueueSubmit2KHR(
+        VkResult                                    returnValue,
+        format::HandleId                            queue,
+        uint32_t                                    submitCount,
+        StructPointerDecoder<Decoded_VkSubmitInfo2KHR>* pSubmits,
+        format::HandleId                            fence) {}
+
+    virtual void Process_vkCmdWriteBufferMarker2AMD(
+        format::HandleId                            commandBuffer,
+        VkPipelineStageFlags2KHR                    stage,
+        format::HandleId                            dstBuffer,
+        VkDeviceSize                                dstOffset,
+        uint32_t                                    marker) {}
+
+    virtual void Process_vkGetQueueCheckpointData2NV(
+        format::HandleId                            queue,
+        PointerDecoder<uint32_t>*                   pCheckpointDataCount,
+        StructPointerDecoder<Decoded_VkCheckpointData2NV>* pCheckpointData) {}
+
     virtual void Process_vkCmdCopyBuffer2KHR(
         format::HandleId                            commandBuffer,
         StructPointerDecoder<Decoded_VkCopyBufferInfo2KHR>* pCopyBufferInfo) {}
@@ -2520,6 +2565,17 @@ class VulkanConsumer : public VulkanConsumerBase
         VkFragmentShadingRateNV                     shadingRate,
         PointerDecoder<VkFragmentShadingRateCombinerOpKHR>* combinerOps) {}
 
+    virtual void Process_vkAcquireWinrtDisplayNV(
+        VkResult                                    returnValue,
+        format::HandleId                            physicalDevice,
+        format::HandleId                            display) {}
+
+    virtual void Process_vkGetWinrtDisplayNV(
+        VkResult                                    returnValue,
+        format::HandleId                            physicalDevice,
+        uint32_t                                    deviceRelativeId,
+        HandlePointerDecoder<VkDisplayKHR>*         pDisplay) {}
+
     virtual void Process_vkCreateDirectFBSurfaceEXT(
         VkResult                                    returnValue,
         format::HandleId                            instance,
@@ -2558,20 +2614,6 @@ class VulkanConsumer : public VulkanConsumerBase
         PointerDecoder<VkDeviceAddress>*            pIndirectDeviceAddresses,
         PointerDecoder<uint32_t>*                   pIndirectStrides,
         PointerDecoder<uint32_t*>*                  ppMaxPrimitiveCounts) {}
-
-    virtual void Process_vkBuildAccelerationStructuresKHR(
-        VkResult                                    returnValue,
-        format::HandleId                            device,
-        format::HandleId                            deferredOperation,
-        uint32_t                                    infoCount,
-        StructPointerDecoder<Decoded_VkAccelerationStructureBuildGeometryInfoKHR>* pInfos,
-        StructPointerDecoder<Decoded_VkAccelerationStructureBuildRangeInfoKHR*>* ppBuildRangeInfos) {}
-
-    virtual void Process_vkCopyAccelerationStructureKHR(
-        VkResult                                    returnValue,
-        format::HandleId                            device,
-        format::HandleId                            deferredOperation,
-        StructPointerDecoder<Decoded_VkCopyAccelerationStructureInfoKHR>* pInfo) {}
 
     virtual void Process_vkCopyAccelerationStructureToMemoryKHR(
         VkResult                                    returnValue,

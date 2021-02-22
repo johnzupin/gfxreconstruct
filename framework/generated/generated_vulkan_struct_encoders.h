@@ -375,6 +375,21 @@ void EncodeStruct(ParameterEncoder* encoder, const VkPipelineExecutableInternalR
 
 void EncodeStruct(ParameterEncoder* encoder, const VkPipelineLibraryCreateInfoKHR& value);
 
+void EncodeStruct(ParameterEncoder* encoder, const VkMemoryBarrier2KHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkBufferMemoryBarrier2KHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkImageMemoryBarrier2KHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkDependencyInfoKHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkSemaphoreSubmitInfoKHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkCommandBufferSubmitInfoKHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkSubmitInfo2KHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceSynchronization2FeaturesKHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkQueueFamilyCheckpointProperties2NV& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkCheckpointData2NV& value);
+
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceZeroInitializeWorkgroupMemoryFeaturesKHR& value);
+
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR& value);
+
 void EncodeStruct(ParameterEncoder* encoder, const VkBufferCopy2KHR& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkCopyBufferInfo2KHR& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkImageCopy2KHR& value);
@@ -722,6 +737,10 @@ void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceImageRobustne
 void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDevice4444FormatsFeaturesEXT& value);
 
 void EncodeStruct(ParameterEncoder* encoder, const VkDirectFBSurfaceCreateInfoEXT& value);
+
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceMutableDescriptorTypeFeaturesVALVE& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkMutableDescriptorTypeListVALVE& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkMutableDescriptorTypeCreateInfoVALVE& value);
 
 void EncodeStruct(ParameterEncoder* encoder, const VkAccelerationStructureBuildRangeInfoKHR& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkAccelerationStructureGeometryTrianglesDataKHR& value);

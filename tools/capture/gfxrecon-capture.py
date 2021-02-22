@@ -26,6 +26,7 @@
 
 import argparse
 import os
+import shutil
 import sys
 import subprocess
 
@@ -95,7 +96,7 @@ def ParseArgs():
     # Common optional args
     # All arguments default to None, indicating they should be unset in the capture environment
     parser.add_argument('-w', '--working-dir', dest='workingDir', metavar='<dir>', help='Set CWD to this directory before running the program')
-    parser.add_argument('-o', '--capture-file', dest='captureFile', metavar='<captureFile>', help='Name of the capture file, default is gfxrecon_capture.gfxr')
+    parser.add_argument('-o', '--capture-file', dest='captureFile', metavar='<captureFile>', default='gfxrecon_capture.gfxr', help='Name of the capture file, default is gfxrecon_capture.gfxr')
     parser.add_argument('-f', '--capture-frames', dest='captureFrames', metavar='<captureFrames>', help='List of frames to capture, default is all frames')
     parser.add_argument('--no-file-timestamp', dest='fileTimestamp', action='store_const', const='false', help='Do not add a timestamp to the capture file name')
     parser.add_argument('--trigger', dest='trigger', choices=triggerKeyChoices, help='Specify a hotkey to start/stop capture')
@@ -122,7 +123,7 @@ def ParseArgs():
 # PrintArgs - for debugging
 def PrintArgs(args):
     print('working-dir', args.workingDir)
-    print('capture-file', args.captureFile)
+    print('capture-file', os.path.abspath(args.captureFile))
     print('capture-frames', args.captureFrames)
     print('no-file-timestamp', args.fileTimestamp)
     print('trigger', args.trigger)
@@ -134,6 +135,13 @@ def PrintArgs(args):
     print('memory-tracking-mode', args.memoryTrackingMode)
     print('programAndArgs', args.programAndArgs)
 
+
+######################
+# Get the full path to the command to execute
+def GetCommandPath(args):
+    # Replace ~ or ~user with the user's home path before calling shutil.which()
+    programName=os.path.expanduser(args.programAndArgs[0])
+    return shutil.which(programName)
 
 ######################
 # Do validation on arguments
@@ -151,25 +159,15 @@ def ValidateArgs(args):
         PrintErrorAndExit('<program> must be specified')
 
     # Verify programName exists and is executable.
-    programName=args.programAndArgs[0]
-    if (os.path.isabs(programName)):
-        programNamePath=programName
-    else:
-        if args.workingDir is not None:
-            programNamePath = os.path.join(args.workingDir, programName)
-        else:
-            programNamePath=programName
-    if (not os.path.isfile(programNamePath)):
-        PrintErrorAndExit('Cannot find program ' + programNamePath + ' to execute')
-    if (not os.access(programNamePath, os.X_OK)):
-        PrintErrorAndExit('Program ' + programNamePath + ' does not have execute permission')
+    if GetCommandPath(args) is None:
+        PrintErrorAndExit('Cannot find program ' + programName + ' to execute')
 
-    # Program name passed to subprocess.run() needs to be an absolute
-    # or relative path because subprocess.run() searches for cmd in
-    # PATH if the program name path is not absolute or relative
-    if not os.path.isabs(programName) and programName[0] != '.':
-        programName = os.path.join('.', programName)
-        args.programAndArgs[0] = programName
+    # Verify captureFile directory exists and is a valid directory.
+    captureFileDir = os.path.dirname(os.path.abspath(args.captureFile))
+    if (not os.path.exists(captureFileDir)):
+        PrintErrorAndExit('Capture file output directory ' + captureFileDir + ' does not exist')
+    if (not os.path.isdir(captureFileDir)):
+        PrintErrorAndExit('Capture file output directory ' + captureFileDir + ' is not a valid directory')
 
 
 ######################
@@ -185,7 +183,7 @@ def SetEnvVars(args):
 
     # Set GFXRECON_* capture options
     # The capture layer will validate these options and generate errors as needed
-    SetEnvVar('GFXRECON_CAPTURE_FILE', args.captureFile)
+    SetEnvVar('GFXRECON_CAPTURE_FILE', os.path.abspath(args.captureFile))
     SetEnvVar('GFXRECON_CAPTURE_FRAMES', args.captureFrames)
     SetEnvVar('GFXRECON_CAPTURE_FILE_TIMESTAMP', args.fileTimestamp)
     SetEnvVar('GFXRECON_CAPTURE_TRIGGER', args.trigger)
@@ -245,5 +243,6 @@ if __name__ == '__main__':
         os.chdir(args.workingDir)
 
     # Run the program and and exit with the exit status of the program
+    print('Executing program', GetCommandPath(args))
     result = subprocess.run(args.programAndArgs)
     sys.exit(result.returncode)

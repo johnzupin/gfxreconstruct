@@ -946,6 +946,60 @@ void RemoveUnsupportedFeatures(VkPhysicalDevice physicalDevice, PFN_vkGetPhysica
                 }
                 break;
              }
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR:
+            {
+                const VkPhysicalDeviceSynchronization2FeaturesKHR* currentNext = reinterpret_cast<const VkPhysicalDeviceSynchronization2FeaturesKHR*>(next);
+                VkPhysicalDeviceSynchronization2FeaturesKHR query = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR, nullptr };
+                physicalDeviceFeatures2.pNext = &query;
+                GetPhysicalDeviceFeatures2(physicalDevice, &physicalDeviceFeatures2);
+                if ((currentNext->synchronization2 == VK_TRUE) && (query.synchronization2 == VK_FALSE))
+                {
+                    GFXRECON_LOG_WARNING("Feature synchronization2, which is not supported by the replay device, will not be enabled");
+                    const_cast<VkPhysicalDeviceSynchronization2FeaturesKHR*>(currentNext)->synchronization2 = VK_FALSE;
+                }
+                break;
+             }
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ZERO_INITIALIZE_WORKGROUP_MEMORY_FEATURES_KHR:
+            {
+                const VkPhysicalDeviceZeroInitializeWorkgroupMemoryFeaturesKHR* currentNext = reinterpret_cast<const VkPhysicalDeviceZeroInitializeWorkgroupMemoryFeaturesKHR*>(next);
+                VkPhysicalDeviceZeroInitializeWorkgroupMemoryFeaturesKHR query = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ZERO_INITIALIZE_WORKGROUP_MEMORY_FEATURES_KHR, nullptr };
+                physicalDeviceFeatures2.pNext = &query;
+                GetPhysicalDeviceFeatures2(physicalDevice, &physicalDeviceFeatures2);
+                if ((currentNext->shaderZeroInitializeWorkgroupMemory == VK_TRUE) && (query.shaderZeroInitializeWorkgroupMemory == VK_FALSE))
+                {
+                    GFXRECON_LOG_WARNING("Feature shaderZeroInitializeWorkgroupMemory, which is not supported by the replay device, will not be enabled");
+                    const_cast<VkPhysicalDeviceZeroInitializeWorkgroupMemoryFeaturesKHR*>(currentNext)->shaderZeroInitializeWorkgroupMemory = VK_FALSE;
+                }
+                break;
+             }
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_WORKGROUP_MEMORY_EXPLICIT_LAYOUT_FEATURES_KHR:
+            {
+                const VkPhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR* currentNext = reinterpret_cast<const VkPhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR*>(next);
+                VkPhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR query = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_WORKGROUP_MEMORY_EXPLICIT_LAYOUT_FEATURES_KHR, nullptr };
+                physicalDeviceFeatures2.pNext = &query;
+                GetPhysicalDeviceFeatures2(physicalDevice, &physicalDeviceFeatures2);
+                if ((currentNext->workgroupMemoryExplicitLayout == VK_TRUE) && (query.workgroupMemoryExplicitLayout == VK_FALSE))
+                {
+                    GFXRECON_LOG_WARNING("Feature workgroupMemoryExplicitLayout, which is not supported by the replay device, will not be enabled");
+                    const_cast<VkPhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR*>(currentNext)->workgroupMemoryExplicitLayout = VK_FALSE;
+                }
+                if ((currentNext->workgroupMemoryExplicitLayoutScalarBlockLayout == VK_TRUE) && (query.workgroupMemoryExplicitLayoutScalarBlockLayout == VK_FALSE))
+                {
+                    GFXRECON_LOG_WARNING("Feature workgroupMemoryExplicitLayoutScalarBlockLayout, which is not supported by the replay device, will not be enabled");
+                    const_cast<VkPhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR*>(currentNext)->workgroupMemoryExplicitLayoutScalarBlockLayout = VK_FALSE;
+                }
+                if ((currentNext->workgroupMemoryExplicitLayout8BitAccess == VK_TRUE) && (query.workgroupMemoryExplicitLayout8BitAccess == VK_FALSE))
+                {
+                    GFXRECON_LOG_WARNING("Feature workgroupMemoryExplicitLayout8BitAccess, which is not supported by the replay device, will not be enabled");
+                    const_cast<VkPhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR*>(currentNext)->workgroupMemoryExplicitLayout8BitAccess = VK_FALSE;
+                }
+                if ((currentNext->workgroupMemoryExplicitLayout16BitAccess == VK_TRUE) && (query.workgroupMemoryExplicitLayout16BitAccess == VK_FALSE))
+                {
+                    GFXRECON_LOG_WARNING("Feature workgroupMemoryExplicitLayout16BitAccess, which is not supported by the replay device, will not be enabled");
+                    const_cast<VkPhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR*>(currentNext)->workgroupMemoryExplicitLayout16BitAccess = VK_FALSE;
+                }
+                break;
+             }
             case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_FEATURES_EXT:
             {
                 const VkPhysicalDeviceTransformFeedbackFeaturesEXT* currentNext = reinterpret_cast<const VkPhysicalDeviceTransformFeedbackFeaturesEXT*>(next);
@@ -1731,6 +1785,19 @@ void RemoveUnsupportedFeatures(VkPhysicalDevice physicalDevice, PFN_vkGetPhysica
                 {
                     GFXRECON_LOG_WARNING("Feature formatA4B4G4R4, which is not supported by the replay device, will not be enabled");
                     const_cast<VkPhysicalDevice4444FormatsFeaturesEXT*>(currentNext)->formatA4B4G4R4 = VK_FALSE;
+                }
+                break;
+             }
+            case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MUTABLE_DESCRIPTOR_TYPE_FEATURES_VALVE:
+            {
+                const VkPhysicalDeviceMutableDescriptorTypeFeaturesVALVE* currentNext = reinterpret_cast<const VkPhysicalDeviceMutableDescriptorTypeFeaturesVALVE*>(next);
+                VkPhysicalDeviceMutableDescriptorTypeFeaturesVALVE query = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MUTABLE_DESCRIPTOR_TYPE_FEATURES_VALVE, nullptr };
+                physicalDeviceFeatures2.pNext = &query;
+                GetPhysicalDeviceFeatures2(physicalDevice, &physicalDeviceFeatures2);
+                if ((currentNext->mutableDescriptorType == VK_TRUE) && (query.mutableDescriptorType == VK_FALSE))
+                {
+                    GFXRECON_LOG_WARNING("Feature mutableDescriptorType, which is not supported by the replay device, will not be enabled");
+                    const_cast<VkPhysicalDeviceMutableDescriptorTypeFeaturesVALVE*>(currentNext)->mutableDescriptorType = VK_FALSE;
                 }
                 break;
              }

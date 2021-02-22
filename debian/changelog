@@ -1,3 +1,76 @@
+gfxreconstruct (0.9.5+49~rc1-1lunarg20.04-1) focal; urgency=medium
+
+  [ Dustin Graves ]
+  * Add replay override for device group enumeration
+  * Consolidate replay phys dev initialization
+  * Post process enumerate device groups on capture
+  * Update header to 1.2.166
+  * Set version to 0.9.6
+  * Make capture path relative to gfxrecon-capture cwd
+  * Make gfxrecon-capture respect PATH
+  * Report capture layer version
+  * Update gradle version for Android build
+
+  [ David Donaldson ]
+  * Fix unhandled enum value warning on Android build
+  * Add logging macros that log messages only once
+  * Create static lib for common graphics code
+  * Refactor common device creation code
+  * Only log feature error when feature is used
+  * Rename set buffer address for use with other objs
+  * Save and replay accel struct device addresses
+  * Save and replay device memory opaque addresses
+  * Save and replay opaque address even when zero
+  * Look for device address features in other struct
+  * Only capture/replay addresses if feature enabled
+  * Fix incorrect type used when wrapping accel struct
+  * Restore header file to project sources
+
+  [ Dustin Graves ]
+  * Set extractNativeLibs in Android manifest
+  * Fix replay extension tracking for -m rebind
+
+  [ Alejandro Piñeiro ]
+  * Use host coherent as fallback when creating a staging buffer
+
+  [ David Donaldson ]
+  * Add trimming support for KHR ray tracing pipelines
+  * Add util to get pNext struct by type
+  * Add state tracking for accel struct descriptors
+  * Add support for accel struct descriptor templates
+  * Warn if unsupported host accel struct is used
+
+  [ Andres Gomez ]
+  * Correct typo in gfxrecon-replay -h output
+
+  [ amhagan ]
+  * Fix VkAllocateMemory with Capture/Replay
+
+  [ Mike Schuchardt ]
+  * Add replay override for GetRandROutputDisplayEXT
+  * Add trim support for mutable descriptor type
+  * Add trim support for VK_KHR_timeline_semaphore
+  * Fix trim state for descriptors with imm samplers
+  * Update header to 1.2.170
+  * Add image layout trim state for sync2
+
+  [ David Donaldson ]
+  * Add overrides for vkCreateRayTracingPipelinesKHR
+  * Enable RT shader grp handle capture replay feature
+  * Get capture replay rt shader handle size property
+  * Refactor phys device feature and property util
+  * Capture ray tracing shader group handle data
+  * Replay ray tracing pipeline shader grp handle data
+  * Improve dev addr/handle capture feature log msg
+  * Improve dev addr/handle replay feature log msg
+  * Use vkGetDeviceMemoryOpaqueCaptureAddressKHR
+  * Log warning if -m rebind is used with dev addr
+
+  [ Dustin Graves ]
+  * Fix screenshot format comparison
+
+ -- John Zupin <john@odin>  Mon, 22 Feb 2021 16:40:30 -0700
+
 gfxreconstruct (0.9.5~rc1-1lunarg20.04-1) focal; urgency=medium
 
   [ Dustin Graves ]

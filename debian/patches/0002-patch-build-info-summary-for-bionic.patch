@@ -1,0 +1,23 @@
+From: John Zupin <johnz@lunarg.com>
+Date: Thu, 25 Feb 2021 16:39:54 -0700
+Subject: patch: build info summary for bionic
+
+---
+ CMakeLists.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a482ddc..dfa57f7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -42,8 +42,8 @@ set(GFXRECONSTRUCT_PROJECT_VERSION_MAJOR 0)
+ set(GFXRECONSTRUCT_PROJECT_VERSION_MINOR 9)
+ set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 6)
+ 
+-set(GFXRECON_PROJECT_VERSION_DESIGNATION "-unknown")
+-set(GFXRECON_PROJECT_VERSION_SHA1 "unknown-build-source")
++set(GFXRECON_PROJECT_VERSION_DESIGNATION "")
++set(GFXRECON_PROJECT_VERSION_SHA1 "focal")
+ 
+ include(GetGitRevisionDescription)
+ get_git_head_revision(GIT_REFSPEC GIT_SHA1)

@@ -1,3 +1,9 @@
+gfxreconstruct (0.9.5+49~rc3-1lunarg18.04-1) bionic; urgency=medium
+
+  * packaging: update patch for build info summary
+
+ -- John Zupin <john@odin>  Thu, 25 Feb 2021 16:41:20 -0700
+
 gfxreconstruct (0.9.5+49~rc2-1lunarg18.04-1) bionic; urgency=medium
 
   * packaging: updated LunarG's copyrights

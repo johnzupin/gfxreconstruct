@@ -1,3 +1,53 @@
+gfxreconstruct (0.9.6+16~rc1-1lunarg18.04-1) bionic; urgency=medium
+
+  [ Dustin Graves ]
+  * Set version to 0.9.7
+
+  [ David Donaldson ]
+  * Suppress stdout if output to console option is off
+  * Track trimmed state acquired image index
+  * Link executables with /LARGEADDRESSAWARE on MSVC
+
+  [ tomped01 ]
+  * Add arm and arm64 build targets
+  * Add sanity check for supported extensions
+  * Add support for VK_EXT_headless_surface extension
+
+  [ David Donaldson ]
+  * Include state load time in post-replay timing info
+
+  [ John Zupin ]
+  * packaging: update debian/copyright file
+
+  [ David Donaldson ]
+  * Handle null swapchain in call to destroy swapchain
+
+  [ Alejandro Piñeiro ]
+  * Use host coherent as fallback when creating a screenshot copy resource
+
+  [ Dustin Graves ]
+  * Limit the number of vkGetEventStatus retries
+
+  [ David Donaldson ]
+  * Fix captured format for update desc template calls
+
+  [ Christophe ]
+  * Add layer settings to layer manifest
+
+  [ Danil ]
+  * Fix invalid python syntax of platform_dict initializer
+
+  [ Dustin Graves ]
+  * Add annotations to capture file format
+
+  [ Mike Schuchardt ]
+  * Update header to 1.2.176
+
+  [ John Zupin ]
+  * packaging: rebased patches
+
+ -- John Zupin <john@odin>  Tue, 27 Apr 2021 14:38:45 -0600
+
 gfxreconstruct (0.9.5+49~rc3-1lunarg18.04-1) bionic; urgency=medium
 
   * packaging: update patch for build info summary

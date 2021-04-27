@@ -40,6 +40,7 @@
 #include "format/platform_types.h"
 #include "generated/generated_vulkan_dispatch_table.h"
 #include "generated/generated_vulkan_consumer.h"
+#include "graphics/fps_info.h"
 #include "util/defines.h"
 #include "util/logging.h"
 
@@ -70,6 +71,8 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     virtual ~VulkanReplayConsumerBase() override;
 
     void SetFatalErrorHandler(std::function<void(const char*)> handler) { fatal_error_handler_ = handler; }
+
+    void SetFpsInfo(graphics::FpsInfo* fps_info) { fps_info_ = fps_info; }
 
     virtual void ProcessStateBeginMarker(uint64_t frame_number) override;
 
@@ -914,17 +917,15 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     // When processing swapchain image state for the trimming state setup, acquire all swapchain images to transition to
     // the expected layout and keep them acquired until first use.
     void ProcessSetSwapchainImageStatePreAcquire(VkDevice                                            device,
-                                                 VkSwapchainKHR                                      swapchain,
-                                                 uint32_t                                            queue_family_index,
+                                                 SwapchainKHRInfo*                                   swapchain_info,
                                                  const std::vector<format::SwapchainImageStateInfo>& image_info);
 
     // When processing swapchain image state for the trimming state setup, acquire an image, transition it to
     // the expected layout, and then call queue present if the image is not expected to be in the acquired state so that
     // no more than one image is acquired at a time.
-    void ProcessSetSwapchainImageStateQueueSubmit(VkDevice       device,
-                                                  VkSwapchainKHR swapchain,
-                                                  uint32_t       queue_family_index,
-                                                  uint32_t       last_presented_image,
+    void ProcessSetSwapchainImageStateQueueSubmit(VkDevice          device,
+                                                  SwapchainKHRInfo* swapchain_info,
+                                                  uint32_t          last_presented_image,
                                                   const std::vector<format::SwapchainImageStateInfo>& image_info);
 
     void ProcessCreateInstanceDebugCallbackInfo(const Decoded_VkInstanceCreateInfo* instance_info);
@@ -988,6 +989,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     std::unique_ptr<ScreenshotHandler>                               screenshot_handler_;
     std::string                                                      screenshot_file_prefix_;
     int32_t                                                          create_surface_count_;
+    graphics::FpsInfo*                                               fps_info_;
 
     // Used to track if any shadow sync objects are active to avoid checking if not needed
     std::unordered_set<VkSemaphore> shadow_semaphores_;

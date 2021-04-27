@@ -1,6 +1,6 @@
 /*
 ** Copyright (c) 2018-2020 Valve Corporation
-** Copyright (c) 2018-2020 LunarG, Inc.
+** Copyright (c) 2018-2021 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -42,6 +42,8 @@
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
+
+const size_t kMaxEventStatusRetries = 16;
 
 const int32_t  kDefaultWindowPositionX = 0;
 const int32_t  kDefaultWindowPositionY = 0;
@@ -145,7 +147,7 @@ static uint32_t GetHardwareBufferFormatBpp(uint32_t format)
 VulkanReplayConsumerBase::VulkanReplayConsumerBase(WindowFactory* window_factory, const ReplayOptions& options) :
     loader_handle_(nullptr), get_instance_proc_addr_(nullptr), create_instance_proc_(nullptr),
     window_factory_(window_factory), options_(options), loading_trim_state_(false), have_imported_semaphores_(false),
-    create_surface_count_(0)
+    create_surface_count_(0), fps_info_(nullptr)
 {
     assert(window_factory != nullptr);
     assert(options.create_resource_allocator != nullptr);
@@ -211,6 +213,10 @@ void VulkanReplayConsumerBase::ProcessStateEndMarker(uint64_t frame_number)
 {
     GFXRECON_LOG_INFO("Finished loading state for captured frame %" PRId64, frame_number);
     loading_trim_state_ = false;
+    if (fps_info_ != nullptr)
+    {
+        fps_info_->ProcessStateEndMarker(frame_number);
+    }
 }
 
 void VulkanReplayConsumerBase::ProcessDisplayMessageCommand(const std::string& message)
@@ -638,8 +644,8 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateCommand(
     uint32_t                                            last_presented_image,
     const std::vector<format::SwapchainImageStateInfo>& image_info)
 {
-    const DeviceInfo*       device_info    = object_info_table_.GetDeviceInfo(device_id);
-    const SwapchainKHRInfo* swapchain_info = object_info_table_.GetSwapchainKHRInfo(swapchain_id);
+    const DeviceInfo* device_info    = object_info_table_.GetDeviceInfo(device_id);
+    SwapchainKHRInfo* swapchain_info = object_info_table_.GetSwapchainKHRInfo(swapchain_id);
 
     if ((device_info != nullptr) && (swapchain_info != nullptr))
     {
@@ -679,13 +685,11 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateCommand(
             if (image_count > max_acquired_images)
             {
                 // Cannot acquire all images at the same time.
-                ProcessSetSwapchainImageStateQueueSubmit(
-                    device, swapchain, swapchain_info->queue_family_index, last_presented_image, image_info);
+                ProcessSetSwapchainImageStateQueueSubmit(device, swapchain_info, last_presented_image, image_info);
             }
             else
             {
-                ProcessSetSwapchainImageStatePreAcquire(
-                    device, swapchain, swapchain_info->queue_family_index, image_info);
+                ProcessSetSwapchainImageStatePreAcquire(device, swapchain_info, image_info);
             }
         }
         else
@@ -719,10 +723,7 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateCommand(
 }
 
 void VulkanReplayConsumerBase::ProcessSetSwapchainImageStatePreAcquire(
-    VkDevice                                            device,
-    VkSwapchainKHR                                      swapchain,
-    uint32_t                                            queue_family_index,
-    const std::vector<format::SwapchainImageStateInfo>& image_info)
+    VkDevice device, SwapchainKHRInfo* swapchain_info, const std::vector<format::SwapchainImageStateInfo>& image_info)
 {
     auto table = GetDeviceTable(device);
     assert(table != nullptr);
@@ -731,6 +732,8 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStatePreAcquire(
     VkQueue         transition_queue   = VK_NULL_HANDLE;
     VkCommandPool   transition_pool    = VK_NULL_HANDLE;
     VkCommandBuffer transition_command = VK_NULL_HANDLE;
+    VkSwapchainKHR  swapchain          = swapchain_info->handle;
+    uint32_t        queue_family_index = swapchain_info->queue_family_index;
 
     // TODO: Improved queue selection?
     table->GetDeviceQueue(device, queue_family_index, 0, &transition_queue);
@@ -867,6 +870,8 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStatePreAcquire(
                         {
                             if (image_info[image_index].acquired)
                             {
+                                swapchain_info->acquired_indices[i] = image_index;
+
                                 // The upcoming frames expect the image to be acquired. The synchronization objects
                                 // used to acquire the image were already set to the appropriate signaled state when
                                 // created, so the temporary objects used to acquire the image here can be
@@ -914,19 +919,20 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStatePreAcquire(
 
 void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateQueueSubmit(
     VkDevice                                            device,
-    VkSwapchainKHR                                      swapchain,
-    uint32_t                                            queue_family_index,
+    SwapchainKHRInfo*                                   swapchain_info,
     uint32_t                                            last_presented_image,
     const std::vector<format::SwapchainImageStateInfo>& image_info)
 {
     auto table = GetDeviceTable(device);
     assert(table != nullptr);
 
-    VkResult        result     = VK_SUCCESS;
-    VkQueue         queue      = VK_NULL_HANDLE;
-    VkCommandPool   pool       = VK_NULL_HANDLE;
-    VkCommandBuffer command    = VK_NULL_HANDLE;
-    VkFence         wait_fence = VK_NULL_HANDLE;
+    VkResult        result             = VK_SUCCESS;
+    VkQueue         queue              = VK_NULL_HANDLE;
+    VkCommandPool   pool               = VK_NULL_HANDLE;
+    VkCommandBuffer command            = VK_NULL_HANDLE;
+    VkFence         wait_fence         = VK_NULL_HANDLE;
+    VkSwapchainKHR  swapchain          = swapchain_info->handle;
+    uint32_t        queue_family_index = swapchain_info->queue_family_index;
 
     VkCommandPoolCreateInfo pool_create_info = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
     pool_create_info.pNext                   = nullptr;
@@ -1121,6 +1127,8 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateQueueSubmit(
                     {
                         if (image_info[i].acquired)
                         {
+                            swapchain_info->acquired_indices[i] = image_index;
+
                             // Transition the image to the expected layout and keep it acquired.
                             VkImageLayout image_layout = static_cast<VkImageLayout>(image_info[i].image_layout);
                             if ((image_layout != VK_IMAGE_LAYOUT_UNDEFINED) &&
@@ -2389,19 +2397,37 @@ VulkanReplayConsumerBase::OverrideCreateInstance(VkResult original_result,
                 }
             }
 
-            if (options_.remove_unsupported_features)
+            PFN_vkEnumerateInstanceExtensionProperties instance_extension_proc =
+                reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
+                    get_instance_proc_addr_(nullptr, "vkEnumerateInstanceExtensionProperties"));
+            std::vector<VkExtensionProperties> properties;
+            if (feature_util::GetInstanceExtensions(instance_extension_proc, &properties) == VK_SUCCESS)
             {
-                // Remove enabled extensions that are not available from the replay instance.
-                // Proc addresses that can't be used in layers so are not generated into shared dispatch table, but are
-                // needed in the replay application.
-                PFN_vkEnumerateInstanceExtensionProperties instance_extension_proc =
-                    reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
-                        get_instance_proc_addr_(nullptr, "vkEnumerateInstanceExtensionProperties"));
-                std::vector<VkExtensionProperties> properties;
-                if (feature_util::GetInstanceExtensions(instance_extension_proc, &properties) == VK_SUCCESS)
+                if (options_.remove_unsupported_features)
                 {
+                    // Remove enabled extensions that are not available from the replay instance.
+                    // Proc addresses that can't be used in layers so are not generated into shared dispatch table, but
+                    // are needed in the replay application.
                     feature_util::RemoveUnsupportedExtensions(properties, &filtered_extensions);
                 }
+                else
+                {
+                    // Check that the requested extensions are present and print warnings if not.
+                    for (auto extensionIter = filtered_extensions.begin(); extensionIter != filtered_extensions.end();
+                         ++extensionIter)
+                    {
+                        if (!feature_util::IsSupportedExtension(properties, *extensionIter))
+                        {
+                            GFXRECON_LOG_WARNING("Extension %s, is not supported by the replay device.",
+                                                 *extensionIter);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                GFXRECON_LOG_WARNING("Failed to get instance extensions. Cannot perform sanity checks or filters for "
+                                     "extension availability.");
             }
         }
 
@@ -2971,11 +2997,14 @@ VkResult VulkanReplayConsumerBase::OverrideGetEventStatus(PFN_vkGetEventStatus f
     VkResult result;
     VkDevice device = device_info->handle;
     VkEvent  event  = event_info->handle;
+    size_t   retries = 0;
 
     do
     {
         result = func(device, event);
-    } while ((original_result == VK_EVENT_SET) && (result == VK_EVENT_RESET));
+    } while ((((original_result == VK_EVENT_SET) && (result == VK_EVENT_RESET)) ||
+              ((original_result == VK_EVENT_RESET) && (result == VK_EVENT_SET))) &&
+             (++retries <= kMaxEventStatusRetries));
 
     return result;
 }
@@ -4565,7 +4594,7 @@ void VulkanReplayConsumerBase::OverrideDestroySwapchainKHR(
     }
 
     // Delete backed images of dummy swapchain.
-    if (surface == VK_NULL_HANDLE)
+    if ((swapchain_info != nullptr) && (surface == VK_NULL_HANDLE))
     {
         auto allocator = device_info->allocator.get();
         assert(allocator != nullptr);

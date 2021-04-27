@@ -54,7 +54,15 @@ def _makeREstring(list, default = None):
 # From Khronos genvk.py
 _defaultExtensions  = 'vulkan'
 _extensions         = _features         = []
-_removeExtensions   = _emitExtensions   = []
+_emitExtensions     = []
+
+# Exclude beta video extensions
+_removeExtensions   = ["VK_KHR_video_queue",
+                       "VK_KHR_video_decode_queue",
+                       "VK_KHR_video_encode_queue",
+                       "VK_EXT_video_encode_h264",
+                       "VK_EXT_video_decode_h264",
+                       "VK_EXT_video_decode_h265"]
 
 # Turn lists of names/patterns into matching regular expressions.
 # From Khronos genvk.py
@@ -1034,7 +1042,8 @@ class BaseGenerator(OutputGenerator):
             'xlib' : 'VK_USE_PLATFORM_XLIB_KHR',
             'xlib_xrandr' : 'VK_USE_PLATFORM_XLIB_XRANDR_EXT',
             'ggp' : 'VK_USE_PLATFORM_GGP',
-            'directfb' : 'VK_USE_PLATFORM_DIRECTFB_EXT'
+            'directfb' : 'VK_USE_PLATFORM_DIRECTFB_EXT',
+            'headless' : 'VK_USE_PLATFORM_HEADLESS'
         }
 
         platform = interface.get('platform')

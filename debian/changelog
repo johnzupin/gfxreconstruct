@@ -1,3 +1,11 @@
+gfxreconstruct (0.9.6+16~rc2-1lunarg18.04-1) bionic; urgency=medium
+
+  [ Mike Schuchardt ]
+  * Fix vkconfig built-in variable
+  * Fix FindVulkanVersion.cmake for 176
+
+ -- John Zupin <john@odin>  Wed, 28 Apr 2021 11:00:45 -0600
+
 gfxreconstruct (0.9.6+16~rc1-1lunarg18.04-1) bionic; urgency=medium
 
   [ Dustin Graves ]

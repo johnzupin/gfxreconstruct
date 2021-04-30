@@ -1,3 +1,10 @@
+gfxreconstruct (0.9.6+16~rc3-1lunarg20.04-1) focal; urgency=medium
+
+  [ Christophe ]
+  * Fix layer settings to match layer manifest schema
+
+ -- John Zupin <john@odin>  Fri, 30 Apr 2021 12:38:30 -0600
+
 gfxreconstruct (0.9.6+16~rc2-1lunarg20.04-1) focal; urgency=medium
 
   [ Mike Schuchardt ]

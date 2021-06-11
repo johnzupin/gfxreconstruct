@@ -25,11 +25,24 @@
 
 #include "generated/generated_vulkan_dispatch_table.h"
 #include "util/defines.h"
+#include "util/platform.h"
 
 #include "vulkan/vulkan.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(graphics)
+
+const std::vector<std::string> kLoaderLibNames = {
+#if defined(WIN32)
+    "vulkan-1.dll"
+#else
+    "libvulkan.so.1", "libvulkan.so"
+#endif
+};
+
+util::platform::LibraryHandle InitializeLoader();
+
+void ReleaseLoader(util::platform::LibraryHandle loader_handle);
 
 // Search through the parent's pNext chain for the first struct with the requested struct_type. parent's struct type is
 // not checked and parent won't be returned as a result. T and Parent_T must be Vulkan struct pointer types. Return

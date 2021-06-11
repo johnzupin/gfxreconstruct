@@ -27,6 +27,7 @@
 
 #include "encode/capture_settings.h"
 #include "encode/descriptor_update_template_info.h"
+#include "encode/parameter_buffer.h"
 #include "encode/parameter_encoder.h"
 #include "encode/vulkan_handle_wrapper_util.h"
 #include "encode/vulkan_handle_wrappers.h"
@@ -40,7 +41,7 @@
 #include "util/defines.h"
 #include "util/file_output_stream.h"
 #include "util/keyboard.h"
-#include "util/memory_output_stream.h"
+#include "util/shared_mutex.h"
 
 #include "vulkan/vulkan.h"
 
@@ -49,6 +50,7 @@
 #include <memory>
 #include <mutex>
 #include <set>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -88,6 +90,16 @@ class TraceManager
 
     void InitDevice(VkDevice* device, PFN_vkGetDeviceProcAddr gpa);
 
+    std::shared_lock<util::SharedMutex> AcquireSharedStateLock()
+    {
+        return std::shared_lock<util::SharedMutex>(state_mutex_);
+    }
+
+    std::unique_lock<util::SharedMutex> AcquireUniqueStateLock()
+    {
+        return std::move(std::unique_lock<util::SharedMutex>(state_mutex_));
+    }
+
     HandleUnwrapMemory* GetHandleUnwrapMemory()
     {
         auto thread_data = GetThreadData();
@@ -121,8 +133,7 @@ class TraceManager
     void EndCreateApiCallTrace(VkResult                      result,
                                ParentHandle                  parent_handle,
                                typename Wrapper::HandleType* handle,
-                               const CreateInfo*             create_info,
-                               ParameterEncoder*             encoder)
+                               const CreateInfo*             create_info)
     {
         if (((capture_mode_ & kModeTrack) == kModeTrack) && result == VK_SUCCESS)
         {
@@ -135,7 +146,7 @@ class TraceManager
                 parent_handle, handle, create_info, thread_data->call_id_, thread_data->parameter_buffer_.get());
         }
 
-        EndApiCallTrace(encoder);
+        EndApiCallTrace();
     }
 
     // Pool allocation.
@@ -144,8 +155,7 @@ class TraceManager
                                    ParentHandle                  parent_handle,
                                    uint32_t                      count,
                                    typename Wrapper::HandleType* handles,
-                                   const AllocateInfo*           alloc_info,
-                                   ParameterEncoder*             encoder)
+                                   const AllocateInfo*           alloc_info)
     {
         if (((capture_mode_ & kModeTrack) == kModeTrack) && (result == VK_SUCCESS) && (handles != nullptr))
         {
@@ -158,7 +168,7 @@ class TraceManager
                 parent_handle, count, handles, alloc_info, thread_data->call_id_, thread_data->parameter_buffer_.get());
         }
 
-        EndApiCallTrace(encoder);
+        EndApiCallTrace();
     }
 
     // Multiple object creation.
@@ -168,8 +178,7 @@ class TraceManager
                                     SecondaryHandle               secondary_handle,
                                     uint32_t                      count,
                                     typename Wrapper::HandleType* handles,
-                                    const CreateInfo*             create_infos,
-                                    ParameterEncoder*             encoder)
+                                    const CreateInfo*             create_infos)
     {
         if (((capture_mode_ & kModeTrack) == kModeTrack) && ((result == VK_SUCCESS) || (result == VK_INCOMPLETE)) &&
             (handles != nullptr))
@@ -189,7 +198,7 @@ class TraceManager
                 thread_data->parameter_buffer_.get());
         }
 
-        EndApiCallTrace(encoder);
+        EndApiCallTrace();
     }
 
     // Multiple implicit object creation inside output struct.
@@ -198,8 +207,7 @@ class TraceManager
                                           ParentHandle                           parent_handle,
                                           uint32_t                               count,
                                           HandleStruct*                          handle_structs,
-                                          std::function<Wrapper*(HandleStruct*)> unwrap_struct_handle,
-                                          ParameterEncoder*                      encoder)
+                                          std::function<Wrapper*(HandleStruct*)> unwrap_struct_handle)
     {
         if (((capture_mode_ & kModeTrack) == kModeTrack) && ((result == VK_SUCCESS) || (result == VK_INCOMPLETE)) &&
             (handle_structs != nullptr))
@@ -217,12 +225,12 @@ class TraceManager
                                                 thread_data->parameter_buffer_.get());
         }
 
-        EndApiCallTrace(encoder);
+        EndApiCallTrace();
     }
 
     // Single object destruction.
     template <typename Wrapper>
-    void EndDestroyApiCallTrace(typename Wrapper::HandleType handle, ParameterEncoder* encoder)
+    void EndDestroyApiCallTrace(typename Wrapper::HandleType handle)
     {
         if ((capture_mode_ & kModeTrack) == kModeTrack)
         {
@@ -230,12 +238,12 @@ class TraceManager
             state_tracker_->RemoveEntry<Wrapper>(handle);
         }
 
-        EndApiCallTrace(encoder);
+        EndApiCallTrace();
     }
 
     // Multiple object destruction.
     template <typename Wrapper>
-    void EndDestroyApiCallTrace(uint32_t count, const typename Wrapper::HandleType* handles, ParameterEncoder* encoder)
+    void EndDestroyApiCallTrace(uint32_t count, const typename Wrapper::HandleType* handles)
     {
         if (((capture_mode_ & kModeTrack) == kModeTrack) && (handles != nullptr))
         {
@@ -247,10 +255,10 @@ class TraceManager
             }
         }
 
-        EndApiCallTrace(encoder);
+        EndApiCallTrace();
     }
 
-    void EndCommandApiCallTrace(VkCommandBuffer command_buffer, ParameterEncoder* encoder)
+    void EndCommandApiCallTrace(VkCommandBuffer command_buffer)
     {
         if ((capture_mode_ & kModeTrack) == kModeTrack)
         {
@@ -262,14 +270,11 @@ class TraceManager
             state_tracker_->TrackCommand(command_buffer, thread_data->call_id_, thread_data->parameter_buffer_.get());
         }
 
-        EndApiCallTrace(encoder);
+        EndApiCallTrace();
     }
 
     template <typename GetHandlesFunc, typename... GetHandlesArgs>
-    void EndCommandApiCallTrace(VkCommandBuffer   command_buffer,
-                                ParameterEncoder* encoder,
-                                GetHandlesFunc    func,
-                                GetHandlesArgs... args)
+    void EndCommandApiCallTrace(VkCommandBuffer command_buffer, GetHandlesFunc func, GetHandlesArgs... args)
     {
         if ((capture_mode_ & kModeTrack) == kModeTrack)
         {
@@ -282,10 +287,10 @@ class TraceManager
                 command_buffer, thread_data->call_id_, thread_data->parameter_buffer_.get(), func, args...);
         }
 
-        EndApiCallTrace(encoder);
+        EndApiCallTrace();
     }
 
-    void EndApiCallTrace(ParameterEncoder* encoder);
+    void EndApiCallTrace();
 
     void EndFrame();
 
@@ -953,13 +958,15 @@ class TraceManager
 
         ~ThreadData() {}
 
+        std::vector<uint8_t>& GetScratchBuffer() { return scratch_buffer_; }
+
       public:
-        const format::ThreadId                    thread_id_;
-        format::ApiCallId                         call_id_;
-        std::unique_ptr<util::MemoryOutputStream> parameter_buffer_;
-        std::unique_ptr<ParameterEncoder>         parameter_encoder_;
-        std::vector<uint8_t>                      compressed_buffer_;
-        HandleUnwrapMemory                        handle_unwrap_memory_;
+        const format::ThreadId                   thread_id_;
+        format::ApiCallId                        call_id_;
+        std::unique_ptr<encode::ParameterBuffer> parameter_buffer_;
+        std::unique_ptr<ParameterEncoder>        parameter_encoder_;
+        std::vector<uint8_t>                     compressed_buffer_;
+        HandleUnwrapMemory                       handle_unwrap_memory_;
 
       private:
         static format::ThreadId GetThreadId();
@@ -968,6 +975,10 @@ class TraceManager
         static std::mutex                                     count_lock_;
         static format::ThreadId                               thread_count_;
         static std::unordered_map<uint64_t, format::ThreadId> id_map_;
+
+      private:
+        // Used for combining multiple buffers for a single file write.
+        std::vector<uint8_t> scratch_buffer_;
     };
 
     struct HardwareBufferInfo
@@ -991,6 +1002,7 @@ class TraceManager
     std::string CreateTrimFilename(const std::string& base_filename, const CaptureSettings::TrimRange& trim_range);
     bool        CreateCaptureFile(const std::string& base_filename);
     void        ActivateTrimming();
+    void        DeactivateTrimming();
 
     void WriteFileHeader();
     void BuildOptionList(const format::EnabledOptions&        enabled_options,
@@ -1037,6 +1049,26 @@ class TraceManager
     void ProcessImportAndroidHardwareBuffer(VkDevice device, VkDeviceMemory memory, AHardwareBuffer* hardware_buffer);
     void ReleaseAndroidHardwareBuffer(AHardwareBuffer* hardware_buffer);
 
+    void WriteToFile(const void* data, size_t size);
+
+    template <size_t N>
+    void CombineAndWriteToFile(const std::pair<const void*, size_t> (&buffers)[N])
+    {
+        static_assert(N != 1, "Use WriteToFile(void*, size) when writing a single buffer.");
+
+        // Combine buffers for a single write.
+        std::vector<uint8_t>& scratch_buffer = GetThreadData()->GetScratchBuffer();
+        scratch_buffer.clear();
+        for (size_t i = 0; i < N; ++i)
+        {
+            const uint8_t* const data = reinterpret_cast<const uint8_t*>(buffers[i].first);
+            const size_t         size = buffers[i].second;
+            scratch_buffer.insert(scratch_buffer.end(), data, data + size);
+        }
+
+        WriteToFile(scratch_buffer.data(), scratch_buffer.size());
+    }
+
   private:
     static TraceManager*                            instance_;
     static uint32_t                                 instance_count_;
@@ -1044,10 +1076,10 @@ class TraceManager
     static thread_local std::unique_ptr<ThreadData> thread_data_;
     static LayerTable                               layer_table_;
     static std::atomic<format::HandleId>            unique_id_counter_;
+    static util::SharedMutex                        state_mutex_;
     format::EnabledOptions                          file_options_;
     std::unique_ptr<util::FileOutputStream>         file_stream_;
     std::string                                     base_filename_;
-    std::mutex                                      file_lock_;
     bool                                            timestamp_filename_;
     bool                                            force_file_flush_;
     std::unique_ptr<util::Compressor>               compressor_;

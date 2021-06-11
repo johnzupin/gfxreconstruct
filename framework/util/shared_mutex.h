@@ -1,6 +1,6 @@
+
 /*
-** Copyright (c) 2018 Valve Corporation
-** Copyright (c) 2018 LunarG, Inc.
+** Copyright (c) 2021 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -21,38 +21,46 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef GFXRECON_UTIL_COMPRESSOR_H
-#define GFXRECON_UTIL_COMPRESSOR_H
+#ifndef GFXRECON_UTIL_SHARED_MUTEX_H
+#define GFXRECON_UTIL_SHARED_MUTEX_H
 
 #include "util/defines.h"
 
-#include <cstddef>
-#include <cstdint>
-#include <vector>
+#include <atomic>
+#include <mutex>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(util)
 
-class Compressor
+// A shared (reader/writer) mutex implementation using std::mutex and std::atomic.
+class SharedMutex
 {
   public:
-    Compressor() {}
+    SharedMutex() : reader_count_(0), wait_for_writer_(false) {}
 
-    virtual ~Compressor() {}
+    // Exclusive lock which waits for current readers in a spin lock then acquires the mutex. A thread's read lock can
+    // be promoted to a write lock.
+    void lock();
+    void unlock();
 
-    // If needed, compressed_data will be resized to fit the compressed data + compressed_data_offset.
-    virtual size_t Compress(const size_t          uncompressed_size,
-                            const uint8_t*        uncompressed_data,
-                            std::vector<uint8_t>* compressed_data,
-                            size_t                compressed_data_offset) = 0;
+    void lock_shared();
+    void unlock_shared();
 
-    virtual size_t Decompress(const size_t                compressed_size,
-                              const std::vector<uint8_t>& compressed_data,
-                              const size_t                expected_uncompressed_size,
-                              std::vector<uint8_t>*       uncompressed_data) = 0;
+  private:
+    // Not copyable or movable
+    SharedMutex(const SharedMutex&) = delete;
+    SharedMutex& operator=(const SharedMutex&) = delete;
+
+  private:
+    static thread_local std::atomic_bool has_read_lock_;
+
+  private:
+    std::mutex         writer_mutex;
+    std::atomic_size_t reader_count_;
+    std::atomic_bool   wait_for_writer_;
 };
 
 GFXRECON_END_NAMESPACE(util)
 GFXRECON_END_NAMESPACE(gfxrecon)
 
-#endif // GFXRECON_UTIL_COMPRESSOR_H
+#endif // GFXRECON_UTIL_SHARED_MUTEX_H

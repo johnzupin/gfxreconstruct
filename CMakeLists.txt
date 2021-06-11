@@ -40,14 +40,10 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" "${CMAKE_SOURCE_DIR}/external/
 # Version info
 set(GFXRECONSTRUCT_PROJECT_VERSION_MAJOR 0)
 set(GFXRECONSTRUCT_PROJECT_VERSION_MINOR 9)
-set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 7)
+set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 8)
 
 set(GFXRECON_PROJECT_VERSION_DESIGNATION "-unknown")
 set(GFXRECON_PROJECT_VERSION_SHA1 "unknown-build-source")
-
-if (NOT DEFINED NO_XCB)
-    set(NO_XCB FALSE)
-endif()
 
 if (NOT DEFINED HEADLESS)
     set(HEADLESS TRUE)
@@ -139,18 +135,25 @@ endif()
 find_package(LZ4)
 find_package(ZSTD)
 if(UNIX)
-    if (NOT ${NO_XCB})
+    option(BUILD_WSI_XCB_SUPPORT "Build XCB WSI support" ON)
+    option(BUILD_WSI_WAYLAND_SUPPORT "Build Wayland WSI support" ON)
+
+    if(BUILD_WSI_XCB_SUPPORT)
         find_package(XCB)
-    else()
-        set(XCB_FOUND FALSE)
     endif()
-    find_package(WAYLAND)
+
+    if(BUILD_WSI_WAYLAND_SUPPORT)
+        find_package(WAYLAND)
+    endif()
 endif(UNIX)
 
 # CMake provided find modules
 find_package(ZLIB)
 if(UNIX)
-    find_package(X11)
+    option(BUILD_WSI_XLIB_SUPPORT "Build Xlib WSI support" ON)
+    if(BUILD_WSI_XLIB_SUPPORT)
+        find_package(X11)
+    endif()
 endif(UNIX)
 
 add_library(windows_specific INTERFACE)

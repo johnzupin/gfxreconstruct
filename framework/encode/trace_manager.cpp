@@ -54,7 +54,8 @@ GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
 
 // One based frame count.
-const uint32_t kFirstFrame = 1;
+const uint32_t kFirstFrame           = 1;
+const size_t   kFileStreamBufferSize = 256 * 1024;
 
 std::mutex                                     TraceManager::ThreadData::count_lock_;
 format::ThreadId                               TraceManager::ThreadData::thread_count_ = 0;
@@ -65,12 +66,13 @@ uint32_t                                               TraceManager::instance_co
 std::mutex                                             TraceManager::instance_lock_;
 thread_local std::unique_ptr<TraceManager::ThreadData> TraceManager::thread_data_;
 LayerTable                                             TraceManager::layer_table_;
+util::SharedMutex                                      TraceManager::state_mutex_;
 
 std::atomic<format::HandleId> TraceManager::unique_id_counter_{ format::kNullHandleId };
 
 TraceManager::ThreadData::ThreadData() : thread_id_(GetThreadId()), call_id_(format::ApiCallId::ApiCall_Unknown)
 {
-    parameter_buffer_  = std::make_unique<util::MemoryOutputStream>();
+    parameter_buffer_  = std::make_unique<encode::ParameterBuffer>();
     parameter_encoder_ = std::make_unique<ParameterEncoder>(parameter_buffer_.get());
 }
 
@@ -360,94 +362,66 @@ ParameterEncoder* TraceManager::InitApiCallTrace(format::ApiCallId call_id)
 {
     auto thread_data      = GetThreadData();
     thread_data->call_id_ = call_id;
+
+    // Reset the parameter buffer and reserve space for an uncompressed FunctionCallHeader.
+    thread_data->parameter_buffer_->ResetWithHeader(sizeof(format::FunctionCallHeader));
+
     return thread_data->parameter_encoder_.get();
 }
 
-void TraceManager::EndApiCallTrace(ParameterEncoder* encoder)
+void TraceManager::EndApiCallTrace()
 {
     if ((capture_mode_ & kModeWrite) == kModeWrite)
     {
-        assert(encoder != nullptr);
-
         auto thread_data = GetThreadData();
         assert(thread_data != nullptr);
 
         auto parameter_buffer = thread_data->parameter_buffer_.get();
-        assert((parameter_buffer != nullptr) && (thread_data->parameter_encoder_ != nullptr) &&
-               (thread_data->parameter_encoder_.get() == encoder));
+        assert((parameter_buffer != nullptr) && (thread_data->parameter_encoder_ != nullptr));
 
-        bool                                 not_compressed      = true;
-        format::CompressedFunctionCallHeader compressed_header   = {};
-        format::FunctionCallHeader           uncompressed_header = {};
-        size_t                               uncompressed_size   = parameter_buffer->GetDataSize();
-        size_t                               header_size         = 0;
-        const void*                          header_pointer      = nullptr;
-        size_t                               data_size           = 0;
-        const void*                          data_pointer        = nullptr;
+        bool   not_compressed    = true;
+        size_t uncompressed_size = parameter_buffer->GetDataSize();
 
         if (nullptr != compressor_)
         {
-            size_t packet_size = 0;
-            size_t compressed_size =
-                compressor_->Compress(uncompressed_size, parameter_buffer->GetData(), &thread_data->compressed_buffer_);
+            size_t header_size     = sizeof(format::CompressedFunctionCallHeader);
+            size_t compressed_size = compressor_->Compress(
+                uncompressed_size, parameter_buffer->GetData(), &thread_data->compressed_buffer_, header_size);
 
             if ((0 < compressed_size) && (compressed_size < uncompressed_size))
             {
-                data_pointer   = reinterpret_cast<const void*>(thread_data->compressed_buffer_.data());
-                data_size      = compressed_size;
-                header_pointer = reinterpret_cast<const void*>(&compressed_header);
-                header_size    = sizeof(format::CompressedFunctionCallHeader);
+                auto compressed_header =
+                    reinterpret_cast<format::CompressedFunctionCallHeader*>(thread_data->compressed_buffer_.data());
+                compressed_header->block_header.type = format::BlockType::kCompressedFunctionCallBlock;
+                compressed_header->api_call_id       = thread_data->call_id_;
+                compressed_header->thread_id         = thread_data->thread_id_;
+                compressed_header->uncompressed_size = uncompressed_size;
+                compressed_header->block_header.size = sizeof(compressed_header->api_call_id) +
+                                                       sizeof(compressed_header->thread_id) +
+                                                       sizeof(compressed_header->uncompressed_size) + compressed_size;
 
-                compressed_header.block_header.type = format::BlockType::kCompressedFunctionCallBlock;
-                compressed_header.api_call_id       = thread_data->call_id_;
-                compressed_header.thread_id         = thread_data->thread_id_;
-                compressed_header.uncompressed_size = uncompressed_size;
+                WriteToFile(thread_data->compressed_buffer_.data(), header_size + compressed_size);
 
-                packet_size += sizeof(compressed_header.api_call_id) + sizeof(compressed_header.uncompressed_size) +
-                               sizeof(compressed_header.thread_id) + compressed_size;
-
-                compressed_header.block_header.size = packet_size;
-                not_compressed                      = false;
+                not_compressed = false;
             }
         }
 
         if (not_compressed)
         {
-            size_t packet_size = 0;
-            data_pointer       = reinterpret_cast<const void*>(parameter_buffer->GetData());
-            data_size          = uncompressed_size;
-            header_pointer     = reinterpret_cast<const void*>(&uncompressed_header);
-            header_size        = sizeof(format::FunctionCallHeader);
+            uint8_t* header_data = parameter_buffer->GetHeaderData();
+            assert((header_data != nullptr) &&
+                   (parameter_buffer->GetHeaderDataSize() == sizeof(format::FunctionCallHeader)));
 
-            uncompressed_header.block_header.type = format::BlockType::kFunctionCallBlock;
-            uncompressed_header.api_call_id       = thread_data->call_id_;
-            uncompressed_header.thread_id         = thread_data->thread_id_;
+            auto uncompressed_header               = reinterpret_cast<format::FunctionCallHeader*>(header_data);
+            uncompressed_header->block_header.type = format::BlockType::kFunctionCallBlock;
+            uncompressed_header->api_call_id       = thread_data->call_id_;
+            uncompressed_header->thread_id         = thread_data->thread_id_;
+            uncompressed_header->block_header.size =
+                sizeof(uncompressed_header->api_call_id) + sizeof(uncompressed_header->thread_id) + uncompressed_size;
 
-            packet_size += sizeof(uncompressed_header.api_call_id) + sizeof(uncompressed_header.thread_id) + data_size;
-
-            uncompressed_header.block_header.size = packet_size;
+            WriteToFile(parameter_buffer->GetHeaderData(),
+                        parameter_buffer->GetHeaderDataSize() + parameter_buffer->GetDataSize());
         }
-
-        {
-            std::lock_guard<std::mutex> lock(file_lock_);
-
-            // Write appropriate function call block header.
-            file_stream_->Write(header_pointer, header_size);
-
-            // Write parameter data.
-            file_stream_->Write(data_pointer, data_size);
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
-        }
-
-        encoder->Reset();
-    }
-    else if (encoder != nullptr)
-    {
-        encoder->Reset();
     }
 }
 
@@ -468,8 +442,7 @@ void TraceManager::CheckContinueCaptureForWriteMode()
         if (trim_ranges_[trim_current_range_].total == 0)
         {
             // Stop recording and close file.
-            capture_mode_ &= ~kModeWrite;
-            file_stream_ = nullptr;
+            DeactivateTrimming();
             GFXRECON_LOG_INFO("Finished recording graphics API capture");
 
             // Advance to next range
@@ -504,8 +477,7 @@ void TraceManager::CheckContinueCaptureForWriteMode()
     else if (IsTrimHotkeyPressed())
     {
         // Stop recording and close file.
-        capture_mode_ &= ~kModeWrite;
-        file_stream_ = nullptr;
+        DeactivateTrimming();
         GFXRECON_LOG_INFO("Finished recording graphics API capture");
     }
 }
@@ -592,6 +564,8 @@ std::string TraceManager::CreateTrimFilename(const std::string&                b
 
 bool TraceManager::CreateCaptureFile(const std::string& base_filename)
 {
+    auto state_lock = AcquireUniqueStateLock();
+
     bool        success          = true;
     std::string capture_filename = base_filename;
 
@@ -600,7 +574,7 @@ bool TraceManager::CreateCaptureFile(const std::string& base_filename)
         capture_filename = util::filepath::GenerateTimestampedFilename(capture_filename);
     }
 
-    file_stream_ = std::make_unique<util::FileOutputStream>(capture_filename);
+    file_stream_ = std::make_unique<util::FileOutputStream>(capture_filename, kFileStreamBufferSize);
 
     if (file_stream_->IsValid())
     {
@@ -618,7 +592,7 @@ bool TraceManager::CreateCaptureFile(const std::string& base_filename)
 
 void TraceManager::ActivateTrimming()
 {
-    std::lock_guard<std::mutex> lock(file_lock_);
+    auto state_lock = AcquireUniqueStateLock();
 
     capture_mode_ |= kModeWrite;
 
@@ -627,6 +601,14 @@ void TraceManager::ActivateTrimming()
 
     VulkanStateWriter state_writer(file_stream_.get(), compressor_.get(), thread_data->thread_id_);
     state_tracker_->WriteState(&state_writer, current_frame_);
+}
+
+void TraceManager::DeactivateTrimming()
+{
+    auto state_lock = AcquireUniqueStateLock();
+
+    capture_mode_ &= ~kModeWrite;
+    file_stream_ = nullptr;
 }
 
 void TraceManager::WriteFileHeader()
@@ -641,13 +623,8 @@ void TraceManager::WriteFileHeader()
     file_header.minor_version = 0;
     file_header.num_options   = static_cast<uint32_t>(option_list.size());
 
-    file_stream_->Write(&file_header, sizeof(file_header));
-    file_stream_->Write(option_list.data(), option_list.size() * sizeof(format::FileOptionPair));
-
-    if (force_file_flush_)
-    {
-        file_stream_->Flush();
-    }
+    CombineAndWriteToFile({ { &file_header, sizeof(file_header) },
+                            { option_list.data(), option_list.size() * sizeof(format::FileOptionPair) } });
 }
 
 void TraceManager::BuildOptionList(const format::EnabledOptions&        enabled_options,
@@ -670,17 +647,7 @@ void TraceManager::WriteDisplayMessageCmd(const char* message)
         message_cmd.meta_header.meta_data_type    = format::MetaDataType::kDisplayMessageCommand;
         message_cmd.thread_id                     = GetThreadData()->thread_id_;
 
-        {
-            std::lock_guard<std::mutex> lock(file_lock_);
-
-            file_stream_->Write(&message_cmd, sizeof(message_cmd));
-            file_stream_->Write(message, message_length);
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
-        }
+        CombineAndWriteToFile({ { &message_cmd, sizeof(message_cmd) }, { message, message_length } });
     }
 }
 
@@ -698,15 +665,7 @@ void TraceManager::WriteResizeWindowCmd(format::HandleId surface_id, uint32_t wi
         resize_cmd.width      = width;
         resize_cmd.height     = height;
 
-        {
-            std::lock_guard<std::mutex> lock(file_lock_);
-            file_stream_->Write(&resize_cmd, sizeof(resize_cmd));
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
-        }
+        WriteToFile(&resize_cmd, sizeof(resize_cmd));
     }
 }
 
@@ -749,15 +708,7 @@ void TraceManager::WriteResizeWindowCmd2(format::HandleId              surface_i
                 break;
         }
 
-        {
-            std::lock_guard<std::mutex> lock(file_lock_);
-            file_stream_->Write(&resize_cmd2, sizeof(resize_cmd2));
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
-        }
+        WriteToFile(&resize_cmd2, sizeof(resize_cmd2));
     }
 }
 
@@ -771,8 +722,9 @@ void TraceManager::WriteFillMemoryCmd(format::HandleId memory_id,
         GFXRECON_CHECK_CONVERSION_DATA_LOSS(size_t, size);
 
         format::FillMemoryCommandHeader fill_cmd;
-        const uint8_t*                  write_address = (static_cast<const uint8_t*>(data) + offset);
-        size_t                          write_size    = static_cast<size_t>(size);
+        size_t                          header_size       = sizeof(format::FillMemoryCommandHeader);
+        const uint8_t*                  uncompressed_data = (static_cast<const uint8_t*>(data) + offset);
+        size_t                          uncompressed_size = static_cast<size_t>(size);
 
         auto thread_data = GetThreadData();
         assert(thread_data != nullptr);
@@ -784,34 +736,37 @@ void TraceManager::WriteFillMemoryCmd(format::HandleId memory_id,
         fill_cmd.memory_offset                 = offset;
         fill_cmd.memory_size                   = size;
 
+        bool not_compressed = true;
+
         if (compressor_ != nullptr)
         {
-            size_t compressed_size = compressor_->Compress(write_size, write_address, &thread_data->compressed_buffer_);
+            size_t compressed_size = compressor_->Compress(
+                uncompressed_size, uncompressed_data, &thread_data->compressed_buffer_, header_size);
 
-            if ((compressed_size > 0) && (compressed_size < write_size))
+            if ((compressed_size > 0) && (compressed_size < uncompressed_size))
             {
+                not_compressed = false;
+
                 // We don't have a special header for compressed fill commands because the header always includes
                 // the uncompressed size, so we just change the type to indicate the data is compressed.
                 fill_cmd.meta_header.block_header.type = format::BlockType::kCompressedMetaDataBlock;
 
-                write_address = thread_data->compressed_buffer_.data();
-                write_size    = compressed_size;
+                // Calculate size of packet with uncompressed data size.
+                fill_cmd.meta_header.block_header.size = format::GetMetaDataBlockBaseSize(fill_cmd) + compressed_size;
+
+                // Copy header to beginning of compressed_buffer_
+                util::platform::MemoryCopy(thread_data->compressed_buffer_.data(), header_size, &fill_cmd, header_size);
+
+                WriteToFile(thread_data->compressed_buffer_.data(), header_size + compressed_size);
             }
         }
 
-        // Calculate size of packet with compressed or uncompressed data size.
-        fill_cmd.meta_header.block_header.size = format::GetMetaDataBlockBaseSize(fill_cmd) + write_size;
-
+        if (not_compressed)
         {
-            std::lock_guard<std::mutex> lock(file_lock_);
+            // Calculate size of packet with compressed data size.
+            fill_cmd.meta_header.block_header.size = format::GetMetaDataBlockBaseSize(fill_cmd) + uncompressed_size;
 
-            file_stream_->Write(&fill_cmd, sizeof(fill_cmd));
-            file_stream_->Write(write_address, write_size);
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
+            CombineAndWriteToFile({ { &fill_cmd, header_size }, { uncompressed_data, uncompressed_size } });
         }
     }
 }
@@ -863,18 +818,14 @@ void TraceManager::WriteCreateHardwareBufferCmd(format::HandleId                
         }
 
         {
-            std::lock_guard<std::mutex> lock(file_lock_);
-
-            file_stream_->Write(&create_buffer_cmd, sizeof(create_buffer_cmd));
-
             if (planes_size > 0)
             {
-                file_stream_->Write(plane_info.data(), planes_size);
+                CombineAndWriteToFile(
+                    { { &create_buffer_cmd, sizeof(create_buffer_cmd) }, { plane_info.data(), planes_size } });
             }
-
-            if (force_file_flush_)
+            else
             {
-                file_stream_->Flush();
+                WriteToFile(&create_buffer_cmd, sizeof(create_buffer_cmd));
             }
         }
 #else
@@ -905,16 +856,7 @@ void TraceManager::WriteDestroyHardwareBufferCmd(AHardwareBuffer* buffer)
         destroy_buffer_cmd.thread_id                     = thread_data->thread_id_;
         destroy_buffer_cmd.buffer_id                     = reinterpret_cast<uint64_t>(buffer);
 
-        {
-            std::lock_guard<std::mutex> lock(file_lock_);
-
-            file_stream_->Write(&destroy_buffer_cmd, sizeof(destroy_buffer_cmd));
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
-        }
+        WriteToFile(&destroy_buffer_cmd, sizeof(destroy_buffer_cmd));
 #else
         GFXRECON_LOG_ERROR("Skipping destroy AHardwareBuffer command write for unsupported platform");
 #endif
@@ -948,17 +890,8 @@ void TraceManager::WriteSetDevicePropertiesCommand(format::HandleId             
             properties_cmd.pipeline_cache_uuid, format::kUuidSize, properties.pipelineCacheUUID, VK_UUID_SIZE);
         properties_cmd.device_name_len = device_name_len;
 
-        {
-            std::lock_guard<std::mutex> lock(file_lock_);
-
-            file_stream_->Write(&properties_cmd, sizeof(properties_cmd));
-            file_stream_->Write(properties.deviceName, properties_cmd.device_name_len);
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
-        }
+        CombineAndWriteToFile(
+            { { &properties_cmd, sizeof(properties_cmd) }, { properties.deviceName, properties_cmd.device_name_len } });
     }
 }
 
@@ -983,34 +916,37 @@ void TraceManager::WriteSetDeviceMemoryPropertiesCommand(format::HandleId       
         memory_properties_cmd.memory_type_count          = memory_properties.memoryTypeCount;
         memory_properties_cmd.memory_heap_count          = memory_properties.memoryHeapCount;
 
+        // Since the number of file writes below is dynamic, CombineAndWriteToFile is not suitable. Instead, manually
+        // populate thread_data's scratch_buffer_ then write to file.
+        auto& scratch_buffer = thread_data->GetScratchBuffer();
+        scratch_buffer.clear();
+        scratch_buffer.insert(scratch_buffer.end(),
+                              reinterpret_cast<uint8_t*>(&memory_properties_cmd),
+                              reinterpret_cast<uint8_t*>(&memory_properties_cmd) + sizeof(memory_properties_cmd));
+
+        format::DeviceMemoryType type;
+        for (uint32_t i = 0; i < memory_properties.memoryTypeCount; ++i)
         {
-            std::lock_guard<std::mutex> lock(file_lock_);
+            type.property_flags = memory_properties.memoryTypes[i].propertyFlags;
+            type.heap_index     = memory_properties.memoryTypes[i].heapIndex;
 
-            file_stream_->Write(&memory_properties_cmd, sizeof(memory_properties_cmd));
-
-            format::DeviceMemoryType type;
-            for (uint32_t i = 0; i < memory_properties.memoryTypeCount; ++i)
-            {
-                type.property_flags = memory_properties.memoryTypes[i].propertyFlags;
-                type.heap_index     = memory_properties.memoryTypes[i].heapIndex;
-
-                file_stream_->Write(&type, sizeof(type));
-            }
-
-            format::DeviceMemoryHeap heap;
-            for (uint32_t i = 0; i < memory_properties.memoryHeapCount; ++i)
-            {
-                heap.size  = memory_properties.memoryHeaps[i].size;
-                heap.flags = memory_properties.memoryHeaps[i].flags;
-
-                file_stream_->Write(&heap, sizeof(heap));
-            }
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
+            scratch_buffer.insert(scratch_buffer.end(),
+                                  reinterpret_cast<uint8_t*>(&type),
+                                  reinterpret_cast<uint8_t*>(&type) + sizeof(type));
         }
+
+        format::DeviceMemoryHeap heap;
+        for (uint32_t i = 0; i < memory_properties.memoryHeapCount; ++i)
+        {
+            heap.size  = memory_properties.memoryHeaps[i].size;
+            heap.flags = memory_properties.memoryHeaps[i].flags;
+
+            scratch_buffer.insert(scratch_buffer.end(),
+                                  reinterpret_cast<uint8_t*>(&heap),
+                                  reinterpret_cast<uint8_t*>(&heap) + sizeof(heap));
+        }
+
+        WriteToFile(scratch_buffer.data(), scratch_buffer.size());
     }
 }
 
@@ -1033,16 +969,7 @@ void TraceManager::WriteSetOpaqueAddressCommand(format::HandleId device_id,
         opaque_address_cmd.object_id                     = object_id;
         opaque_address_cmd.address                       = address;
 
-        {
-            std::lock_guard<std::mutex> lock(file_lock_);
-
-            file_stream_->Write(&opaque_address_cmd, sizeof(opaque_address_cmd));
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
-        }
+        WriteToFile(&opaque_address_cmd, sizeof(opaque_address_cmd));
     }
 }
 
@@ -1066,17 +993,7 @@ void TraceManager::WriteSetRayTracingShaderGroupHandlesCommand(format::HandleId 
         set_handles_cmd.pipeline_id                   = pipeline_id;
         set_handles_cmd.data_size                     = data_size;
 
-        {
-            std::lock_guard<std::mutex> lock(file_lock_);
-
-            file_stream_->Write(&set_handles_cmd, sizeof(set_handles_cmd));
-            file_stream_->Write(data, data_size);
-
-            if (force_file_flush_)
-            {
-                file_stream_->Flush();
-            }
-        }
+        CombineAndWriteToFile({ { &set_handles_cmd, sizeof(set_handles_cmd) }, { data, data_size } });
     }
 }
 
@@ -2420,14 +2337,21 @@ void TraceManager::PreProcess_vkFreeMemory(VkDevice                     device,
     {
         auto wrapper = reinterpret_cast<DeviceMemoryWrapper*>(memory);
 
-        if ((memory_tracking_mode_ == CaptureSettings::MemoryTrackingMode::kPageGuard) &&
-            (wrapper->mapped_data != nullptr))
+        if (wrapper->mapped_data != nullptr)
         {
-            util::PageGuardManager* manager = util::PageGuardManager::Get();
-            assert(manager != nullptr);
+            if (memory_tracking_mode_ == CaptureSettings::MemoryTrackingMode::kPageGuard)
+            {
+                util::PageGuardManager* manager = util::PageGuardManager::Get();
+                assert(manager != nullptr);
 
-            // Remove memory tracking.
-            manager->RemoveTrackedMemory(wrapper->handle_id);
+                // Remove memory tracking.
+                manager->RemoveTrackedMemory(wrapper->handle_id);
+            }
+            else if (memory_tracking_mode_ == CaptureSettings::MemoryTrackingMode::kUnassisted)
+            {
+                std::lock_guard<std::mutex> lock(mapped_memory_lock_);
+                mapped_memory_.erase(wrapper);
+            }
         }
     }
 }
@@ -2590,6 +2514,15 @@ void TraceManager::OverrideGetPhysicalDeviceSurfacePresentModesKHR(uint32_t*    
     }
 }
 #endif
+
+void TraceManager::WriteToFile(const void* data, size_t size)
+{
+    file_stream_->Write(data, size);
+    if (force_file_flush_)
+    {
+        file_stream_->Flush();
+    }
+}
 
 GFXRECON_END_NAMESPACE(encode)
 GFXRECON_END_NAMESPACE(gfxrecon)

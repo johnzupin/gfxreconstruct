@@ -1,3 +1,41 @@
+gfxreconstruct (0.9.7+17~rc1-1lunarg20.04-1) focal; urgency=medium
+
+  [ David Donaldson ]
+  * Combine block header and data into one file write
+  * Reserve space in compressed buffer for header
+  * Reserve header bytes in parameter encoder
+  * Use locked file writes and set write buffer size
+  * Add SharedMutex reader-writer mutex util class
+  * Use a shared mutex for writing trim state
+  * Remove unnecesssary state tracker locking
+
+  [ Dustin Graves ]
+  * Check for headless support
+  * Remove 'unassisted' memory entry on free
+  * Set version to 0.9.8
+
+  [ orbea ]
+  * build: Replace NO_XCB with BUILD_WSI_XCB_SUPPORT
+  * build: Allow enabling and disabling xlib and wayland support
+
+  [ Christophe ]
+  * manifest: some setting are only available on Windows
+
+  [ Dustin Graves ]
+  * Add apt-get update to Linux CI build
+  * Add documentation for new page_guard settings
+
+  [ David Donaldson ]
+  * Fix a race condition and crash when done trimming
+
+  [ Locke Lin ]
+  * Update header to 1.2.182
+
+  [ John Zupin ]
+  * packaging: rebased packages
+
+ -- John Zupin <john@odin>  Fri, 25 Jun 2021 15:33:29 -0600
+
 gfxreconstruct (0.9.6+16~rc3-1lunarg20.04-1) focal; urgency=medium
 
   [ Christophe ]

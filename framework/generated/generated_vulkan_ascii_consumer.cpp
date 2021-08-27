@@ -8758,25 +8758,6 @@ void VulkanAsciiConsumer::Process_vkGetDrmDisplayEXT(
     );
 }
 
-void VulkanAsciiConsumer::Process_vkAcquireDrmDisplayEXT(
-    VkResult                                    returnValue,
-    format::HandleId                            physicalDevice,
-    int32_t                                     drmFd,
-    format::HandleId                            display)
-{
-    fprintf(GetFile(), "%s\n", "vkAcquireDrmDisplayEXT");
-}
-
-void VulkanAsciiConsumer::Process_vkGetDrmDisplayEXT(
-    VkResult                                    returnValue,
-    format::HandleId                            physicalDevice,
-    int32_t                                     drmFd,
-    uint32_t                                    connectorId,
-    HandlePointerDecoder<VkDisplayKHR>*         display)
-{
-    fprintf(GetFile(), "%s\n", "vkGetDrmDisplayEXT");
-}
-
 void VulkanAsciiConsumer::Process_vkCreatePrivateDataSlotEXT(
     VkResult                                    returnValue,
     format::HandleId                            device,
@@ -9315,29 +9296,6 @@ void VulkanAsciiConsumer::Process_vkCmdDrawMultiIndexedEXT(
             FieldToString(strStrm, false, "pVertexOffset", toStringFlags, tabCount, tabSize, PointerDecoderToString(pVertexOffset, toStringFlags, tabCount, tabSize));
         }
     );
-}
-
-void VulkanAsciiConsumer::Process_vkCmdDrawMultiEXT(
-    format::HandleId                            commandBuffer,
-    uint32_t                                    drawCount,
-    StructPointerDecoder<Decoded_VkMultiDrawInfoEXT>* pVertexInfo,
-    uint32_t                                    instanceCount,
-    uint32_t                                    firstInstance,
-    uint32_t                                    stride)
-{
-    fprintf(GetFile(), "%s\n", "vkCmdDrawMultiEXT");
-}
-
-void VulkanAsciiConsumer::Process_vkCmdDrawMultiIndexedEXT(
-    format::HandleId                            commandBuffer,
-    uint32_t                                    drawCount,
-    StructPointerDecoder<Decoded_VkMultiDrawIndexedInfoEXT>* pIndexInfo,
-    uint32_t                                    instanceCount,
-    uint32_t                                    firstInstance,
-    uint32_t                                    stride,
-    PointerDecoder<int32_t>*                    pVertexOffset)
-{
-    fprintf(GetFile(), "%s\n", "vkCmdDrawMultiIndexedEXT");
 }
 
 void VulkanAsciiConsumer::Process_vkCreateAccelerationStructureKHR(

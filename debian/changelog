@@ -1,3 +1,56 @@
+gfxreconstruct (0.9.8+21~rc1-1lunarg20.04-1) focal; urgency=medium
+
+  [ Locke Lin ]
+  * Update header to 1.2.182
+
+  [ Danylo Piliaiev ]
+  * Limit the number of vkGetQueryPoolResults retries
+
+  [ Mike Schuchardt ]
+  * Update layer manifest file
+
+  [ patrick-lunarg ]
+  * Setting up Vulkan support for gfxrecon-toascii
+  * Filtering Vulkan union members stringification based on parent structures where possible
+  * Renaming variable to prevent hiding
+  * Removing union ToString<>() functions for unions that are filtered by parent objects
+
+  [ Per Inge Mathisen ]
+  * Allow overriding GFXRECON_PROJECT_VERSION_DESIGNATION for custom builds.
+  * Fix arm linux builds
+  * Add automatic build testing for linux arm build targets
+
+  [ patrick-lunarg ]
+  * Updating documentation with toascii description and usage
+  * Updating docs to specify that toascii writes to file, not stdout
+
+  [ bradgrantham-lunarg ]
+  * Revert "Add automatic build testing for linux arm build targets"
+  * Revert "Fix arm linux builds"
+  * Revert "Allow overriding GFXRECON_PROJECT_VERSION_DESIGNATION for custom builds."
+
+  [ Locke Lin ]
+  * Sort enumNames before generating
+  * Generate StateTable and ObjectInfoTable code
+  * Update header to 1.2.188
+  * Copyright time to 2021
+
+  [ patrick-lunarg ]
+  * Adding instructions for building/using VVL with gfxrecon-replay on Android
+
+  [ John Zupin ]
+  * packaging: updated rules formatting
+
+  [ Locke Lin ]
+  * Update header to 1.2.189
+  * Set version to 0.9.9
+
+  [ John Zupin ]
+  * packaging: update repo to reflect upstream
+  * packaging: rebased patches
+
+ -- John Zupin <john@odin>  Fri, 27 Aug 2021 17:17:15 -0600
+
 gfxreconstruct (0.9.7+17~rc2-1lunarg20.04-1) focal; urgency=medium
 
   [ Danylo Piliaiev ]

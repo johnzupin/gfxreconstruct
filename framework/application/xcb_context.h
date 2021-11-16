@@ -1,5 +1,6 @@
 /*
-** Copyright (c) 2020 LunarG, Inc.
+** Copyright (c) 2018 Valve Corporation
+** Copyright (c) 2018-2021 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -20,46 +21,62 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef GFXRECON_APPLICATION_XLIB_APPLICATION_H
-#define GFXRECON_APPLICATION_XLIB_APPLICATION_H
+#ifndef GFXRECON_APPLICATION_XCB_CONTEXT_H
+#define GFXRECON_APPLICATION_XCB_CONTEXT_H
 
-#include "application/application.h"
+#include "application/wsi_context.h"
 #include "util/defines.h"
-#include "util/xlib_loader.h"
+#include "util/xcb_loader.h"
+
+#include <unordered_map>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(application)
 
-class XlibWindow;
+class Application;
+class XcbWindow;
 
-class XlibApplication : public Application
+class XcbContext : public WsiContext
 {
   public:
-    XlibApplication(const std::string& name);
+    XcbContext(Application* application);
 
-    virtual ~XlibApplication() override;
+    virtual ~XcbContext() override;
 
-    const util::XlibLoader::FunctionTable& GetXlibFunctionTable() const { return xlib_loader_.GetFunctionTable(); }
+    const util::XcbLoader::FunctionTable& GetXcbFunctionTable() const { return xcb_loader_.GetFunctionTable(); }
 
-    Display* OpenDisplay();
+    xcb_connection_t* GetConnection() const { return connection_; }
 
-    void CloseDisplay(Display* display);
+    xcb_screen_t* GetScreen() const { return screen_; }
 
-    virtual bool Initialize(decode::FileProcessor* file_processor) override;
+    uint32_t GetLastErrorSequence() const { return last_error_sequence_; }
 
-    bool RegisterXlibWindow(XlibWindow* window);
+    uint8_t GetLastErrorCode() const { return last_error_code_; }
 
-    bool UnregisterXlibWindow(XlibWindow* window);
+    bool RegisterXcbWindow(XcbWindow* window);
+
+    bool UnregisterXcbWindow(XcbWindow* window);
+
+    void ClearLastError()
+    {
+        last_error_sequence_ = 0;
+        last_error_code_     = 0;
+    }
 
     virtual void ProcessEvents(bool wait_for_input) override;
 
   private:
-    Display*         display_;
-    size_t           display_open_count_;
-    util::XlibLoader xlib_loader_;
+    typedef std::unordered_map<xcb_window_t, XcbWindow*> XcbWindowMap;
+
+    xcb_connection_t* connection_{};
+    xcb_screen_t*     screen_{};
+    uint32_t          last_error_sequence_{};
+    uint8_t           last_error_code_{};
+    XcbWindowMap      xcb_windows_{};
+    util::XcbLoader   xcb_loader_{};
 };
 
 GFXRECON_END_NAMESPACE(application)
 GFXRECON_END_NAMESPACE(gfxrecon)
 
-#endif // GFXRECON_APPLICATION_XLIB_APPLICATION_H
+#endif // GFXRECON_APPLICATION_XCB_CONTEXT_H

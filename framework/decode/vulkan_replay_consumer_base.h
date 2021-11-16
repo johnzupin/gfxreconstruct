@@ -44,6 +44,8 @@
 #include "util/defines.h"
 #include "util/logging.h"
 
+#include "application/application.h"
+
 #include "vulkan/vulkan.h"
 
 #include <algorithm>
@@ -66,7 +68,7 @@ GFXRECON_BEGIN_NAMESPACE(decode)
 class VulkanReplayConsumerBase : public VulkanConsumer
 {
   public:
-    VulkanReplayConsumerBase(WindowFactory* window_factory, const ReplayOptions& options);
+    VulkanReplayConsumerBase(std::shared_ptr<application::Application> application, const VulkanReplayOptions& options);
 
     virtual ~VulkanReplayConsumerBase() override;
 
@@ -977,10 +979,10 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     std::unordered_map<encode::DispatchKey, encode::InstanceTable>   instance_tables_;
     std::unordered_map<encode::DispatchKey, encode::DeviceTable>     device_tables_;
     std::function<void(const char*)>                                 fatal_error_handler_;
-    WindowFactory*                                                   window_factory_;
+    std::shared_ptr<application::Application>                        application_;
     VulkanObjectInfoTable                                            object_info_table_;
     ActiveWindows                                                    active_windows_;
-    ReplayOptions                                                    options_;
+    VulkanReplayOptions                                              options_;
     bool                                                             loading_trim_state_;
     bool                                                             have_imported_semaphores_;
     SwapchainImageTracker                                            swapchain_image_tracker_;

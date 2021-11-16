@@ -1,6 +1,7 @@
 /*
-** Copyright (c) 2018 Valve Corporation
-** Copyright (c) 2018 LunarG, Inc.
+** Copyright (c) 2018-2020 Valve Corporation
+** Copyright (c) 2018-2020 LunarG, Inc.
+** Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -21,31 +22,34 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef GFXRECON_APPLICATION_WIN32_APPLICATION_H
-#define GFXRECON_APPLICATION_WIN32_APPLICATION_H
+#ifndef GFXRECON_UTIL_OPTIONS_H
+#define GFXRECON_UTIL_OPTIONS_H
 
-#include "application/application.h"
 #include "util/defines.h"
-#include "util/platform.h"
+
+#include <string>
+#include <vector>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
-GFXRECON_BEGIN_NAMESPACE(application)
+GFXRECON_BEGIN_NAMESPACE(util)
 
-class Win32Application : public Application
+struct FrameRange
 {
-  public:
-    Win32Application(const std::string& name, bool dpi_aware = true);
-
-    virtual ~Win32Application() override {}
-
-    virtual bool Initialize(decode::FileProcessor* file_processor) override;
-
-    virtual void ProcessEvents(bool wait_for_input) override;
-
-    static LRESULT WINAPI WindowProc(HWND window, unsigned int msg, WPARAM wp, LPARAM lp);
+    uint32_t first{ 0 };
+    uint32_t last{ 0 };
 };
 
-GFXRECON_END_NAMESPACE(application)
+std::vector<FrameRange> GetFrameRanges(const std::string& args);
+
+//----------------------------------------------------------------------------
+/// Read a boolean value out of a string
+/// \param  value_string Input string
+/// \param  default_value Default value in case it couldn't be read
+/// \return True or false interpretation of input string
+//----------------------------------------------------------------------------
+bool ParseBoolString(const std::string& value_string, bool default_value);
+
+GFXRECON_END_NAMESPACE(util)
 GFXRECON_END_NAMESPACE(gfxrecon)
 
-#endif // GFXRECON_APPLICATION_WIN32_APPLICATION_H
+#endif // GFXRECON_UTIL_OPTIONS_H

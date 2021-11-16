@@ -1,5 +1,4 @@
 /*
-** Copyright (c) 2021, Arm Limited.
 ** Copyright (c) 2021 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,25 +20,19 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef GFXRECON_APPLICATION_HEADLESS_APPLICATION_H
-#define GFXRECON_APPLICATION_HEADLESS_APPLICATION_H
+#ifndef GFXRECON_APPLICATION_HEADLESS_CONTEXT_H
+#define GFXRECON_APPLICATION_HEADLESS_CONTEXT_H
 
-#include "application/application.h"
+#include "application/wsi_context.h"
 #include "util/defines.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(application)
 
-class HeadlessWindow;
-
-class HeadlessApplication : public Application
+class HeadlessContext : public WsiContext
 {
   public:
-    HeadlessApplication(const std::string& name);
-
-    virtual ~HeadlessApplication() override{};
-
-    virtual bool Initialize(decode::FileProcessor* file_processor) override;
+    HeadlessContext(Application* application, bool dpi_aware = true);
 
     virtual void ProcessEvents(bool wait_for_input) override;
 };
@@ -47,4 +40,4 @@ class HeadlessApplication : public Application
 GFXRECON_END_NAMESPACE(application)
 GFXRECON_END_NAMESPACE(gfxrecon)
 
-#endif // GFXRECON_APPLICATION_HEADLESS_APPLICATION_H
+#endif // GFXRECON_APPLICATION_HEADLESS_CONTEXT_H

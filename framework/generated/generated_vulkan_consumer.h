@@ -1287,6 +1287,13 @@ class VulkanConsumer : public VulkanConsumerBase
         format::HandleId                            physicalDevice,
         uint32_t                                    queueFamilyIndex) {}
 
+    virtual void Process_vkCmdBeginRenderingKHR(
+        format::HandleId                            commandBuffer,
+        StructPointerDecoder<Decoded_VkRenderingInfoKHR>* pRenderingInfo) {}
+
+    virtual void Process_vkCmdEndRenderingKHR(
+        format::HandleId                            commandBuffer) {}
+
     virtual void Process_vkGetPhysicalDeviceFeatures2KHR(
         format::HandleId                            physicalDevice,
         StructPointerDecoder<Decoded_VkPhysicalDeviceFeatures2>* pFeatures) {}
@@ -1770,6 +1777,22 @@ class VulkanConsumer : public VulkanConsumerBase
     virtual void Process_vkCmdResolveImage2KHR(
         format::HandleId                            commandBuffer,
         StructPointerDecoder<Decoded_VkResolveImageInfo2KHR>* pResolveImageInfo) {}
+
+    virtual void Process_vkGetDeviceBufferMemoryRequirementsKHR(
+        format::HandleId                            device,
+        StructPointerDecoder<Decoded_VkDeviceBufferMemoryRequirementsKHR>* pInfo,
+        StructPointerDecoder<Decoded_VkMemoryRequirements2>* pMemoryRequirements) {}
+
+    virtual void Process_vkGetDeviceImageMemoryRequirementsKHR(
+        format::HandleId                            device,
+        StructPointerDecoder<Decoded_VkDeviceImageMemoryRequirementsKHR>* pInfo,
+        StructPointerDecoder<Decoded_VkMemoryRequirements2>* pMemoryRequirements) {}
+
+    virtual void Process_vkGetDeviceImageSparseMemoryRequirementsKHR(
+        format::HandleId                            device,
+        StructPointerDecoder<Decoded_VkDeviceImageMemoryRequirementsKHR>* pInfo,
+        PointerDecoder<uint32_t>*                   pSparseMemoryRequirementCount,
+        StructPointerDecoder<Decoded_VkSparseImageMemoryRequirements2>* pSparseMemoryRequirements) {}
 
     virtual void Process_vkCreateDebugReportCallbackEXT(
         VkResult                                    returnValue,
@@ -2705,6 +2728,11 @@ class VulkanConsumer : public VulkanConsumerBase
         uint32_t                                    firstInstance,
         uint32_t                                    stride,
         PointerDecoder<int32_t>*                    pVertexOffset) {}
+
+    virtual void Process_vkSetDeviceMemoryPriorityEXT(
+        format::HandleId                            device,
+        format::HandleId                            memory,
+        float                                       priority) {}
 
     virtual void Process_vkCreateAccelerationStructureKHR(
         VkResult                                    returnValue,

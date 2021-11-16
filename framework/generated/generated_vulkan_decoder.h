@@ -452,6 +452,10 @@ class VulkanDecoder : public VulkanDecoderBase
 
     size_t Decode_vkGetPhysicalDeviceWin32PresentationSupportKHR(const uint8_t* parameter_buffer, size_t buffer_size);
 
+    size_t Decode_vkCmdBeginRenderingKHR(const uint8_t* parameter_buffer, size_t buffer_size);
+
+    size_t Decode_vkCmdEndRenderingKHR(const uint8_t* parameter_buffer, size_t buffer_size);
+
     size_t Decode_vkGetPhysicalDeviceFeatures2KHR(const uint8_t* parameter_buffer, size_t buffer_size);
 
     size_t Decode_vkGetPhysicalDeviceProperties2KHR(const uint8_t* parameter_buffer, size_t buffer_size);
@@ -623,6 +627,12 @@ class VulkanDecoder : public VulkanDecoderBase
     size_t Decode_vkCmdBlitImage2KHR(const uint8_t* parameter_buffer, size_t buffer_size);
 
     size_t Decode_vkCmdResolveImage2KHR(const uint8_t* parameter_buffer, size_t buffer_size);
+
+    size_t Decode_vkGetDeviceBufferMemoryRequirementsKHR(const uint8_t* parameter_buffer, size_t buffer_size);
+
+    size_t Decode_vkGetDeviceImageMemoryRequirementsKHR(const uint8_t* parameter_buffer, size_t buffer_size);
+
+    size_t Decode_vkGetDeviceImageSparseMemoryRequirementsKHR(const uint8_t* parameter_buffer, size_t buffer_size);
 
     size_t Decode_vkCreateDebugReportCallbackEXT(const uint8_t* parameter_buffer, size_t buffer_size);
 
@@ -933,6 +943,8 @@ class VulkanDecoder : public VulkanDecoderBase
     size_t Decode_vkCmdDrawMultiEXT(const uint8_t* parameter_buffer, size_t buffer_size);
 
     size_t Decode_vkCmdDrawMultiIndexedEXT(const uint8_t* parameter_buffer, size_t buffer_size);
+
+    size_t Decode_vkSetDeviceMemoryPriorityEXT(const uint8_t* parameter_buffer, size_t buffer_size);
 
     size_t Decode_vkCreateAccelerationStructureKHR(const uint8_t* parameter_buffer, size_t buffer_size);
 

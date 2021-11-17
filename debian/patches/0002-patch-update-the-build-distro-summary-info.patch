@@ -3,21 +3,20 @@ Date: Thu, 25 Feb 2021 16:38:38 -0700
 Subject: patch: update the build distro summary info
 
 ---
- CMakeLists.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ CMakeLists.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 3c3690d..7596e32 100644
+index e4bcc31..d98fd89 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -42,8 +42,8 @@ set(GFXRECONSTRUCT_PROJECT_VERSION_MAJOR 0)
+@@ -42,7 +42,8 @@ set(GFXRECONSTRUCT_PROJECT_VERSION_MAJOR 0)
  set(GFXRECONSTRUCT_PROJECT_VERSION_MINOR 9)
- set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 9)
+ set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 10)
  
--set(GFXRECON_PROJECT_VERSION_DESIGNATION "-unknown")
 -set(GFXRECON_PROJECT_VERSION_SHA1 "unknown-build-source")
 +set(GFXRECON_PROJECT_VERSION_DESIGNATION "")
 +set(GFXRECON_PROJECT_VERSION_SHA1 "bionic")
  
- if (NOT DEFINED HEADLESS)
-     set(HEADLESS TRUE)
+ option(BUILD_STATIC "Build static binaries for HPC clusters (will not build the tracer library)" OFF)
+ 

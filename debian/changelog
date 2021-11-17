@@ -1,3 +1,77 @@
+gfxreconstruct (0.9.10~rc1-1lunarg18.04-1) bionic; urgency=medium
+
+  [ Locke Lin ]
+  * Update header to 1.2.189
+  * Set version to 0.9.9
+
+  [ Brad Grantham ]
+  * Add YAPF style file and note in CONTRIBUTING.md
+
+  [ patrick-lunarg ]
+  * Updating python formatting via yapf
+  * Wrapping C++ code string literals in yapf disable/enable comments
+  * Applying yapf formatting
+
+  [ Per Inge Mathisen ]
+  * Allow overriding GFXRECON_PROJECT_VERSION_DESIGNATION for custom builds.
+
+  [ Jeffrey Yang ]
+  * The queue submit info count may be 0
+
+  [ Per Inge Mathisen ]
+  * Add toolchain to make a static build for HPC clusters.
+
+  [ Dror Smolarsky ]
+  * Applying patches containing custom Vulkan registry changes
+
+  [ patrick-lunarg ]
+  * Fixing variable rename
+
+  [ Tomek Bury ]
+  * Add thread support for multi-threaded drivers
+
+  [ patrick-lunarg ]
+  * Setting up WsiContext
+  * General cleanup
+  * General cleanup
+  * Applying clang-format
+  * Revert "Applying clang-format"
+  * Applying clang-format
+  * Revert "Applying clang-format"
+  * Applying clang-format
+  * General cleanup
+  * General cleanup
+  * General cleanup
+  * Fixing wsi context initialization
+  * Converting Application from std::unique_ptr to std::shared_ptr
+  * General cleanup
+  * Setting up error reporting for failed WSI initialization
+  * General cleanup
+  * Fixing ctor declaration
+  * Formatting
+  * Addressing code review
+
+  [ Michael Skorokhodov ]
+  * Fix compiling with gcc11
+
+  [ Locke Lin ]
+  * Code generation
+  * Change python format
+  * TrackManager to CaptureManager
+  * ReplayOptions to VulkanReplayOptions
+  * custom_encoder_commands to custom_vulkan_encoder_commands
+  * MetaDataType to MetaDataId
+  * Fix for VS2015
+  * Update header to 1.2.196
+  * Set version to 0.9.10
+  * Update header to 1.2.198
+  * Fix for VK_KHR_dynamic_rendering
+
+  [ John Zupin ]
+  * packaging: rebased patches
+
+ -- John Zupin <john@odin>  Tue, 16 Nov 2021 17:20:54 -0700
+
 gfxreconstruct (0.9.8+21~rc1-1lunarg18.04-1) bionic; urgency=medium
 
   [ Locke Lin ]

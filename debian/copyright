@@ -3,7 +3,7 @@ Upstream-Name: lunarg-gfxreconstruct
 Source: https://github.com/LunarG/gfxreconstruct
 
 Files: *
-Copyright: 2015-2021, LunarG, Inc
+Copyright: 2015-2022, LunarG, Inc
 License: MIT
 
 Files: .clang-format
@@ -53,7 +53,7 @@ Copyright: 2021, CopyrightLunarG Inc
 License: Apache-2.0
 
 Files: debian/*
-Copyright: 2021, LunarG Inc
+Copyright: 2022, LunarG Inc
 License: BSD-3-clause or GPL-3 or MIT
 
 Files: framework/generated/vulkan_generators/base_generator.py

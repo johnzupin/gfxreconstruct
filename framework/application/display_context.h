@@ -1,5 +1,6 @@
 /*
-** Copyright (c) 2019 LunarG, Inc.
+** Copyright (c) 2021 Broadcom, Inc.
+** Copyright (c) 2021 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -20,25 +21,33 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef GFXRECON_ENCODE_CUSTOM_STRUCT_HANDLE_WRAPPERS_H
-#define GFXRECON_ENCODE_CUSTOM_STRUCT_HANDLE_WRAPPERS_H
+#ifndef GFXRECON_APPLICATION_DISPLAY_CONTEXT_H
+#define GFXRECON_APPLICATION_DISPLAY_CONTEXT_H
 
-#include "encode/vulkan_handle_wrapper_util.h"
+#include "application/wsi_context.h"
 #include "util/defines.h"
 
-#include "vulkan/vulkan.h"
+#include <memory>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
-GFXRECON_BEGIN_NAMESPACE(encode)
+GFXRECON_BEGIN_NAMESPACE(application)
 
-// Vulkan structures that require special processing that the code generator cannot infer from the XML registry.
-void UnwrapStructHandles(VkDescriptorType type, VkDescriptorImageInfo* value, HandleUnwrapMemory* unwrap_memory);
+class DisplayWindow;
 
-void UnwrapStructHandles(VkWriteDescriptorSet* value, HandleUnwrapMemory* unwrap_memory);
+class DisplayContext : public WsiContext
+{
+  public:
+    DisplayContext(Application* application);
 
-const void* TrackPNextStruct(const void* value, HandleUnwrapMemory* unwrap_memory);
+    virtual ~DisplayContext() override;
 
-GFXRECON_END_NAMESPACE(encode)
+    DisplayWindow* GetWindow() const { return window_.get(); }
+
+  private:
+    std::unique_ptr<DisplayWindow> window_;
+};
+
+GFXRECON_END_NAMESPACE(application)
 GFXRECON_END_NAMESPACE(gfxrecon)
 
-#endif // GFXRECON_ENCODE_CUSTOM_STRUCT_HANDLE_WRAPPERS_H
+#endif // GFXRECON_APPLICATION_DISPLAY_CONTEXT_H

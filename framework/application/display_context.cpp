@@ -1,5 +1,6 @@
 /*
-** Copyright (c) 2019 LunarG, Inc.
+** Copyright (c) 2021 Broadcom, Inc.
+** Copyright (c) 2021 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -20,25 +21,20 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef GFXRECON_ENCODE_CUSTOM_STRUCT_HANDLE_WRAPPERS_H
-#define GFXRECON_ENCODE_CUSTOM_STRUCT_HANDLE_WRAPPERS_H
-
-#include "encode/vulkan_handle_wrapper_util.h"
-#include "util/defines.h"
-
-#include "vulkan/vulkan.h"
+#include "application/display_context.h"
+#include "application/application.h"
+#include "application/display_window.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
-GFXRECON_BEGIN_NAMESPACE(encode)
+GFXRECON_BEGIN_NAMESPACE(application)
 
-// Vulkan structures that require special processing that the code generator cannot infer from the XML registry.
-void UnwrapStructHandles(VkDescriptorType type, VkDescriptorImageInfo* value, HandleUnwrapMemory* unwrap_memory);
+DisplayContext::DisplayContext(Application* application) : WsiContext(application), window_(nullptr)
+{
+    window_         = std::make_unique<DisplayWindow>(this);
+    window_factory_ = std::make_unique<DisplayWindowFactory>(this);
+}
 
-void UnwrapStructHandles(VkWriteDescriptorSet* value, HandleUnwrapMemory* unwrap_memory);
+DisplayContext::~DisplayContext() {}
 
-const void* TrackPNextStruct(const void* value, HandleUnwrapMemory* unwrap_memory);
-
-GFXRECON_END_NAMESPACE(encode)
+GFXRECON_END_NAMESPACE(application)
 GFXRECON_END_NAMESPACE(gfxrecon)
-
-#endif // GFXRECON_ENCODE_CUSTOM_STRUCT_HANDLE_WRAPPERS_H

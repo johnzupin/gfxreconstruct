@@ -95,6 +95,7 @@ enum class WsiPlatform
     kXlib,
     kXcb,
     kWayland,
+    kDisplay,
     kHeadless
 };
 
@@ -103,6 +104,7 @@ const char kWsiPlatformWin32[]    = "win32";
 const char kWsiPlatformXlib[]     = "xlib";
 const char kWsiPlatformXcb[]      = "xcb";
 const char kWsiPlatformWayland[]  = "wayland";
+const char kWsiPlatformDisplay[]  = "display";
 const char kWsiPlatformHeadless[] = "headless";
 
 const char kMemoryTranslationNone[]    = "none";
@@ -283,6 +285,14 @@ static WsiPlatform GetWsiPlatform(const gfxrecon::util::ArgumentParser& arg_pars
             GFXRECON_LOG_WARNING("Ignoring wsi option \"%s\", which is not enabled on this system", value.c_str());
 #endif
         }
+        else if (gfxrecon::util::platform::StringCompareNoCase(kWsiPlatformDisplay, value.c_str()) == 0)
+        {
+#if defined(VK_USE_PLATFORM_DISPLAY_KHR)
+            wsi_platform = WsiPlatform::kDisplay;
+#else
+            GFXRECON_LOG_WARNING("Ignoring wsi option \"%s\", which is not enabled on this system", value.c_str());
+#endif
+        }
         else if (gfxrecon::util::platform::StringCompareNoCase(kWsiPlatformHeadless, value.c_str()) == 0)
         {
 #if defined(VK_USE_PLATFORM_HEADLESS)
@@ -298,6 +308,47 @@ static WsiPlatform GetWsiPlatform(const gfxrecon::util::ArgumentParser& arg_pars
     }
 
     return wsi_platform;
+}
+
+static std::string GetWsiExtensionName(WsiPlatform wsi_platform)
+{
+    switch (wsi_platform)
+    {
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+        case WsiPlatform::kWin32:
+        {
+            return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+        }
+#endif
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
+        case WsiPlatform::kXlib:
+        {
+            return VK_KHR_XLIB_SURFACE_EXTENSION_NAME;
+        }
+#endif
+#if defined(VK_USE_PLATFORM_XCB_KHR)
+        case WsiPlatform::kXcb:
+        {
+            return VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+        }
+#endif
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+        case WsiPlatform::kWayland:
+        {
+            return VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
+        }
+#endif
+#if defined(VK_USE_PLATFORM_HEADLESS)
+        case WsiPlatform::kHeadless:
+        {
+            return VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME;
+        }
+#endif
+        default:
+        {
+            return std::string();
+        }
+    }
 }
 
 static std::string GetWsiArgString()
@@ -318,6 +369,10 @@ static std::string GetWsiArgString()
 #if defined(VK_USE_PLATFORM_WAYLAND_KHR)
     wsi_args += ',';
     wsi_args += kWsiPlatformWayland;
+#endif
+#if defined(VK_USE_PLATFORM_DISPLAY_KHR)
+    wsi_args += ',';
+    wsi_args += kWsiPlatformDisplay;
 #endif
 #if defined(VK_USE_PLATFORM_HEADLESS)
     wsi_args += ',';

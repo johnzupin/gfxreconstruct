@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2021, Arm Limited.
+** Copyright (c) 2021 Broadcom, Inc.
 ** Copyright (c) 2021 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,45 +21,43 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef GFXRECON_APPLICATION_HEADLESS_WINDOW_H
-#define GFXRECON_APPLICATION_HEADLESS_WINDOW_H
+#ifndef GFXRECON_APPLICATION_DISPLAY_WINDOW_H
+#define GFXRECON_APPLICATION_DISPLAY_WINDOW_H
 
-#include "application/headless_context.h"
+#include "application/display_context.h"
 #include "decode/window.h"
 #include "util/defines.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(application)
 
-class HeadlessWindow : public decode::Window
+class DisplayWindow : public decode::Window
 {
   public:
-    HeadlessWindow(HeadlessContext* headless_context);
+    DisplayWindow(DisplayContext* display_context);
 
-    virtual ~HeadlessWindow() override;
+    virtual ~DisplayWindow() override {}
 
-    virtual bool Create(const std::string& title,
-                        const int32_t      xpos,
-                        const int32_t      ypos,
-                        const uint32_t     width,
-                        const uint32_t     height) override;
+    virtual bool Create(const std::string&, const int32_t, const int32_t, const uint32_t, const uint32_t) override
+    {
+        return true;
+    }
 
-    virtual bool Destroy() override;
+    virtual bool Destroy() override { return true; }
 
-    virtual void SetTitle(const std::string& title) override;
+    virtual void SetTitle(const std::string&) override {}
 
-    virtual void SetPosition(const int32_t x, const int32_t y) override;
+    virtual void SetPosition(const int32_t, const int32_t) override {}
 
-    virtual void SetSize(const uint32_t width, const uint32_t height) override;
+    virtual void SetSize(const uint32_t, const uint32_t) override{};
 
-    virtual void
-    SetSizePreTransform(const uint32_t width, const uint32_t height, const uint32_t pre_transform) override;
+    virtual void SetSizePreTransform(const uint32_t, const uint32_t, const uint32_t) override{};
 
-    virtual void SetVisibility(bool show) override;
+    virtual void SetVisibility(bool) override {}
 
-    virtual void SetForeground() override;
+    virtual void SetForeground() override {}
 
-    virtual bool GetNativeHandle(HandleType type, void** handle) override;
+    virtual bool GetNativeHandle(HandleType, void**) override { return false; }
 
     virtual std::string GetWsiExtension() const override;
 
@@ -71,15 +69,33 @@ class HeadlessWindow : public decode::Window
     virtual void DestroySurface(const encode::InstanceTable* table, VkInstance instance, VkSurfaceKHR surface) override;
 
   private:
-    HeadlessContext* headless_context_;
+    VkResult SelectPhysicalDevice(const encode::InstanceTable* table,
+                                  VkInstance                   instance,
+                                  VkPhysicalDevice*            physical_device) const;
+    VkResult
+    SelectDisplay(const encode::InstanceTable* table, VkPhysicalDevice physical_device, VkDisplayKHR* display) const;
+    VkResult SelectMode(const encode::InstanceTable* table,
+                        VkPhysicalDevice             physical_device,
+                        VkDisplayKHR                 display,
+                        VkDisplayModePropertiesKHR*  mode_props) const;
+    VkResult SelectPlane(const encode::InstanceTable* table,
+                         VkPhysicalDevice             physical_device,
+                         VkDisplayKHR                 display,
+                         uint32_t*                    plane_index,
+                         VkDisplayPlanePropertiesKHR* plane_props) const;
+
+  private:
+    DisplayContext* display_context_;
 };
 
-class HeadlessWindowFactory : public decode::WindowFactory
+class DisplayWindowFactory : public decode::WindowFactory
 {
   public:
-    HeadlessWindowFactory(HeadlessContext* headless_context);
+    DisplayWindowFactory(DisplayContext* display_context);
 
-    virtual const char* GetSurfaceExtensionName() const override { return VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME; }
+    virtual ~DisplayWindowFactory();
+
+    virtual const char* GetSurfaceExtensionName() const override { return VK_KHR_DISPLAY_EXTENSION_NAME; }
 
     virtual decode::Window*
     Create(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height) override;
@@ -91,10 +107,10 @@ class HeadlessWindowFactory : public decode::WindowFactory
                                                           uint32_t                     queue_family_index) override;
 
   private:
-    HeadlessContext* headless_context_;
+    DisplayContext* display_context_;
 };
 
 GFXRECON_END_NAMESPACE(application)
 GFXRECON_END_NAMESPACE(gfxrecon)
 
-#endif // GFXRECON_APPLICATION_HEADLESS_WINDOW_H
+#endif // GFXRECON_APPLICATION_DISPLAY_WINDOW_H

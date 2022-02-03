@@ -1,3 +1,67 @@
+gfxreconstruct (0.9.10+32~rc1-1lunarg20.04-1) focal; urgency=medium
+
+  [ Tomek Bury ]
+  * Add direct display support
+
+  [ Locke Lin ]
+  * Print VkStructureType string
+  * Wrong error log
+  * Build 32-bit in Ubuntu
+
+  [ patrick-lunarg ]
+  * Debugging Android test failure
+
+  [ PatrickPurcell ]
+  * Revert "Debugging Android test failure"
+
+  [ patrick-lunarg ]
+  * Setting up WSI selection
+
+  [ Brad Grantham ]
+  * make s_alt_stack dynamic, save and use probed size
+  * Delete unused prototype
+
+  [ patrick-lunarg ]
+  * Debugging Android test failure
+
+  [ PatrickPurcell ]
+  * Revert "Debugging Android test failure"
+
+  [ patrick-lunarg ]
+  * Adding VkRenderPassCreateInfo2 handler
+  * Fixing push descriptor handling for trimming
+  * Clearing unrelated diff
+  * Clang format
+  * Clang format
+  * Adding custom_vulkan_command_buffer_util.cpp to Android CMakeLists.txt
+  * General cleanup
+  * General cleanup
+  * Clang format
+
+  [ Locke Lin ]
+  * Copy pNext structure
+  * Trimming: Bind memory2
+  * Trimming: Bind swapchain image memory2
+
+  [ Brad Grantham ]
+  * exit with failure if FileProcessor can't be initialized
+  * fix style
+  * fix spelling
+  * make exit from main more consistent
+
+  [ Locke Lin ]
+  * Trimming: VK_EXT_inline_uniform_block
+  * Trimming: VK_EXT_full_screen_exclusive
+  * VkFlags64's enum need a diffferent way to print
+  * Update header to 1.3.204
+  * Set version to 0.9.11
+
+  [ John Zupin ]
+  * packaging: update copyright
+  * packaging: rebased patches
+
+ -- John Zupin <john@odin>  Thu, 03 Feb 2022 16:13:05 -0700
+
 gfxreconstruct (0.9.10~rc1-1lunarg20.04-1) focal; urgency=medium
 
   [ Locke Lin ]

@@ -36,6 +36,8 @@
 #include "util/hash.h"
 #include "util/platform.h"
 
+#include "generated/generated_vulkan_enum_to_string.h"
+
 #include <cstdint>
 #include <limits>
 #include <unordered_set>
@@ -1626,8 +1628,8 @@ void VulkanReplayConsumerBase::CheckResult(const char* func_name, VkResult origi
             GFXRECON_LOG_FATAL("API call %s returned error value %s that does not match the result from the "
                                "capture file: %s.  Replay cannot continue.",
                                func_name,
-                               enumutil::GetResultValueString(replay),
-                               enumutil::GetResultValueString(original));
+                               util::ToString<VkResult>(replay).c_str(),
+                               util::ToString<VkResult>(original).c_str());
 
             RaiseFatalError(enumutil::GetResultDescription(replay));
         }
@@ -1639,8 +1641,8 @@ void VulkanReplayConsumerBase::CheckResult(const char* func_name, VkResult origi
             GFXRECON_LOG_WARNING(
                 "API call %s returned value %s that does not match return value from capture file: %s.",
                 func_name,
-                enumutil::GetResultValueString(replay),
-                enumutil::GetResultValueString(original));
+                util::ToString<VkResult>(replay).c_str(),
+                util::ToString<VkResult>(original).c_str());
         }
     }
 }
@@ -3505,7 +3507,7 @@ VkResult VulkanReplayConsumerBase::OverrideAllocateDescriptorSets(
     else
     {
         GFXRECON_LOG_INFO("Skipping vkAllocateDescriptorSets call that failed during capture with error %s",
-                          enumutil::GetResultValueString(original_result));
+                          util::ToString<VkResult>(original_result).c_str());
     }
 
     return result;
@@ -3530,7 +3532,7 @@ VkResult VulkanReplayConsumerBase::OverrideAllocateCommandBuffers(
     else
     {
         GFXRECON_LOG_INFO("Skipping vkAllocateCommandBuffers call that failed during capture with error %s",
-                          enumutil::GetResultValueString(original_result));
+                          util::ToString<VkResult>(original_result).c_str());
     }
 
     return result;
@@ -3634,7 +3636,7 @@ VkResult VulkanReplayConsumerBase::OverrideAllocateMemory(
     else
     {
         GFXRECON_LOG_INFO("Skipping vkAllocateMemory call that failed during capture with error %s",
-                          enumutil::GetResultValueString(original_result));
+                          util::ToString<VkResult>(original_result).c_str());
     }
 
     return result;
@@ -4401,8 +4403,8 @@ VkResult VulkanReplayConsumerBase::OverrideCreateShaderModule(
     std::unique_ptr<char[]> file_code;
     const uint32_t*         orig_code = original_info->pCode;
     size_t                  orig_size = original_info->codeSize;
-    uint32_t                check_sum = util::hash::CheckSum(orig_code, orig_size);
-    std::string             file_name = "sh" + std::to_string(check_sum);
+    uint64_t                handle_id = *pShaderModule->GetPointer();
+    std::string             file_name = "sh" + std::to_string(handle_id);
     std::string             file_path = util::filepath::Join(options_.replace_dir, file_name);
 
     FILE*   fp     = nullptr;
@@ -6083,9 +6085,10 @@ VkResult VulkanReplayConsumerBase::CreateSwapchainImage(const DeviceInfo*       
     return result;
 }
 
-void VulkanReplayConsumerBase::Process_vkUpdateDescriptorSetWithTemplate(format::HandleId device,
-                                                                         format::HandleId descriptorSet,
-                                                                         format::HandleId descriptorUpdateTemplate,
+void VulkanReplayConsumerBase::Process_vkUpdateDescriptorSetWithTemplate(const ApiCallInfo& call_info,
+                                                                         format::HandleId   device,
+                                                                         format::HandleId   descriptorSet,
+                                                                         format::HandleId   descriptorUpdateTemplate,
                                                                          DescriptorUpdateTemplateDecoder* pData)
 {
     assert(pData != nullptr);
@@ -6107,7 +6110,8 @@ void VulkanReplayConsumerBase::Process_vkUpdateDescriptorSetWithTemplate(format:
         in_device, in_descriptorSet, in_descriptorUpdateTemplate, pData->GetPointer());
 }
 
-void VulkanReplayConsumerBase::Process_vkCmdPushDescriptorSetWithTemplateKHR(format::HandleId commandBuffer,
+void VulkanReplayConsumerBase::Process_vkCmdPushDescriptorSetWithTemplateKHR(const ApiCallInfo& call_info,
+                                                                             format::HandleId   commandBuffer,
                                                                              format::HandleId descriptorUpdateTemplate,
                                                                              format::HandleId layout,
                                                                              uint32_t         set,
@@ -6133,9 +6137,10 @@ void VulkanReplayConsumerBase::Process_vkCmdPushDescriptorSetWithTemplateKHR(for
             in_commandBuffer, in_descriptorUpdateTemplate, in_layout, set, pData->GetPointer());
 }
 
-void VulkanReplayConsumerBase::Process_vkUpdateDescriptorSetWithTemplateKHR(format::HandleId device,
-                                                                            format::HandleId descriptorSet,
-                                                                            format::HandleId descriptorUpdateTemplate,
+void VulkanReplayConsumerBase::Process_vkUpdateDescriptorSetWithTemplateKHR(const ApiCallInfo& call_info,
+                                                                            format::HandleId   device,
+                                                                            format::HandleId   descriptorSet,
+                                                                            format::HandleId   descriptorUpdateTemplate,
                                                                             DescriptorUpdateTemplateDecoder* pData)
 {
     assert(pData != nullptr);

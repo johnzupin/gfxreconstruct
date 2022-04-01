@@ -1,3 +1,15 @@
+gfxreconstruct (0.9.11+23~rc1-1lunarg18.04-1) bionic; urgency=medium
+
+  [ David Pinedo ]
+  * gfxrecon-toascii: Remove extra 0x when printing handles and pointers (#680)
+
+  [ Locke Lin ]
+  * Set version to 0.9.12
+  * Update header to 1.3.209
+  * Update header to 1.3.210
+
+ -- john <john@odin>  Fri, 01 Apr 2022 11:30:13 -0600
+
 gfxreconstruct (0.9.11+21~rc1-1lunarg18.04-1) bionic; urgency=medium
 
   [ Brad Grantham ]

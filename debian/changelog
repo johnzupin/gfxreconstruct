@@ -1,3 +1,10 @@
+gfxreconstruct (0.9.11+24~rc2-1lunarg20.04-1) focal; urgency=medium
+
+  [ Brad Grantham ]
+  * update some copyright dates
+
+ -- john <john@odin>  Fri, 15 Apr 2022 11:32:29 -0600
+
 gfxreconstruct (0.9.11+24~rc1-1lunarg20.04-1) focal; urgency=medium
 
   [ Locke Lin ]

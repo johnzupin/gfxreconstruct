@@ -48,6 +48,9 @@ struct ReplayOptions
     bool sync_queue_submissions{ false };
     bool enable_debug_device_lost{ false };
     bool create_dummy_allocations{ false };
+    bool omit_null_hardware_buffers{ false };
+    bool quit_after_measurement_frame_range{ false };
+    bool flush_measurement_frame_range{ false };
 };
 
 GFXRECON_END_NAMESPACE(decode)

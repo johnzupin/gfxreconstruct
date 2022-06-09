@@ -1,3 +1,50 @@
+gfxreconstruct (0.9.11+42~rc1-1lunarg18.04-1) bionic; urgency=medium
+
+  [ Brad Grantham ]
+  * remove toascii reference from USAGE_desktop.md
+  * remove unused variable
+
+  [ Panagiotis Apostolou ]
+  * Issue-506: Fix for XCloseDisplay segfaults
+  * issue-515: Picking wrong physical device when multiple are present
+
+  [ Locke Lin ]
+  * Trimming VK_KHR_synchronization2
+
+  [ bradgrantham-lunarg ]
+  * add new option --omit-null-hardware-buffers (#694)
+
+  [ Brad Grantham ]
+  * make message about omitting NULL AHardwareBuffer* INFO
+
+  [ Andrew Cox ]
+  * Updated Catch2 Header to Latest
+
+  [ panos-lunarg ]
+  * add measurement framerange support (#697)
+
+  [ Brad Grantham ]
+  * Set version to 0.9.13
+
+  [ bradgrantham-lunarg ]
+  * add CreateHardwareBuffer at the earliest reference to an AHardwareBuffer (#704)
+
+  [ Brad Grantham ]
+  * WARN just once if AHB is not found
+
+  [ bradgrantham-lunarg ]
+  * Update header to 1.3.215 (#706)
+
+  [ Brad Grantham ]
+  * Set version to 0.9.14
+
+  [ bradgrantham-lunarg ]
+  * Update header to 1.3.216 (#708)
+  * Provide a GetPhysicalDeviceProcAddr function (#713)
+  * restore vk_layerGetPhysicalDeviceProcAddr entry in procaddr table (#714)
+
+ -- john <john@odin>  Thu, 09 Jun 2022 10:39:19 -0600
+
 gfxreconstruct (0.9.11+24~rc2-1lunarg18.04-1) bionic; urgency=medium
 
   [ Brad Grantham ]

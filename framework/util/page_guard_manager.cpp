@@ -203,18 +203,21 @@ void PageGuardManager::InitializeSystemExceptionContext(void)
 PageGuardManager::PageGuardManager() :
     exception_handler_(nullptr), exception_handler_count_(0), system_page_size_(GetSystemPageSize()),
     system_page_pot_shift_(GetSystemPagePotShift()), enable_copy_on_map_(kDefaultEnableCopyOnMap),
-    enable_separate_read_(kDefaultEnableSeparateRead), enable_read_write_same_page_(kDefaultEnableReadWriteSamePage)
+    enable_separate_read_(kDefaultEnableSeparateRead), unblock_sigsegv_(kDefaultUnblockSIGSEGV),
+    enable_read_write_same_page_(kDefaultEnableReadWriteSamePage)
 {
     InitializeSystemExceptionContext();
 }
 
 PageGuardManager::PageGuardManager(bool enable_copy_on_map,
                                    bool enable_separate_read,
-                                   bool expect_read_write_same_page) :
+                                   bool expect_read_write_same_page,
+                                   bool unblock_SIGSEGV) :
     exception_handler_(nullptr),
     exception_handler_count_(0), system_page_size_(GetSystemPageSize()),
     system_page_pot_shift_(GetSystemPagePotShift()), enable_copy_on_map_(enable_copy_on_map),
-    enable_separate_read_(enable_separate_read), enable_read_write_same_page_(expect_read_write_same_page)
+    enable_separate_read_(enable_separate_read), unblock_sigsegv_(unblock_SIGSEGV),
+    enable_read_write_same_page_(expect_read_write_same_page)
 {
     InitializeSystemExceptionContext();
 }
@@ -227,11 +230,15 @@ PageGuardManager::~PageGuardManager()
     }
 }
 
-void PageGuardManager::Create(bool enable_copy_on_map, bool enable_separate_read, bool expect_read_write_same_page)
+void PageGuardManager::Create(bool enable_copy_on_map,
+                              bool enable_separate_read,
+                              bool expect_read_write_same_page,
+                              bool unblock_SIGSEGV)
 {
     if (instance_ == nullptr)
     {
-        instance_ = new PageGuardManager(enable_copy_on_map, enable_separate_read, expect_read_write_same_page);
+        instance_ = new PageGuardManager(
+            enable_copy_on_map, enable_separate_read, expect_read_write_same_page, unblock_SIGSEGV);
     }
     else
     {
@@ -293,8 +300,6 @@ void* PageGuardManager::AllocateMemory(size_t aligned_size, bool use_write_watch
 {
     assert(aligned_size > 0);
 
-    void* memory = nullptr;
-
     if (aligned_size > 0)
     {
 #if defined(WIN32)
@@ -305,7 +310,15 @@ void* PageGuardManager::AllocateMemory(size_t aligned_size, bool use_write_watch
             flags |= MEM_WRITE_WATCH;
         }
 
-        memory = VirtualAlloc(nullptr, aligned_size, flags, PAGE_READWRITE);
+        void* memory = VirtualAlloc(nullptr, aligned_size, flags, PAGE_READWRITE);
+
+        if (memory == nullptr)
+        {
+            GFXRECON_LOG_ERROR("PageGuardManager failed to allocate memory with \"VirtualAlloc()\" and size = %" PRIuPTR
+                               " with error code: %u",
+                               aligned_size,
+                               GetLastError());
+        }
 #else
         if (use_write_watch)
         {
@@ -313,16 +326,27 @@ void* PageGuardManager::AllocateMemory(size_t aligned_size, bool use_write_watch
                                "from the current platform.");
         }
 
-        memory = mmap(nullptr, aligned_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        void* memory = mmap(nullptr, aligned_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+        if (memory == MAP_FAILED)
+        {
+            GFXRECON_LOG_ERROR("PageGuardManager failed to allocate memory with \"mmap()\" and size = %" PRIuPTR
+                               " (errno: %d)",
+                               aligned_size,
+                               errno);
+
+            return nullptr;
+        }
 #endif
-    }
 
-    if (memory == nullptr)
+        return memory;
+    }
+    else
     {
-        GFXRECON_LOG_ERROR("PageGuardManager failed to allocate memory with size = %" PRIuPTR, aligned_size);
-    }
+        GFXRECON_LOG_ERROR("PageGuardManager::AllocateMemory(): aligned_size must be greater than 0.");
 
-    return memory;
+        return nullptr;
+    }
 }
 
 void PageGuardManager::FreeMemory(void* memory, size_t aligned_size)
@@ -503,8 +527,41 @@ bool PageGuardManager::SetMemoryProtection(void* protect_address, size_t protect
             protect_size,
             errno);
     }
-#endif
 
+    if (protect_mask ^ kGuardNoProtect)
+    {
+        sigset_t x;
+        sigemptyset(&x);
+        sigprocmask(SIG_SETMASK, nullptr, &x);
+
+        // Check if SIGSEGV is blocked
+        int ret = sigismember(&x, SIGSEGV);
+        if (ret == 1)
+        {
+            if (!unblock_sigsegv_)
+            {
+                GFXRECON_LOG_WARNING("SIGSEGV is blocked while page guard manager expects the signal to be handled. "
+                                     "Things might fail and/or crash with segmentation fault. To force-enable SIGSEGV "
+                                     "try setting GFXRECON_PAGE_GUARD_UNBLOCK_SIGSEGV environment variable to 1.\n");
+            }
+            else
+            {
+                // Unblock SIGSEGV
+                sigemptyset(&x);
+                sigaddset(&x, SIGSEGV);
+                if (sigprocmask(SIG_UNBLOCK, &x, nullptr))
+                {
+                    GFXRECON_LOG_ERROR(
+                        "sigprocmask failed to unblock SIGSEGV on thread %d (errno: %d)", syscall(__NR_gettid), errno);
+                }
+            }
+        }
+        else if (ret == -1)
+        {
+            GFXRECON_LOG_ERROR("sigismember() failed (errno: %d)\n", errno);
+        }
+    }
+#endif
     return success;
 }
 

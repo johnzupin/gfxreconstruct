@@ -421,9 +421,6 @@ void VulkanReplayConsumerBase::ProcessCreateHardwareBufferCommand(
     desc.usage                = usage;
     desc.width                = width;
 
-    // Make sure we can write to the buffer.
-    desc.usage |= AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN;
-
     AHardwareBuffer* buffer = nullptr;
     int              result = AHardwareBuffer_allocate(&desc, &buffer);
     if ((result == 0) && (buffer != nullptr))
@@ -432,8 +429,7 @@ void VulkanReplayConsumerBase::ProcessCreateHardwareBufferCommand(
         ahb_info.memory_id           = memory_id;
         ahb_info.hardware_buffer     = buffer;
 
-        void* data = nullptr;
-        result     = -1;
+        result = -1;
 
         std::vector<format::HardwareBufferPlaneInfo> replay_plane_info;
 
@@ -441,98 +437,84 @@ void VulkanReplayConsumerBase::ProcessCreateHardwareBufferCommand(
         // could be turned into a run-time check dependent on dlsym returning a valid pointer for
         // AHardwareBuffer_lockPlanes.
 #if __ANDROID_API__ >= 29
-        AHardwareBuffer_Planes ahb_planes;
-        result = AHardwareBuffer_lockPlanes(buffer, AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, nullptr, &ahb_planes);
-        if (result == 0)
+        if (desc.usage & AHARDWAREBUFFER_USAGE_CPU_WRITE_MASK)
         {
-            data = ahb_planes.planes[0].data;
-
-            for (uint32_t i = 0; i < ahb_planes.planeCount; ++i)
+            AHardwareBuffer_Planes ahb_planes;
+            result =
+                AHardwareBuffer_lockPlanes(buffer, AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, nullptr, &ahb_planes);
+            if (result == 0)
             {
-                format::HardwareBufferPlaneInfo ahb_plane_info;
-                ahb_plane_info.offset =
-                    reinterpret_cast<uint8_t*>(ahb_planes.planes[i].data) - reinterpret_cast<uint8_t*>(data);
-                ahb_plane_info.pixel_stride = ahb_planes.planes[i].pixelStride;
-                ahb_plane_info.row_pitch    = ahb_planes.planes[i].rowStride;
-                replay_plane_info.emplace_back(std::move(ahb_plane_info));
-            }
-        }
-        else
-        {
-            GFXRECON_LOG_WARNING("AHardwareBuffer_lockPlanes failed: AHardwareBuffer_lock will be used instead");
-        }
-#endif
+                void* data = ahb_planes.planes[0].data;
 
-        if (result != 0)
-        {
-            result = AHardwareBuffer_lock(buffer, AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN, -1, nullptr, &data);
-        }
-
-        if (result == 0)
-        {
-            assert(data != nullptr);
-
-            HardwareBufferMemoryInfo& memory_info = hardware_buffer_memory_info_[memory_id];
-            memory_info.hardware_buffer           = buffer;
-            memory_info.compatible_strides        = true;
-
-            // Check for matching strides.
-            if (plane_info.empty() || replay_plane_info.empty())
-            {
-                uint32_t bpp = GetHardwareBufferFormatBpp(format);
-
-                AHardwareBuffer_describe(buffer, &desc);
-                if (stride != desc.stride)
+                for (uint32_t i = 0; i < ahb_planes.planeCount; ++i)
                 {
-                    memory_info.compatible_strides = false;
+                    format::HardwareBufferPlaneInfo ahb_plane_info;
+                    ahb_plane_info.offset =
+                        reinterpret_cast<uint8_t*>(ahb_planes.planes[i].data) - reinterpret_cast<uint8_t*>(data);
+                    ahb_plane_info.pixel_stride = ahb_planes.planes[i].pixelStride;
+                    ahb_plane_info.row_pitch    = ahb_planes.planes[i].rowStride;
+                    replay_plane_info.emplace_back(std::move(ahb_plane_info));
                 }
 
-                memory_info.plane_info.resize(1);
-                memory_info.plane_info[0].capture_offset    = 0;
-                memory_info.plane_info[0].replay_offset     = 0;
-                memory_info.plane_info[0].capture_row_pitch = bpp * stride;
-                memory_info.plane_info[0].replay_row_pitch  = bpp * desc.stride;
-                memory_info.plane_info[0].height            = height;
+                if (AHardwareBuffer_unlock(buffer, nullptr) != 0)
+                {
+                    GFXRECON_LOG_ERROR("AHardwareBuffer_unlock failed for AHardwareBuffer object (Buffer ID = %" PRIu64
+                                       ", Memory ID = %" PRIu64 ")",
+                                       buffer_id,
+                                       memory_id);
+                }
             }
             else
             {
-                assert(plane_info.size() == replay_plane_info.size());
-
-                size_t layer_count = plane_info.size();
-
-                memory_info.plane_info.resize(layer_count);
-
-                for (size_t i = 0; i < layer_count; ++i)
-                {
-                    memory_info.plane_info[i].capture_offset    = plane_info[i].offset;
-                    memory_info.plane_info[i].replay_offset     = replay_plane_info[i].offset;
-                    memory_info.plane_info[i].capture_row_pitch = plane_info[i].row_pitch;
-                    memory_info.plane_info[i].replay_row_pitch  = replay_plane_info[i].row_pitch;
-                    memory_info.plane_info[i].height            = height;
-
-                    if ((plane_info[i].offset != replay_plane_info[i].offset) ||
-                        (plane_info[i].row_pitch != replay_plane_info[i].row_pitch))
-                    {
-                        memory_info.compatible_strides = false;
-                    }
-                }
+                GFXRECON_LOG_WARNING("AHardwareBuffer_lockPlanes failed.");
             }
+        }
+#endif
 
-            result = AHardwareBuffer_unlock(buffer, nullptr);
-            if (result != 0)
+        HardwareBufferMemoryInfo& memory_info = hardware_buffer_memory_info_[memory_id];
+        memory_info.hardware_buffer           = buffer;
+        memory_info.compatible_strides        = true;
+
+        // Check for matching strides.
+        if (plane_info.empty() || replay_plane_info.empty())
+        {
+            uint32_t bpp = GetHardwareBufferFormatBpp(format);
+
+            AHardwareBuffer_describe(buffer, &desc);
+            if (stride != desc.stride)
             {
-                GFXRECON_LOG_ERROR("AHardwareBuffer_unlock failed for AHardwareBuffer object (Buffer ID = %" PRIu64
-                                   ", Memory ID = %" PRIu64 ")",
-                                   buffer_id,
-                                   memory_id);
+                memory_info.compatible_strides = false;
             }
+
+            memory_info.plane_info.resize(1);
+            memory_info.plane_info[0].capture_offset    = 0;
+            memory_info.plane_info[0].replay_offset     = 0;
+            memory_info.plane_info[0].capture_row_pitch = bpp * stride;
+            memory_info.plane_info[0].replay_row_pitch  = bpp * desc.stride;
+            memory_info.plane_info[0].height            = height;
         }
         else
         {
-            GFXRECON_LOG_ERROR("AHardwareBuffer_lock failed for AHardwareBuffer object (Buffer ID = %" PRIu64
-                               ", Memory ID = %" PRIu64 ")",
-                               buffer_id,
-                               memory_id);
+            assert(plane_info.size() == replay_plane_info.size());
+
+            size_t layer_count = plane_info.size();
+
+            memory_info.plane_info.resize(layer_count);
+
+            for (size_t i = 0; i < layer_count; ++i)
+            {
+                memory_info.plane_info[i].capture_offset    = plane_info[i].offset;
+                memory_info.plane_info[i].replay_offset     = replay_plane_info[i].offset;
+                memory_info.plane_info[i].capture_row_pitch = plane_info[i].row_pitch;
+                memory_info.plane_info[i].replay_row_pitch  = replay_plane_info[i].row_pitch;
+                memory_info.plane_info[i].height            = height;
+
+                if ((plane_info[i].offset != replay_plane_info[i].offset) ||
+                    (plane_info[i].row_pitch != replay_plane_info[i].row_pitch))
+                {
+                    memory_info.compatible_strides = false;
+                }
+            }
         }
     }
     else
@@ -676,12 +658,17 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateCommand(
         VkSwapchainKHR swapchain = swapchain_info->handle;
 
         VkPhysicalDevice physical_device = device_info->parent;
-        VkSurfaceKHR     surface         = swapchain_info->surface;
-        assert((physical_device != VK_NULL_HANDLE) && (surface != VK_NULL_HANDLE));
+        assert(physical_device != VK_NULL_HANDLE);
 
-        SurfaceKHRInfo* surface_info   = object_info_table_.GetSurfaceKHRInfo(swapchain_info->surface_id);
-        auto            instance_table = GetInstanceTable(physical_device);
-        auto            device_table   = GetDeviceTable(device);
+        SurfaceKHRInfo* surface_info = object_info_table_.GetSurfaceKHRInfo(swapchain_info->surface_id);
+        if (surface_info->surface_creation_skipped)
+        {
+            return;
+        }
+
+        VkSurfaceKHR surface        = swapchain_info->surface;
+        auto         instance_table = GetInstanceTable(physical_device);
+        auto         device_table   = GetDeviceTable(device);
         assert((surface_info != nullptr) && (instance_table != nullptr) && (device_table != nullptr));
 
         VkSurfaceCapabilitiesKHR surface_caps;
@@ -715,7 +702,7 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateCommand(
             if (image_count > max_acquired_images)
             {
                 // Cannot acquire all images at the same time.
-                ProcessSetSwapchainImageStateQueueSubmit(device, swapchain_info, last_presented_image, image_info);
+                ProcessSetSwapchainImageStateQueueSubmit(device_info, swapchain_info, last_presented_image, image_info);
             }
             else
             {
@@ -948,12 +935,13 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStatePreAcquire(
 }
 
 void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateQueueSubmit(
-    VkDevice                                            device,
+    const DeviceInfo*                                   device_info,
     SwapchainKHRInfo*                                   swapchain_info,
     uint32_t                                            last_presented_image,
     const std::vector<format::SwapchainImageStateInfo>& image_info)
 {
-    auto table = GetDeviceTable(device);
+    auto device = device_info->handle;
+    auto table  = GetDeviceTable(device);
     assert(table != nullptr);
 
     VkResult        result             = VK_SUCCESS;
@@ -969,8 +957,19 @@ void VulkanReplayConsumerBase::ProcessSetSwapchainImageStateQueueSubmit(
     pool_create_info.flags                   = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     pool_create_info.queueFamilyIndex        = queue_family_index;
 
-    // TODO: Improved queue selection?
-    table->GetDeviceQueue(device, queue_family_index, 0, &queue);
+    const auto queue_family_flags = device_info->queue_family_creation_flags.find(queue_family_index);
+    assert(queue_family_flags != device_info->queue_family_creation_flags.end());
+    if (queue_family_flags->second != 0)
+    {
+        const VkDeviceQueueInfo2 queue_info = {
+            VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2, nullptr, queue_family_flags->second, queue_family_index, 0
+        };
+        table->GetDeviceQueue2(device, &queue_info, &queue);
+    }
+    else
+    {
+        table->GetDeviceQueue(device, queue_family_index, 0, &queue);
+    }
 
     result = table->CreateCommandPool(device, &pool_create_info, nullptr, &pool);
 
@@ -1289,7 +1288,7 @@ void VulkanReplayConsumerBase::ProcessBeginResourceInitCommand(format::HandleId 
         }
 
         device_info->resource_initializer = std::make_unique<VulkanResourceInitializer>(
-            device, max_copy_size, properties, have_shader_stencil_write, allocator, table);
+            device_info, max_copy_size, properties, have_shader_stencil_write, allocator, table);
     }
 }
 
@@ -1613,7 +1612,7 @@ void* VulkanReplayConsumerBase::PreProcessExternalObject(uint64_t          objec
         else
         {
             GFXRECON_LOG_WARNING_ONCE("Failed to find a valid AHardwareBuffer handle for a call to "
-                                 "vkGetAndroidHardwareBufferPropertiesANDROID")
+                                      "vkGetAndroidHardwareBufferPropertiesANDROID")
         }
     }
 #endif
@@ -2162,6 +2161,7 @@ VkResult VulkanReplayConsumerBase::CreateSurface(InstanceInfo*                  
             auto surface_id   = surface->GetPointer();
             auto surface_info = reinterpret_cast<SurfaceKHRInfo*>(surface->GetConsumerData(0));
             assert((surface_id != nullptr) && (surface_info != nullptr));
+            assert(!surface_info->surface_creation_skipped);
 
             surface_info->window = window;
             active_windows_.insert(window);
@@ -2173,6 +2173,12 @@ VkResult VulkanReplayConsumerBase::CreateSurface(InstanceInfo*                  
     }
     else
     {
+        if (surface != nullptr)
+        {
+            auto surface_info                      = reinterpret_cast<SurfaceKHRInfo*>(surface->GetConsumerData(0));
+            surface_info->surface_creation_skipped = true;
+        }
+
         GFXRECON_LOG_INFO("Skipping surface creation for surface index %d", create_surface_count_);
     }
 
@@ -2655,6 +2661,15 @@ VulkanReplayConsumerBase::OverrideCreateDevice(VkResult            original_resu
 
             // Track state of physical device properties and features at device creation
             device_info->property_feature_info = property_feature_info;
+
+            for (uint32_t q = 0; q < modified_create_info.queueCreateInfoCount; ++q)
+            {
+                const VkDeviceQueueCreateInfo* queue_create_info = &modified_create_info.pQueueCreateInfos[q];
+                assert(device_info->queue_family_creation_flags.find(queue_create_info->queueFamilyIndex) ==
+                       device_info->queue_family_creation_flags.end());
+                device_info->queue_family_creation_flags[queue_create_info->queueFamilyIndex] =
+                    queue_create_info->flags;
+            }
         }
 
         // Restore modified property/feature create info values to the original application values

@@ -112,7 +112,13 @@ enum class MetaDataType : uint16_t
     kSetOpaqueAddressCommand                = 14,
     kSetRayTracingShaderGroupHandlesCommand = 15,
     kCreateHeapAllocationCommand            = 16,
-    kInitSubresourceCommand                 = 17
+    kInitSubresourceCommand                 = 17,
+    kReserved18                             = 18,
+    kReserved19                             = 19,
+    kReserved20                             = 20,
+    kReserved21                             = 21,
+    kReserved22                             = 22,
+    kReserved23                             = 23,
 };
 
 // MetaDataId is stored in the capture file and its type must be uint32_t to avoid breaking capture file compatibility.
@@ -184,6 +190,10 @@ struct EnabledOptions
 
 #pragma pack(push)
 #pragma pack(4)
+
+// Prevent size_t from being used in data structs that will be written to the capture file.
+#define size_t \
+    static_assert(false, "Capture file data types must be constant size across all platforms. size_t is not allowed.");
 
 struct FileOptionPair
 {
@@ -456,7 +466,7 @@ struct SetRayTracingShaderGroupHandlesCommandHeader
     format::ThreadId thread_id;
     format::HandleId device_id;
     format::HandleId pipeline_id;
-    size_t           data_size;
+    uint64_t         data_size;
 };
 
 struct CreateHeapAllocationCommand
@@ -466,6 +476,9 @@ struct CreateHeapAllocationCommand
     uint64_t         allocation_id;
     uint64_t         allocation_size;
 };
+
+// Restore size_t to normal behavior.
+#undef size_t
 
 #pragma pack(pop)
 

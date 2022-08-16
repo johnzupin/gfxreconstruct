@@ -1,3 +1,46 @@
+gfxreconstruct (0.9.11+61~rc1-1lunarg18.04-1) bionic; urgency=medium
+
+  [ Panagiotis Apostolou ]
+  * Fix for multiple android surfaces workaround
+  * Track protected queues creation when capturing and replaying trimmed
+  * Correct check of mmap's return value
+
+  [ bradgrantham-lunarg ]
+  * use the metadatapointer for the loop index (#727)
+
+  [ Panagiotis Apostolou ]
+  * Make SetRayTracingShaderGroupHandlesCommandHeader`s size constant
+  * Unblock SIGSEGV everytime a memory protection is applied on a region
+  * Documenting a known issue of the page guard mechanism
+
+  [ bradgrantham-lunarg ]
+  * write an empty buffer if AHB map fails and print some debug info (#730)
+
+  [ Andrew Cox - LunarG ]
+  * Noted need to run python code gen after submodule update (#711)
+  * Screen out Unsupported Device Extensions (#733)
+  * Declared default for setting. (#740)
+
+  [ Brad Grantham ]
+  * fix spelling error
+
+  [ Panagiotis Apostolou ]
+  * Fix for race condition - deadlock
+  * Keep same usage flags for AHB when replaying
+
+  [ bradgrantham-lunarg ]
+  * also catch base exception and print what() (#750)
+
+  [ David Donaldson ]
+  * Reserve format::MetaDataType values for future use
+  * Prevent size_t from being used in capture format
+
+  [ Locke Lin ]
+  * Update header to 1.3.224
+  * Set version to 0.9.15
+
+ -- john <john@odin>  Tue, 16 Aug 2022 09:53:54 -0600
+
 gfxreconstruct (0.9.11+42~rc1-1lunarg18.04-1) bionic; urgency=medium
 
   [ Brad Grantham ]

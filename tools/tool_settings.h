@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019-2020 LunarG, Inc.
+** Copyright (c) 2019-2022 LunarG, Inc.
 ** Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
@@ -59,6 +59,7 @@ const char kLogFileArgument[]                    = "--log-file";
 const char kLogDebugView[]                       = "--log-debugview";
 const char kNoDebugPopup[]                       = "--no-debug-popup";
 const char kOverrideGpuArgument[]                = "--gpu";
+const char kOverrideGpuGroupArgument[]           = "--gpu-group";
 const char kPausedOption[]                       = "--paused";
 const char kPauseFrameArgument[]                 = "--pause-frame";
 const char kSkipFailedAllocationShortOption[]    = "--sfa";
@@ -90,6 +91,7 @@ const char kOutput[]                             = "--output";
 const char kMeasurementRangeArgument[]           = "--measurement-frame-range";
 const char kQuitAfterMeasurementRangeOption[]    = "--quit-after-measurement-range";
 const char kFlushMeasurementRangeOption[]        = "--flush-measurement-range";
+const char kEnableUseCapturedSwapchainIndices[]  = "--use-captured-swapchain-indices";
 #if defined(WIN32)
 const char kApiFamilyOption[] = "--api";
 #endif
@@ -709,6 +711,12 @@ GetVulkanReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parse
         replay_options.override_gpu_index = std::stoi(override_gpu);
     }
 
+    const auto& override_gpu_group = arg_parser.GetArgumentValue(kOverrideGpuGroupArgument);
+    if (!override_gpu_group.empty())
+    {
+        replay_options.override_gpu_group_index = std::stoi(override_gpu_group);
+    }
+
     if (arg_parser.IsOptionSet(kRemoveUnsupportedOption))
     {
         replay_options.remove_unsupported_features = true;
@@ -724,6 +732,11 @@ GetVulkanReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parse
         arg_parser.IsOptionSet(kOmitPipelineCacheDataShortOption))
     {
         replay_options.omit_pipeline_cache_data = true;
+    }
+
+    if (arg_parser.IsOptionSet(kEnableUseCapturedSwapchainIndices))
+    {
+        replay_options.enable_use_captured_swapchain_indices = true;
     }
 
     replay_options.replace_dir = arg_parser.GetArgumentValue(kShaderReplaceArgument);

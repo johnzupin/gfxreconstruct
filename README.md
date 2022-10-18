@@ -51,8 +51,8 @@ The GFXReconstruct components currently provided with this repository are:
     zlib, which are currently optional build dependencies.
 * The `gfxrecon-extract` tool to extract SPIR-V binaries from
   GFXReconstruct capture files.
-* The `gfxrecon-toascii` tool to convert GFXReconstruct capture files to
-  an ASCII listing of API calls.
+* The `gfxrecon-convert` tool to convert GFXReconstruct capture files to
+  a [JSON Lines](https://jsonlines.org/) listing of API calls.
 
 
 
@@ -81,3 +81,13 @@ found at the following locations:
 
 This work is licensed under the terms of the MIT License; see
 [LICENSE](LICENSE.txt) for more information.
+
+## Approriate Use
+
+GFXReconstruct is a suite of tools intended for the purpose of
+improving application and platform quality by allowing the analysis
+of capture and replay of graphics command streams.  Use cases
+include, for example, regression testing, silicon and platform
+bringup, and reporting bugs.  Using GFXReconstruct to extract assets
+from an application or game for which you don’t have an appropriate
+license may violate copyrights or software licenses.

@@ -552,7 +552,8 @@ VkResult VulkanCaptureManager::OverrideCreateInstance(const VkInstanceCreateInfo
             const char* const*       extensions      = create_info_copy.ppEnabledExtensionNames;
             std::vector<const char*> modified_extensions;
 
-            bool has_dev_prop2 = false;
+            bool has_dev_prop2    = false;
+            bool has_ext_mem_caps = false;
 
             for (size_t i = 0; i < extension_count; ++i)
             {
@@ -564,11 +565,21 @@ VkResult VulkanCaptureManager::OverrideCreateInstance(const VkInstanceCreateInfo
                 {
                     has_dev_prop2 = true;
                 }
+
+                if (util::platform::StringCompare(entry, VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) == 0)
+                {
+                    has_ext_mem_caps = true;
+                }
             }
 
             if (!has_dev_prop2)
             {
                 modified_extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+            }
+
+            if (!has_ext_mem_caps)
+            {
+                modified_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
             }
 
             create_info_copy.enabledExtensionCount   = static_cast<uint32_t>(modified_extensions.size());
@@ -628,7 +639,6 @@ VkResult VulkanCaptureManager::OverrideCreateDevice(VkPhysicalDevice            
     const char* const*       extensions      = pCreateInfo_unwrapped->ppEnabledExtensionNames;
     std::vector<const char*> modified_extensions;
 
-    bool has_ext_mem_caps = false;
     bool has_ext_mem      = false;
     bool has_ext_mem_host = false;
 
@@ -640,11 +650,7 @@ VkResult VulkanCaptureManager::OverrideCreateDevice(VkPhysicalDevice            
 
         if (GetPageGuardMemoryMode() == kMemoryModeExternal)
         {
-            if (util::platform::StringCompare(entry, VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) == 0)
-            {
-                has_ext_mem_caps = true;
-            }
-            else if (util::platform::StringCompare(entry, VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME) == 0)
+            if (util::platform::StringCompare(entry, VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME) == 0)
             {
                 has_ext_mem = true;
             }
@@ -657,11 +663,6 @@ VkResult VulkanCaptureManager::OverrideCreateDevice(VkPhysicalDevice            
 
     if (GetPageGuardMemoryMode() == kMemoryModeExternal)
     {
-        if (!has_ext_mem_caps)
-        {
-            modified_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
-        }
-
         if (!has_ext_mem)
         {
             modified_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
@@ -1077,9 +1078,33 @@ VulkanCaptureManager::OverrideCreateRayTracingPipelinesKHR(VkDevice             
     auto                   device_wrapper              = reinterpret_cast<DeviceWrapper*>(device);
     VkDevice               device_unwrapped            = device_wrapper->handle;
     const DeviceTable*     device_table                = GetDeviceTable(device);
-    auto                   handle_unwrap_memory        = VulkanCaptureManager::Get()->GetHandleUnwrapMemory();
     VkDeferredOperationKHR deferredOperation_unwrapped = GetWrappedHandle<VkDeferredOperationKHR>(deferredOperation);
-    VkPipelineCache        pipelineCache_unwrapped     = GetWrappedHandle<VkPipelineCache>(pipelineCache);
+    DeferredOperationKHRWrapper* deferred_operation_wrapper =
+        reinterpret_cast<DeferredOperationKHRWrapper*>(deferredOperation);
+
+    VkPipelineCache     pipelineCache_unwrapped = GetWrappedHandle<VkPipelineCache>(pipelineCache);
+    HandleUnwrapMemory* handle_unwrap_memory    = nullptr;
+
+    if (deferred_operation_wrapper)
+    {
+        handle_unwrap_memory = &deferred_operation_wrapper->handle_unwrap_memory;
+        if (pAllocator)
+        {
+            deferred_operation_wrapper->allocator   = *pAllocator;
+            deferred_operation_wrapper->p_allocator = &deferred_operation_wrapper->allocator;
+        }
+        else
+        {
+            deferred_operation_wrapper->allocator   = {};
+            deferred_operation_wrapper->p_allocator = nullptr;
+        }
+        deferred_operation_wrapper->create_infos.resize(createInfoCount);
+        deferred_operation_wrapper->pipelines.resize(createInfoCount);
+    }
+    else
+    {
+        handle_unwrap_memory = VulkanCaptureManager::Get()->GetHandleUnwrapMemory();
+    }
     const VkRayTracingPipelineCreateInfoKHR* pCreateInfos_unwrapped =
         UnwrapStructArrayHandles(pCreateInfos, createInfoCount, handle_unwrap_memory);
 
@@ -1092,36 +1117,84 @@ VulkanCaptureManager::OverrideCreateRayTracingPipelinesKHR(VkDevice             
             modified_create_infos[i] = pCreateInfos_unwrapped[i];
             modified_create_infos[i].flags |= VK_PIPELINE_CREATE_RAY_TRACING_SHADER_GROUP_HANDLE_CAPTURE_REPLAY_BIT_KHR;
         }
-        result = device_table->CreateRayTracingPipelinesKHR(device_unwrapped,
-                                                            deferredOperation_unwrapped,
-                                                            pipelineCache_unwrapped,
-                                                            createInfoCount,
-                                                            modified_create_infos.get(),
-                                                            pAllocator,
-                                                            pPipelines);
+        if (deferred_operation_wrapper)
+        {
+            std::memcpy(deferred_operation_wrapper->create_infos.data(),
+                        modified_create_infos.get(),
+                        sizeof(VkRayTracingPipelineCreateInfoKHR) * createInfoCount);
+            result = device_table->CreateRayTracingPipelinesKHR(device_unwrapped,
+                                                                deferredOperation_unwrapped,
+                                                                pipelineCache_unwrapped,
+                                                                createInfoCount,
+                                                                deferred_operation_wrapper->create_infos.data(),
+                                                                deferred_operation_wrapper->p_allocator,
+                                                                deferred_operation_wrapper->pipelines.data());
+
+            std::memcpy(pPipelines, deferred_operation_wrapper->pipelines.data(), sizeof(VkPipeline) * createInfoCount);
+        }
+        else
+        {
+            result = device_table->CreateRayTracingPipelinesKHR(device_unwrapped,
+                                                                deferredOperation_unwrapped,
+                                                                pipelineCache_unwrapped,
+                                                                createInfoCount,
+                                                                modified_create_infos.get(),
+                                                                pAllocator,
+                                                                pPipelines);
+        }
     }
     else
     {
-        result = device_table->CreateRayTracingPipelinesKHR(device_unwrapped,
-                                                            deferredOperation_unwrapped,
-                                                            pipelineCache_unwrapped,
-                                                            createInfoCount,
-                                                            pCreateInfos_unwrapped,
-                                                            pAllocator,
-                                                            pPipelines);
-    }
+        GFXRECON_LOG_ERROR_ONCE(
+            "The capturing application used vkCreateRayTracingPipelinesKHR, which may require the "
+            "rayTracingPipelineShaderGroupHandleCaptureReplay feature for accurate capture and replay. The capturing "
+            "device does not support this feature, so replay may fail.");
 
-    if ((result == VK_SUCCESS) && (pPipelines != nullptr))
+        if (deferred_operation_wrapper)
+        {
+            std::memcpy(deferred_operation_wrapper->create_infos.data(),
+                        pCreateInfos_unwrapped,
+                        sizeof(VkRayTracingPipelineCreateInfoKHR) * createInfoCount);
+            result = device_table->CreateRayTracingPipelinesKHR(device_unwrapped,
+                                                                deferredOperation_unwrapped,
+                                                                pipelineCache_unwrapped,
+                                                                createInfoCount,
+                                                                deferred_operation_wrapper->create_infos.data(),
+                                                                deferred_operation_wrapper->p_allocator,
+                                                                deferred_operation_wrapper->pipelines.data());
+
+            std::memcpy(pPipelines, deferred_operation_wrapper->pipelines.data(), sizeof(VkPipeline) * createInfoCount);
+        }
+        else
+        {
+            result = device_table->CreateRayTracingPipelinesKHR(device_unwrapped,
+                                                                deferredOperation_unwrapped,
+                                                                pipelineCache_unwrapped,
+                                                                createInfoCount,
+                                                                pCreateInfos_unwrapped,
+                                                                pAllocator,
+                                                                pPipelines);
+        }
+    }
+    if (((result == VK_SUCCESS) || (result == VK_OPERATION_DEFERRED_KHR) ||
+         (result == VK_OPERATION_NOT_DEFERRED_KHR)) &&
+        (pPipelines != nullptr))
     {
         CreateWrappedHandles<DeviceWrapper, DeferredOperationKHRWrapper, PipelineWrapper>(
             device, deferredOperation, pPipelines, createInfoCount, GetUniqueId);
 
-        if (device_wrapper->property_feature_info.feature_rayTracingPipelineShaderGroupHandleCaptureReplay)
+        for (uint32_t i = 0; i < createInfoCount; ++i)
         {
-            for (uint32_t i = 0; i < createInfoCount; ++i)
-            {
-                PipelineWrapper* pipeline_wrapper = reinterpret_cast<PipelineWrapper*>(pPipelines[i]);
+            PipelineWrapper* pipeline_wrapper = reinterpret_cast<PipelineWrapper*>(pPipelines[i]);
 
+            if (deferred_operation_wrapper)
+            {
+                pipeline_wrapper->deferred_operation.handle_id         = deferred_operation_wrapper->handle_id;
+                pipeline_wrapper->deferred_operation.create_call_id    = deferred_operation_wrapper->create_call_id;
+                pipeline_wrapper->deferred_operation.create_parameters = deferred_operation_wrapper->create_parameters;
+            }
+            if (device_wrapper->property_feature_info.feature_rayTracingPipelineShaderGroupHandleCaptureReplay)
+            {
                 uint32_t data_size = device_wrapper->property_feature_info.property_shaderGroupHandleCaptureReplaySize *
                                      pCreateInfos[i].groupCount;
                 std::vector<uint8_t> data(data_size);
@@ -1301,8 +1374,6 @@ bool VulkanCaptureManager::ProcessReferenceToAndroidHardwareBuffer(VkDevice devi
 
             if (result == 0)
             {
-                assert(data != nullptr);
-
                 VkAndroidHardwareBufferPropertiesANDROID properties = {
                     VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID
                 };
@@ -1320,24 +1391,27 @@ bool VulkanCaptureManager::ProcessReferenceToAndroidHardwareBuffer(VkDevice devi
                     ahb_info.reference_count     = 0;
 
                     WriteCreateHardwareBufferCmd(memory_id, hardware_buffer, plane_info);
-                    WriteFillMemoryCmd(memory_id, 0, properties.allocationSize, data);
-
-                    if ((GetMemoryTrackingMode() == CaptureSettings::MemoryTrackingMode::kPageGuard) &&
-                        GetPageGuardTrackAhbMemory())
+                    if (data != nullptr)
                     {
-                        GFXRECON_CHECK_CONVERSION_DATA_LOSS(size_t, properties.allocationSize);
+                        WriteFillMemoryCmd(memory_id, 0, properties.allocationSize, data);
 
-                        util::PageGuardManager* manager = util::PageGuardManager::Get();
-                        assert(manager != nullptr);
+                        if ((GetMemoryTrackingMode() == CaptureSettings::MemoryTrackingMode::kPageGuard) &&
+                            GetPageGuardTrackAhbMemory())
+                        {
+                            GFXRECON_CHECK_CONVERSION_DATA_LOSS(size_t, properties.allocationSize);
 
-                        manager->AddTrackedMemory(
-                            memory_id,
-                            data,
-                            0,
-                            static_cast<size_t>(properties.allocationSize),
-                            util::PageGuardManager::kNullShadowHandle,
-                            false,  // No shadow memory for the imported AHB memory; Track directly with mprotect().
-                            false); // Write watch is not supported for this case.
+                            util::PageGuardManager* manager = util::PageGuardManager::Get();
+                            assert(manager != nullptr);
+
+                            manager->AddTrackedMemory(
+                                memory_id,
+                                data,
+                                0,
+                                static_cast<size_t>(properties.allocationSize),
+                                util::PageGuardManager::kNullShadowHandle,
+                                false,  // No shadow memory for the imported AHB memory; Track directly with mprotect().
+                                false); // Write watch is not supported for this case.
+                        }
                     }
                 }
                 else
@@ -1959,25 +2033,6 @@ void VulkanCaptureManager::PostProcess_vkGetDeviceGroupSurfacePresentModes2EXT(
     }
 }
 
-void VulkanCaptureManager::PostProcess_vkGetPhysicalDeviceSurfaceCapabilities2KHR(
-    VkResult                               result,
-    VkPhysicalDevice                       physicalDevice,
-    const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo,
-    VkSurfaceCapabilities2KHR*             pSurfaceCapabilities)
-{
-    GFXRECON_UNREFERENCED_PARAMETER(physicalDevice);
-
-    if (((GetCaptureMode() & kModeTrack) == kModeTrack) && (result == VK_SUCCESS) && (pSurfaceCapabilities != nullptr))
-    {
-        assert(state_tracker_ != nullptr);
-        state_tracker_->TrackPhysicalDeviceSurfaceCapabilities(physicalDevice,
-                                                               pSurfaceInfo->surface,
-                                                               pSurfaceCapabilities->surfaceCapabilities,
-                                                               pSurfaceInfo->pNext,
-                                                               pSurfaceCapabilities->pNext);
-    }
-}
-
 void VulkanCaptureManager::PreProcess_vkQueueSubmit(VkQueue             queue,
                                                     uint32_t            submitCount,
                                                     const VkSubmitInfo* pSubmits,
@@ -2151,6 +2206,25 @@ void VulkanCaptureManager::PreProcess_vkGetAndroidHardwareBufferPropertiesANDROI
 #endif
 }
 
+void VulkanCaptureManager::PostProcess_vkSetPrivateData(VkResult          result,
+                                                        VkDevice          device,
+                                                        VkObjectType      objectType,
+                                                        uint64_t          objectHandle,
+                                                        VkPrivateDataSlot privateDataSlot,
+                                                        uint64_t          data)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(privateDataSlot);
+
+    if (privateDataSlot != VK_NULL_HANDLE)
+    {
+        if (((GetCaptureMode() & kModeTrack) == kModeTrack) && (result == VK_SUCCESS))
+        {
+            assert(state_tracker_ != nullptr);
+            state_tracker_->TrackSetPrivateData(device, objectType, objectHandle, privateDataSlot, data);
+        }
+    }
+}
+
 #if defined(__ANDROID__)
 void VulkanCaptureManager::OverrideGetPhysicalDeviceSurfacePresentModesKHR(uint32_t*         pPresentModeCount,
                                                                            VkPresentModeKHR* pPresentModes)
@@ -2163,6 +2237,85 @@ void VulkanCaptureManager::OverrideGetPhysicalDeviceSurfacePresentModesKHR(uint3
     }
 }
 #endif
+
+bool VulkanCaptureManager::CheckBindAlignment(VkDeviceSize memoryOffset)
+{
+    if ((GetMemoryTrackingMode() == CaptureSettings::MemoryTrackingMode::kPageGuard) && !GetPageGuardAlignBufferSizes())
+    {
+        return (memoryOffset % util::platform::GetSystemPageSize()) == 0;
+    }
+
+    return true;
+}
+
+void VulkanCaptureManager::PreProcess_vkBindBufferMemory(VkDevice       device,
+                                                         VkBuffer       buffer,
+                                                         VkDeviceMemory memory,
+                                                         VkDeviceSize   memoryOffset)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(device);
+    GFXRECON_UNREFERENCED_PARAMETER(buffer);
+    GFXRECON_UNREFERENCED_PARAMETER(memory);
+
+    if (!CheckBindAlignment(memoryOffset))
+    {
+        GFXRECON_LOG_WARNING_ONCE("Buffer bound to device memory at an offset which is not page aligned. Corruption "
+                                  "might occur. In that case set "
+                                  "Page Guard Align Buffer Sizes env variable to true.");
+    }
+}
+
+void VulkanCaptureManager::PreProcess_vkBindBufferMemory2(VkDevice                      device,
+                                                          uint32_t                      bindInfoCount,
+                                                          const VkBindBufferMemoryInfo* pBindInfos)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(device);
+
+    for (uint32_t i = 0; i < bindInfoCount; ++i)
+    {
+        if (!CheckBindAlignment(pBindInfos[i].memoryOffset))
+        {
+            GFXRECON_LOG_WARNING_ONCE(
+                "Buffer bound to device memory at an offset which is not page aligned. Corruption "
+                "might occur. In that case set "
+                "Page Guard Align Buffer Sizes env variable to true.");
+        }
+    }
+}
+
+void VulkanCaptureManager::PreProcess_vkBindImageMemory(VkDevice       device,
+                                                        VkImage        image,
+                                                        VkDeviceMemory memory,
+                                                        VkDeviceSize   memoryOffset)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(device);
+    GFXRECON_UNREFERENCED_PARAMETER(image);
+    GFXRECON_UNREFERENCED_PARAMETER(memory);
+
+    if (!CheckBindAlignment(memoryOffset))
+    {
+        GFXRECON_LOG_WARNING_ONCE("Image bound to device memory at an offset which is not page aligned. Corruption "
+                                  "might occur. In that case set "
+                                  "Page Guard Align Buffer Sizes env variable to true.");
+    }
+}
+
+void VulkanCaptureManager::PreProcess_vkBindImageMemory2(VkDevice                     device,
+                                                         uint32_t                     bindInfoCount,
+                                                         const VkBindImageMemoryInfo* pBindInfos)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(device);
+
+    for (uint32_t i = 0; i < bindInfoCount; ++i)
+    {
+        if (!CheckBindAlignment(pBindInfos[i].memoryOffset))
+        {
+            GFXRECON_LOG_WARNING_ONCE("Image bound to device memory at an offset which is not page aligned. Corruption "
+                                      "might occur. In that case set "
+                                      "Page Guard Align Buffer Sizes env variable to true.");
+        }
+    }
+}
 
 GFXRECON_END_NAMESPACE(encode)
 GFXRECON_END_NAMESPACE(gfxrecon)

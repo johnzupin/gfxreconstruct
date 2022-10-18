@@ -1,3 +1,171 @@
+gfxreconstruct (0.9.15+81~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ Brad Grantham ]
+  * remove mention of VS2015, add VS2022
+
+  [ Dustin Graves ]
+  * Initial virtual swapchain implementation
+
+  [ Locke Lin ]
+  * Fix VirtualSwapchain crash
+  * Add option --virtual-swapchain
+  * Replace virtual images in QueuePresent
+  * Bugfix for trimming virtual swapchain
+  * Bugfix for sreenshots virtual swapchain
+  * Eusure Queue and Cmdbuf are the same queue family
+  * Set PRESENT_SRC for virtual swapchain image
+  * Move ToString to util
+  * Add QueueFamilyIndices to create swapchain image
+  * Move ProcessSetSwapchainImageStateCommand to virtual swapchain
+  * Remove QueueWaitIdle for virtual swapchain
+  * Set virtual swapchain as default
+  * Combine two CmdPipelineBarrier
+  * LunarG copyright to 2022
+
+  [ bradgrantham-lunarg ]
+  * move addition of EXTERNAL_MEMORY_CAPABILITIES to CreateInstance (#770)
+
+  [ Panagiotis Apostolou ]
+  * Fix in gfxrecon.py script for virtual swapchain (#774)
+
+  [ Locke Lin ]
+  * BugFix: If it only calls GetSwapchainImages once
+
+  [ Andrew Cox ]
+  * Toascii Switched to Traversing Decoded_ Structs Part 1 of 3
+  * Toascii Switched to Traversing Decoded_ Structs Part 2 of 3
+  * Toascii Switched to Traversing Decoded_ Structs Part 3 of 3
+
+  [ Locke Lin ]
+  * Usage: --use-captured-swapchain-indice
+
+  [ Andrew Cox - LunarG ]
+  * Output Addresses From Capture for void* and Opaque Struct* Parameters (#787)
+  * Documented Parallel build via build.py (#788)
+  * Output Addresses From Capture for void* and Opaque* Struct Members (#789)
+  * Changed Pointers to Functions to Output in hex (#795)
+
+  [ Locke Lin ]
+  * Adjust MemoryRequirements
+  * Trimming VK_KHR_get_surface_capabilities2
+
+  [ Andrew Cox - LunarG ]
+  * Convert Handles to Strings using Common Path for Arguments and Members (#800)
+
+  [ bradgrantham-lunarg ]
+  * Fix crashes when Android surface can't be opened (#796)
+
+  [ Brad Grantham ]
+  * add g++ to Fedora dependencies
+
+  [ bradgrantham-lunarg ]
+  * warn in case of corrupt descriptor update template encoding (#804)
+  * create and use CreateHardwareBufferCommandHeader2 (#797)
+
+  [ Brad Grantham ]
+  * warn if deprecated CreateHardwareBufferCommandHeader is decoded
+
+  [ bradgrantham-lunarg ]
+  * warn instead of fatal on different image index (#805)
+
+  [ Brad Grantham ]
+  * fix typo ; Visual Studio 2012 to 2022
+
+  [ Locke Lin ]
+  * PrivateData handle unwrapped and duplicated
+
+  [ Dror Smolarsky ]
+  * Add an option to the capture script use a capture layer in a given directory (#581)
+
+  [ Andrew Cox - LunarG ]
+  * toascii - Minimal Change to Enable JSON Lines Output - Nested Body (#811)
+
+  [ bradgrantham-lunarg ]
+  * don't assert on non-decoded and print null instead of "" (#815)
+  * print null if the passed array was actually nullptr (#817)
+
+  [ Locke Lin ]
+  * Bigfix: Get shaderGroupHandleCaptureReplaySize value
+  * Capture for deferred operation
+  * Trimming for deferred operation
+  * Switch end_can_clear_ on DecodeAllocator
+  * Custom Decode_vkCreateRayTracingPipelinesKHR
+  * Replay for deferred operation
+
+  [ bradgrantham-lunarg ]
+  * Add braces around if statement block
+
+  [ Locke Lin ]
+  * Reject VK_NVX_binary_import
+
+  [ Andrew Cox - LunarG ]
+  * Heading Level Corrected (#821)
+
+  [ Andrew Cox ]
+  * Toascii - Rearranged Cases in ToString<decode::Decoded_VkWriteDescriptorSet>
+  * Toascii - Strip "[out]" Prefix From Variable Names
+
+  [ Panagiotis Apostolou ]
+  * Introducing a signal handler watcher thread
+  * Check resource binding alignment when page guard is in use
+  * Refactor GetSystemPageSize() out of PageGuardManager
+
+  [ Andrew Cox ]
+  * Documented ownership of VulkanAsciiConsumerBase::file_
+  * Toascii - Header Line with source, and file, project, vulkan versions
+  * Renamed gfxrecon-toascii to gfxrecon-convert
+  * Heading Consistency
+
+  [ Locke Lin ]
+  * Surface and format could be NULL
+  * data is nullptr to cause fail. Skip it.
+
+  [ bradgrantham-lunarg ]
+  * Update vulkan_state_writer.cpp
+  * don't dereference a possibly null pointer (#839)
+
+  [ Panagiotis Apostolou ]
+  * Fix for android trimmed replay stats
+
+  [ bradgrantham-lunarg ]
+  * Revert "Add an option to the capture script use a capture layer in a given directory (#581)" (#844)
+
+  [ Locke Lin ]
+  * Trimming vkTrimCommandPool
+  * Trimming vkSetPrivateData
+  * Bugfix: Clear container before Copy
+  * Replay VkDeviceGroupDeviceCreateInfo
+  * Save replay_device_group in DeviceInfo
+
+  [ Brad Grantham ]
+  * fix usage message spacing
+
+  [ Andrew Cox ]
+  * Document gfxrecon-convert and JSON Lines Format
+  * JSON String Escaping
+  * Changed null pointer representation to null
+  * Convert - Changed Default Extension to jsonl
+
+  [ Locke Lin ]
+  * Free virtual swapchain by VulkanResourceAllocator
+
+  [ Illia Polishchuk ]
+  * Add VkImportMemoryHostPointerInfoEXT replaying support (#803)
+
+  [ bradgrantham-lunarg ]
+  * add blurb about appropriate use (#854)
+
+  [ Andrew Cox - LunarG ]
+  * Add Convert to gfxrecon.py and Enable it in Build (#852)
+
+  [ Brad Grantham ]
+  * Update header to 1.3.231
+
+  [ John Zupin ]
+  * packaging: update patches
+
+ -- john <john@odin>  Tue, 18 Oct 2022 13:27:47 -0600
+
 gfxreconstruct (0.9.11+61~rc1-1lunarg20.04-1) focal; urgency=medium
 
   [ Panagiotis Apostolou ]

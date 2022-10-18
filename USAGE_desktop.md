@@ -25,12 +25,14 @@ Vulkan API calls on Desktop systems.
     4. [Capture Script](#capture-script)
 2. [Replaying API Calls](#replaying-api-calls)
     1. [Command Line Arguments](#command-line-arguments)
-    2. [Keyboard Controls](#keyboard-controls)
+    2. [Key Controls](#key-controls)
+    3. [Virtual Swapchain](#virtual-swapchain)
 3. [Other Capture File Processing Tools](#other-capture-file-processing-tools)
     1. [Capture File Info](#capture-file-info)
     2. [Capture File Compression](#capture-file-compression)
     3. [Shader Extraction](#shader-extraction)
-    4. [Trimmed File Optimizer](#trimmed-file-optimizer)
+    4. [Trimmed File Optimization](#trimmed-file-optimization)
+    5. [JSON Lines Conversion](#json-lines-conversion)
     6. [Command Launcher](#command-launcher)
 
 ## Capturing API calls
@@ -138,7 +140,7 @@ The following example demonstrates how to set the layer's log level to
 export GFXRECON_LOG_LEVEL=warning
 ```
 
-##### Supported Options
+#### Supported Options
 
 Options with the BOOL type accept the following values:
 
@@ -176,6 +178,7 @@ Page Guard External Memory | GFXRECON_PAGE_GUARD_EXTERNAL_MEMORY | BOOL | When t
 Page Guard Persistent Memory | GFXRECON_PAGE_GUARD_PERSISTENT_MEMORY | BOOL | When the `page_guard` memory tracking mode is enabled, this option changes the way that the shadow memory used to detect modifications to mapped memory is allocated. The default behavior is to allocate and copy the mapped memory range on map and free the allocation on unmap. When this option is enabled, an allocation with a size equal to that of the object being mapped is made once on the first map and is not freed until the object is destroyed.  This option is intended to be used with applications that frequently map and unmap large memory ranges, to avoid frequent allocation and copy operations that can have a negative impact on performance.  This option is ignored when GFXRECON_PAGE_GUARD_EXTERNAL_MEMORY is enabled. Default is `false`
 Page Guard Align Buffer Sizes | GFXRECON_PAGE_GUARD_ALIGN_BUFFER_SIZES | BOOL | When the `page_guard` memory tracking mode is enabled, this option overrides the Vulkan API calls that report buffer memory properties to report that buffer sizes and alignments must be a multiple of the system page size.  This option is intended to be used with applications that perform CPU writes and GPU writes/copies to different buffers that are bound to the same page of mapped memory, which may result in data being lost when copying pages from the `page_guard` shadow allocation to the real allocation.  This data loss can result in visible corruption during capture.  Forcing buffer sizes and alignments to a multiple of the system page size prevents multiple buffers from being bound to the same page, avoiding data loss from simultaneous CPU writes to the shadow allocation and GPU writes to the real allocation for different buffers bound to the same page.  This option is only available for the Vulkan API.  Default is `false`
 Page guard unblock SIGSEGV | GFXRECON_PAGE_GUARD_UNBLOCK_SIGSEGV | BOOL | When the `page_guard` memory tracking mode is enabled and in the case that SIGSEGV has been marked as blocked in thread's signal mask, setting this enviroment variable to `true` will forcibly re-enable the signal in the thread's signal mask. Default is `false`
+Page guard signal handler watcher | GFXRECON_PAGE_GUARD_SIGNAL_HANDLER_WATCHER | BOOL | When the `page_guard` memory tracking mode is enabled, setting this enviroment variable to `true` will spawn a thread which will will periodically reinstall the `SIGSEGV` handler if it has been replaced by the application being traced. Default is `false`
 
 #### Memory Tracking Known Issues
 
@@ -355,6 +358,7 @@ gfxrecon-replay         [-h | --help] [--version] [--gpu <index>]
                         [--opcd | --omit-pipeline-cache-data] [--wsi <platform>]
                         [--surface-index <N>] [--remove-unsupported]
                         [-m <mode> | --memory-translation <mode>]
+                        [--use-captured-swapchain-indices]
                         [--log-level <level>] [--log-file <file>] [--log-debugview]
                         <file>
 
@@ -374,6 +378,11 @@ Optional arguments:
                         returned by vkEnumeratePhysicalDevices.  Replay may fail
                         if the specified device is not compatible with the
                         original capture devices.
+  --gpu-group <index>   Use the specified device group for replay, where index
+                        is the zero-based index to the array of physical device group
+                        returned by vkEnumeratePhysicalDeviceGroups.  Replay may fail
+                        if the specified device group is not compatible with the
+                        original capture device group.
   --pause-frame <N>     Pause after replaying frame number N.
   --paused              Pause after replaying the first frame (same
                         as --pause-frame 1).
@@ -437,9 +446,14 @@ Optional arguments:
                                         to different allocations with different
                                         offsets.  Uses VMA to manage allocations
                                         and suballocations.
+  --use-captured-swapchain-indices 
+                        Use the swapchain indices stored in the capture directly on the swapchain 
+                        setup for replay. The default without this option is to use a Virtual Swapchain
+                        of images which match the swapchain in effect at capture time and which are 
+                        copied to the underlying swapchain of the implementation being replayed on.
 ```
 
-### Keyboard Controls
+### Key Controls
 
 The `gfxrecon-replay` tool for Desktop supports the following key controls:
 
@@ -447,6 +461,12 @@ Key(s) | Action
 -------|-------
 Space, p | Toggle pause/play.
 Right arrow, n | Advance to the next frame when paused.
+
+### Virtual Swapchain
+
+During replay, swapchain indices for present can be different from captured indices. Causes for this can include the swapchain image count differing between capture and replay, and `vkAcquireNextImageKHR` returning a different `pImageIndex` at replay to the one that was captured. These issues can cause unexpected rendering or even crashes.
+
+Virtual Swapchain insulates higher layers in the Vulkan stack from these problems by creating a set of images, exactly matching the swapchain configuration at capture time, which it exposes for them to render into.  Before a present, it copies the virtual image to a target swapchain image for display. Since this issue can happen in many situations, virtual swapchain is the default setup. If the user wants to bypass the feature and use the captured indices to present directly on the swapchain of the replay implementation, they should add the `--use-captured-swapchain-indices` option when invoking `gfxrecon-replay`.
 
 ## Other Capture File Processing Tools
 
@@ -520,7 +540,7 @@ Required arguments:
   <file>      The GFXReconstruct capture file to be processed.
 ```
 
-### Trimmed File Optimizer
+### Trimmed File Optimization
 
 The `gfxrecon-optimize` tool removes unused buffer and image initialization
 data from trimmed capture files.
@@ -553,6 +573,48 @@ Optional arguments:
   --version             Print version information and exit.
 ```
 
+### JSON Lines Conversion
+
+The `gfxrecon-convert` tool converts a capture file into a series of JSON
+documents, one per line following the
+[JSON Lines standard](https://jsonlines.org/).
+The JSON document on each line is designed to be parsed by tools such as simple
+Python scripts as well as being useful for inspection by eye after pretty
+printing, for example by piping through a command-line tool such as
+[`jq`](https://stedolan.github.io/jq/).
+For these post-processing use cases, `gfxrecon-convert` can be used to stream
+from binary captures directly, without
+having to save the intermediate JSON files to storage.
+Because each JSON object is on its own line, line oriented tools such as
+grep, sed, head, and split can be applied ahead of JSON-aware ones which
+are heavier-weight to reduce their workload on large captures.
+
+The file begins with a header object containing some metadata, followed by a
+series of objects representing the sequence of Vulkan calls stored in the
+capture. More details of the file format can be found in the tool's
+[README](tools/convert/README.md).
+
+
+```text
+gfxrecon-convert - A tool to convert GFXReconstruct capture files to text.
+
+Usage:
+  gfxrecon-convert [-h | --help] [--version] <file>
+
+Required arguments:
+  <file>		Path to the GFXReconstruct capture file to be converted
+                to text.
+
+Optional arguments:
+  -h			        Print usage information and exit (same as --help).
+  --version		        Print version information and exit.
+  --output file         'stdout' or a path to a file to write JSON output
+                        to. Default is the input filepath with "gfxr" replaced
+                        by "jsonl".
+  --no-debug-popup      Disable the 'Abort, Retry, Ignore' message box
+                        displayed when abort() is called (Windows debug only).
+```
+
 ### Command Launcher
 
 The `gfxrecon.py` tool is a utility that can be used to launch all of the
@@ -564,10 +626,10 @@ usage: gfxrecon.py [-h] command ...
 GFXReconstruct utility launcher.
 
 positional arguments:
-  command     Command to execute. Valid options are [capture, compress, extract, info,
-              optimize, replay]
-  args        Command-specific argument list. Specify -h after command name for command
-              help.
+  command     Command to execute. Valid options are [capture, compress, convert,
+              extract, info, optimize, replay]
+  args        Command-specific argument list. Specify -h after command name for
+              command help.
 
 optional arguments:
   -h, --help  show this help message and exit

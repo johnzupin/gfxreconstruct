@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2019-2020 LunarG, Inc.
+** Copyright (c) 2019-2022 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -29,10 +29,11 @@ const char kOptions[] =
     "-h|--help,--version,--log-debugview,--no-debug-popup,--paused,--sync,--sfa|--skip-failed-allocations,--"
     "opcd|--omit-pipeline-cache-data,--remove-unsupported,--validate,--debug-device-lost,--create-dummy-allocations,--"
     "screenshot-all,--dcp,--discard-cached-psos,--onhb|--omit-null-hardware-buffers,--qamr|--quit-after-measurement-"
-    "range,--fmr|--flush-measurement-range";
-const char kArguments[] = "--log-level,--log-file,--gpu,--pause-frame,--wsi,--surface-index,-m|--memory-translation,--"
-                          "replace-shaders,--screenshots,--denied-messages,--allowed-messages,--screenshot-format,--"
-                          "screenshot-dir,--screenshot-prefix,--mfr|--measurement-frame-range";
+    "range,--fmr|--flush-measurement-range,--use-captured-swapchain-indices";
+const char kArguments[] =
+    "--log-level,--log-file,--gpu,--gpu-group,--pause-frame,--wsi,--surface-index,-m|--memory-translation,"
+    "--replace-shaders,--screenshots,--denied-messages,--allowed-messages,--screenshot-format,--"
+    "screenshot-dir,--screenshot-prefix,--mfr|--measurement-frame-range";
 
 static void PrintUsage(const char* exe_name)
 {
@@ -46,7 +47,7 @@ static void PrintUsage(const char* exe_name)
 
     GFXRECON_WRITE_CONSOLE("\n%s - A tool to replay GFXReconstruct capture files.\n", app_name.c_str());
     GFXRECON_WRITE_CONSOLE("Usage:");
-    GFXRECON_WRITE_CONSOLE("  %s\t[-h | --help] [--version] [--gpu <index>]", app_name.c_str());
+    GFXRECON_WRITE_CONSOLE("  %s\t[-h | --help] [--version] [--gpu <index>] [--gpu-group <index>]", app_name.c_str());
     GFXRECON_WRITE_CONSOLE("\t\t\t[--pause-frame <N>] [--paused] [--sync] [--screenshot-all]");
     GFXRECON_WRITE_CONSOLE("\t\t\t[--screenshots <N1(-N2),...>] [--screenshot-format <format>]");
     GFXRECON_WRITE_CONSOLE("\t\t\t[--screenshot-dir <dir>] [--screenshot-prefix <file-prefix>]");
@@ -56,6 +57,7 @@ static void PrintUsage(const char* exe_name)
     GFXRECON_WRITE_CONSOLE("\t\t\t[--remove-unsupported] [--validate]");
     GFXRECON_WRITE_CONSOLE("\t\t\t[--onhb | --omit-null-hardware-buffers]");
     GFXRECON_WRITE_CONSOLE("\t\t\t[-m <mode> | --memory-translation <mode>]");
+    GFXRECON_WRITE_CONSOLE("\t\t\t[--use-captured-swapchain-indices]");
 #if defined(WIN32)
     GFXRECON_WRITE_CONSOLE("\t\t\t[--log-level <level>] [--log-file <file>] [--log-debugview]");
 #if defined(_DEBUG)
@@ -99,6 +101,11 @@ static void PrintUsage(const char* exe_name)
     GFXRECON_WRITE_CONSOLE("          \t\treturned by vkEnumeratePhysicalDevices.  Replay may fail");
     GFXRECON_WRITE_CONSOLE("          \t\tif the specified device is not compatible with the");
     GFXRECON_WRITE_CONSOLE("          \t\toriginal capture devices.");
+    GFXRECON_WRITE_CONSOLE("  --gpu-group <index>\t\tUse the specified device group for replay, where index");
+    GFXRECON_WRITE_CONSOLE("          \t\tis the zero-based index to the array of physical device group");
+    GFXRECON_WRITE_CONSOLE("          \t\treturned by vkEnumeratePhysicalDeviceGroups.  Replay may fail");
+    GFXRECON_WRITE_CONSOLE("          \t\tif the specified device group is not compatible with the");
+    GFXRECON_WRITE_CONSOLE("          \t\toriginal capture device group.");
     GFXRECON_WRITE_CONSOLE("  --pause-frame <N>\tPause after replaying frame number N.");
     GFXRECON_WRITE_CONSOLE("  --paused\t\tPause after replaying the first frame (same");
     GFXRECON_WRITE_CONSOLE("          \t\tas --pause-frame 1).");
@@ -164,6 +171,13 @@ static void PrintUsage(const char* exe_name)
     GFXRECON_WRITE_CONSOLE("          \t\t         \tto different allocations with different");
     GFXRECON_WRITE_CONSOLE("          \t\t         \toffsets.  Uses VMA to manage allocations");
     GFXRECON_WRITE_CONSOLE("          \t\t         \tand suballocations.");
+    GFXRECON_WRITE_CONSOLE("  --use-captured-swapchain-indices");
+    GFXRECON_WRITE_CONSOLE("          \t\tUse the swapchain indices stored in the capture directly on the swapchain");
+    GFXRECON_WRITE_CONSOLE(
+        "          \t\tsetup for replay. The default without this option is to use a Virtual Swapchain");
+    GFXRECON_WRITE_CONSOLE("          \t\tof images which match the swapchain in effect at capture time and which are");
+    GFXRECON_WRITE_CONSOLE("          \t\tcopied to the underlying swapchain of the implementation being replayed on.");
+
 #if defined(WIN32)
     GFXRECON_WRITE_CONSOLE("  --api <api>\t\tUse the specified API for replay (Windows only).");
     GFXRECON_WRITE_CONSOLE("          \t\tAvailable values are:");

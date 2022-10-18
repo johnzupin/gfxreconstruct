@@ -1,6 +1,6 @@
 /*
-** Copyright (c) 2018-2020 Valve Corporation
-** Copyright (c) 2018-2020 LunarG, Inc.
+** Copyright (c) 2018-2022 Valve Corporation
+** Copyright (c) 2018-2022 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,6 @@
 */
 
 #include "project_version.h"
-
 #include "tool_settings.h"
 #include "format/format.h"
 #include "generated/generated_vulkan_ascii_consumer.h"
@@ -40,7 +39,8 @@ static void PrintUsage(const char* exe_name)
     {
         app_name.replace(0, dir_location + 1, "");
     }
-    GFXRECON_WRITE_CONSOLE("\n%s - A tool to convert GFXReconstruct capture files to text.\n", app_name.c_str());
+    GFXRECON_WRITE_CONSOLE("\n%s - A tool to convert GFXReconstruct capture files to JSON Lines text.\n",
+                           app_name.c_str());
     GFXRECON_WRITE_CONSOLE("Usage:");
     GFXRECON_WRITE_CONSOLE("  %s [-h | --help] [--version] <file>\n", app_name.c_str());
     GFXRECON_WRITE_CONSOLE("Required arguments:");
@@ -50,15 +50,18 @@ static void PrintUsage(const char* exe_name)
     GFXRECON_WRITE_CONSOLE("  -h\t\t\tPrint usage information and exit (same as --help).");
     GFXRECON_WRITE_CONSOLE("  --version\t\tPrint version information and exit.");
     GFXRECON_WRITE_CONSOLE("  --output file\t\t'stdout' or a path to a file to write JSON output");
-    GFXRECON_WRITE_CONSOLE("        \t\tto. Default is the input filepath with \"gfxr\" replaced by \"txt\".");
+    GFXRECON_WRITE_CONSOLE("               \t\tto. Default is the input filepath with \"gfxr\" replaced");
+    GFXRECON_WRITE_CONSOLE("               \t\tby \"jsonl\".");
 #if defined(WIN32) && defined(_DEBUG)
     GFXRECON_WRITE_CONSOLE("  --no-debug-popup\tDisable the 'Abort, Retry, Ignore' message box");
-    GFXRECON_WRITE_CONSOLE("        \t\tdisplayed when abort() is called (Windows debug only).");
+    GFXRECON_WRITE_CONSOLE("                  \tdisplayed when abort() is called (Windows debug only).");
 #endif
 }
 
-static std::string GetOutputFileName(const gfxrecon::util::ArgumentParser& arg_parser,
-                                     const std::string&                    input_filename)
+namespace
+{
+
+std::string GetOutputFileName(const gfxrecon::util::ArgumentParser& arg_parser, const std::string& input_filename)
 {
     std::string output_filename;
     if (arg_parser.IsArgumentSet(kOutput))
@@ -73,10 +76,12 @@ static std::string GetOutputFileName(const gfxrecon::util::ArgumentParser& arg_p
         {
             output_filename = output_filename.substr(0, suffix_pos);
         }
-        output_filename += ".txt";
+        output_filename += ".jsonl";
     }
     return output_filename;
 }
+
+} // namespace
 
 int main(int argc, const char** argv)
 {
@@ -108,9 +113,9 @@ int main(int argc, const char** argv)
     }
 #endif
 
-    const auto& positional_arguments = arg_parser.GetPositionalArguments();
-    std::string input_filename       = positional_arguments[0];
-    std::string output_filename      = GetOutputFileName(arg_parser, input_filename);
+    const auto&       positional_arguments = arg_parser.GetPositionalArguments();
+    const std::string input_filename       = positional_arguments[0];
+    const std::string output_filename      = GetOutputFileName(arg_parser, input_filename);
 
     gfxrecon::decode::FileProcessor file_processor;
     if (file_processor.Initialize(input_filename))
@@ -128,7 +133,13 @@ int main(int argc, const char** argv)
         if (output_file)
         {
             gfxrecon::decode::VulkanAsciiConsumer ascii_consumer;
-            ascii_consumer.Initialize(output_file);
+            ascii_consumer.Initialize(output_file,
+                                      GFXRECON_PROJECT_VERSION_STRING,
+                                      (std::to_string(VK_VERSION_MAJOR(VK_HEADER_VERSION_COMPLETE)) + "." +
+                                       std::to_string(VK_VERSION_MINOR(VK_HEADER_VERSION_COMPLETE)) + "." +
+                                       std::to_string(VK_VERSION_PATCH(VK_HEADER_VERSION_COMPLETE)))
+                                          .c_str(),
+                                      input_filename.c_str());
             gfxrecon::decode::VulkanDecoder decoder;
             decoder.AddConsumer(&ascii_consumer);
             file_processor.AddDecoder(&decoder);

@@ -1,13 +1,13 @@
 From: John Zupin <johnz@lunarg.com>
 Date: Thu, 4 Jun 2020 20:22:43 -0600
-Subject: patch as bionic version
+Subject: packaging: patch as focal version
 
 ---
  project_version.h.in | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/project_version.h.in b/project_version.h.in
-index 3dcd035..1d38e3c 100644
+index 3dcd035..7bdbcd2 100644
 --- a/project_version.h.in
 +++ b/project_version.h.in
 @@ -27,8 +27,8 @@
@@ -17,7 +17,7 @@ index 3dcd035..1d38e3c 100644
 -#define GFXRECON_PROJECT_VERSION_DESIGNATION  "@GFXRECON_PROJECT_VERSION_DESIGNATION@"
 -#define GFXRECON_PROJECT_VERSION_SHA1         "@GFXRECON_PROJECT_VERSION_SHA1@"
 +#define GFXRECON_PROJECT_VERSION_DESIGNATION  ""
-+#define GFXRECON_PROJECT_VERSION_SHA1         "bionic"
++#define GFXRECON_PROJECT_VERSION_SHA1         "focal"
  
  #define GFXRECON_VERSION_STR_EXPAND(x) #x
  #define GFXRECON_VERSION_STR(x) GFXRECON_VERSION_STR_EXPAND(x)

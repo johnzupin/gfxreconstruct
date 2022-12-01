@@ -1,3 +1,83 @@
+gfxreconstruct (0.9.15+82~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ Brad Grantham ]
+  * fix spelling
+
+  [ bradgrantham-lunarg ]
+  * remove unused option (#857)
+
+  [ Brad Grantham ]
+  * Update header to 1.3.231
+
+  [ Andrew Cox ]
+  * Changed JSON index from functions to all blocks.
+
+  [ Panagiotis Apostolou ]
+  * Hush compiler warning
+
+  [ Locke Lin ]
+  * Trimming vkSetLocalDimmingAMD
+
+  [ Panagiotis Apostolou ]
+  * Lazily resize tracked swapchain images vector
+
+  [ Locke Lin ]
+  * Print info even if frame number is 0
+
+  [ Panagiotis Apostolou ]
+  * Lazily resize tracked swapchain images vector (#866)
+
+  [ davidd-lunarg ]
+  * Reserve format::MetaDataType values for future use (#871)
+
+  [ Andrew Cox - LunarG ]
+  * Annotate Captures With Layer Version (#869)
+
+  [ Panagiotis Apostolou ]
+  * Toggle trimmed capture on Android at runtime
+
+  [ Andrew Cox - LunarG ]
+  * Expand Operation Annotation With a Timestamp Field (#874)
+
+  [ Panagiotis Apostolou ]
+  * Make signal handler watcher thread more configurable
+
+  [ bradgrantham-lunarg ]
+  * don't skip block_index_ increment for FrameDelimiter (#878)
+
+  [ Locke Lin ]
+  * Update VulkanMemoryAllocator to v3.0.1
+  * Fix for 32-bit
+  * Run AcquireNextImage Before QueuePresent
+
+  [ Mike Schuchardt ]
+  * Don't warn on empty integer value
+
+  [ Locke Lin ]
+  * Add USAGE_TRANSFER_SRC when trimming
+
+  [ bradgrantham-lunarg ]
+  * send all except kCommandSeverity and kAlwaysSeverity to stderr (#873)
+
+  [ Locke Lin ]
+  * Choose lower apiVersion for VMA
+
+  [ Panagiotis Apostolou ]
+  * Use single Android property to control run time trimming
+
+  [ Locke Lin ]
+  * Keep HandleWrappers for invalid handles
+  * Track WrapperHandles for release in the ending
+
+  [ Tatsuyuki Ishi ]
+  * Optimize generated ToString compilation performance (#887)
+
+  [ Andrew Cox - LunarG ]
+  * Documented some ToString Templates (#899)
+  * Added a Quote Function to Wrap Strings in Quotes (#900)
+
+ -- john <john@odin>  Thu, 01 Dec 2022 09:47:00 -0700
+
 gfxreconstruct (0.9.15+81~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Brad Grantham ]

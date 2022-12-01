@@ -264,6 +264,11 @@ class VulkanCaptureManager : public CaptureManager
                                   const VkAllocationCallbacks* pAllocator,
                                   VkBuffer*                    pBuffer);
 
+    VkResult OverrideCreateImage(VkDevice                     device,
+                                 const VkImageCreateInfo*     pCreateInfo,
+                                 const VkAllocationCallbacks* pAllocator,
+                                 VkImage*                     pImage);
+
     VkResult OverrideCreateAccelerationStructureKHR(VkDevice                                    device,
                                                     const VkAccelerationStructureCreateInfoKHR* pCreateInfo,
                                                     const VkAllocationCallbacks*                pAllocator,
@@ -1157,6 +1162,8 @@ class VulkanCaptureManager : public CaptureManager
                                       uint64_t          objectHandle,
                                       VkPrivateDataSlot privateDataSlot,
                                       uint64_t          data);
+
+    void PostProcess_vkSetLocalDimmingAMD(VkDevice device, VkSwapchainKHR swapChain, VkBool32 localDimmingEnable);
 
 #if defined(__ANDROID__)
     void OverrideGetPhysicalDeviceSurfacePresentModesKHR(uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes);

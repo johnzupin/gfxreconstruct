@@ -1233,7 +1233,13 @@ void VulkanStateTracker::TrackAcquireImage(
 {
     auto wrapper = reinterpret_cast<SwapchainKHRWrapper*>(swapchain);
 
-    assert((wrapper != nullptr) && (image_index < wrapper->image_acquired_info.size()));
+    assert(wrapper != nullptr);
+
+    if (image_index >= wrapper->image_acquired_info.size())
+    {
+        wrapper->image_acquired_info.resize(image_index + 1);
+        wrapper->image_acquired_info[image_index].last_presented_queue = VK_NULL_HANDLE;
+    }
 
     wrapper->image_acquired_info[image_index].is_acquired           = true;
     wrapper->image_acquired_info[image_index].acquired_device_mask  = deviceMask;
@@ -1322,6 +1328,18 @@ void VulkanStateTracker::TrackSetPrivateData(
     wrapper->object_type   = objectType;
     wrapper->object_handle = GetWrappedId(objectHandle, objectType);
     wrapper->data          = data;
+}
+
+void VulkanStateTracker::TrackSetLocalDimmingAMD(VkDevice device, VkSwapchainKHR swapChain, VkBool32 localDimmingEnable)
+{
+    assert(swapChain != VK_NULL_HANDLE);
+
+    auto wrapper        = reinterpret_cast<SwapchainKHRWrapper*>(swapChain);
+    auto device_wrapper = reinterpret_cast<DeviceWrapper*>(device);
+
+    wrapper->device                   = device_wrapper;
+    wrapper->using_local_dimming_AMD  = true;
+    wrapper->local_dimming_enable_AMD = localDimmingEnable;
 }
 
 void VulkanStateTracker::DestroyState(InstanceWrapper* wrapper)

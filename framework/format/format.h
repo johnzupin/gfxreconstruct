@@ -1,6 +1,6 @@
 /*
-** Copyright (c) 2018-2020 Valve Corporation
-** Copyright (c) 2018-2020 LunarG, Inc.
+** Copyright (c) 2018-2022 Valve Corporation
+** Copyright (c) 2018-2022 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -20,6 +20,7 @@
 ** FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ** DEALINGS IN THE SOFTWARE.
 */
+/// @file Definition of the capture file format.
 
 #ifndef GFXRECON_FORMAT_FORMAT_H
 #define GFXRECON_FORMAT_FORMAT_H
@@ -57,6 +58,10 @@ const uint32_t kCompressedBlockTypeBit    = 0x80000000;
 const size_t   kUuidSize                  = 16;
 const size_t   kMaxPhysicalDeviceNameSize = 256;
 const HandleId kNullHandleId              = 0;
+
+/// Label for operation annotation, which captures parameters used by tools
+/// operating on a capture file.
+const char* const kAnnotationLabelOperation = "operation";
 
 constexpr uint32_t MakeCompressedBlockType(uint32_t block_type)
 {
@@ -120,6 +125,8 @@ enum class MetaDataType : uint16_t
     kReserved22                             = 22,
     kReserved23                             = 23,
     kCreateHardwareBufferCommand            = 24,
+    kReserved25                             = 25,
+    kReserved26                             = 26,
 };
 
 // MetaDataId is stored in the capture file and its type must be uint32_t to avoid breaking capture file compatibility.
@@ -260,7 +267,7 @@ struct AnnotationHeader
     BlockHeader    block_header;
     AnnotationType annotation_type;
     uint32_t       label_length;
-    uint32_t       data_length;
+    uint64_t       data_length;
 };
 
 // Metadata block headers and data types.

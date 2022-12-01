@@ -1,6 +1,6 @@
 /*
-** Copyright (c) 2018-2021 Valve Corporation
-** Copyright (c) 2018-2021 LunarG, Inc.
+** Copyright (c) 2018-2022 Valve Corporation
+** Copyright (c) 2018-2022 LunarG, Inc.
 ** Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
@@ -124,7 +124,19 @@ class CaptureManager
 
     bool IsTrimHotkeyPressed();
 
+    CaptureSettings::RuntimeTriggerState GetRuntimeTriggerState();
+
+    bool RuntimeTriggerEnabled();
+
+    bool RuntimeTriggerDisabled();
+
     void WriteDisplayMessageCmd(const char* message);
+
+    /// @brief Inject an Annotation block into the capture file.
+    /// @param type Identifies the contents of data as plain, xml, or json text
+    /// @param label The key or name of the annotation.
+    /// @param data The value or payload text of the annotation.
+    void WriteAnnotation(const format::AnnotationType type, const char* label, const char* data);
 
     virtual CaptureSettings::TraceSettings GetDefaultTraceSettings();
 
@@ -209,6 +221,7 @@ class CaptureManager
     bool                                GetPageGuardTrackAhbMemory() const { return page_guard_track_ahb_memory_; }
     PageGuardMemoryMode                 GetPageGuardMemoryMode() const { return page_guard_memory_mode_; }
     const std::string&                  GetTrimKey() const { return trim_key_; }
+    bool                                IsTrimEnabled() const { return trim_enabled_; }
     uint32_t                            GetCurrentFrame() const { return current_frame_; }
     CaptureMode                         GetCaptureMode() const { return capture_mode_; }
     bool                                GetDebugLayerSetting() const { return debug_layer_; }
@@ -289,6 +302,7 @@ class CaptureManager
     uint32_t                                current_frame_;
     CaptureMode                             capture_mode_;
     bool                                    previous_hotkey_state_;
+    CaptureSettings::RuntimeTriggerState    previous_runtime_trigger_state_;
     bool                                    debug_layer_;
     bool                                    debug_device_lost_;
     bool                                    screenshots_enabled_;

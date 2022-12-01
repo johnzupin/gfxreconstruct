@@ -62,6 +62,8 @@ struct HandleWrapper
     format::HandleId  handle_id{ format::kNullHandleId }; // Globally unique ID assigned to the handle by the layer.
     format::ApiCallId create_call_id{ format::ApiCallId::ApiCall_Unknown };
     CreateParameters  create_parameters;
+
+    bool active{ false };
 };
 
 //
@@ -443,6 +445,8 @@ struct SwapchainKHRWrapper : public HandleWrapper<VkSwapchainKHR>
     std::vector<ImageAcquiredInfo> image_acquired_info;
     bool                           acquire_full_screen_exclusive_mode{ false };
     bool                           release_full_screen_exclusive_mode{ false };
+    bool                           using_local_dimming_AMD{ false };
+    VkBool32                       local_dimming_enable_AMD{ false };
 };
 
 struct AccelerationStructureKHRWrapper : public HandleWrapper<VkAccelerationStructureKHR>

@@ -998,6 +998,20 @@ void VulkanStateWriter::WriteSwapchainKhrState(const VulkanStateTable& state_tab
             WriteFunctionCall(format::ApiCallId::ApiCall_vkReleaseFullScreenExclusiveModeEXT, &parameter_stream_);
             parameter_stream_.Reset();
         }
+
+        if (wrapper->using_local_dimming_AMD)
+        {
+            const DeviceWrapper* device_wrapper = wrapper->device;
+            assert(device_wrapper != nullptr);
+
+            const VkResult result = VK_SUCCESS;
+            encoder_.EncodeHandleIdValue(device_wrapper->handle_id);
+            encoder_.EncodeHandleIdValue(wrapper->handle_id);
+            encoder_.EncodeVkBool32Value(wrapper->local_dimming_enable_AMD);
+
+            WriteFunctionCall(format::ApiCallId::ApiCall_vkSetLocalDimmingAMD, &parameter_stream_);
+            parameter_stream_.Reset();
+        }
     });
 }
 
@@ -1990,11 +2004,12 @@ void VulkanStateWriter::WriteMappedMemoryState(const VulkanStateTable& state_tab
 void VulkanStateWriter::WriteSwapchainImageState(const VulkanStateTable& state_table)
 {
     state_table.VisitWrappers([&](const SwapchainKHRWrapper* wrapper) {
-        assert((wrapper != nullptr) && (wrapper->device != nullptr) &&
-               (wrapper->child_images.size() == wrapper->image_acquired_info.size()));
+        assert(wrapper != nullptr && wrapper->device != nullptr);
 
         const DeviceWrapper* device_wrapper = wrapper->device;
-        size_t               image_count    = wrapper->child_images.size();
+        size_t               image_count    = wrapper->child_images.size() > wrapper->image_acquired_info.size()
+                                                  ? wrapper->image_acquired_info.size()
+                                                  : wrapper->child_images.size();
 
         format::SetSwapchainImageStateCommandHeader header;
         format::SwapchainImageStateInfo             info;
@@ -2010,11 +2025,11 @@ void VulkanStateWriter::WriteSwapchainImageState(const VulkanStateTable& state_t
         header.device_id                = device_wrapper->handle_id;
         header.swapchain_id             = wrapper->handle_id;
         header.last_presented_image     = wrapper->last_presented_image;
-        header.image_info_count         = static_cast<uint32_t>(wrapper->child_images.size());
+        header.image_info_count         = static_cast<uint32_t>(image_count);
 
         output_stream_->Write(&header, sizeof(header));
 
-        for (size_t i = 0; i < wrapper->child_images.size(); ++i)
+        for (size_t i = 0; i < image_count; ++i)
         {
             ImageWrapper* image_wrapper = wrapper->child_images[i];
 

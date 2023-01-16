@@ -15,15 +15,7 @@ Files: .clang-format
        README.md
        USAGE_android.md
        USAGE_desktop.md
-       android/build.gradle
-       android/framework/*
-       android/gradle.properties
-       android/gradle/*
-       android/gradlew
-       android/gradlew.bat
-       android/layer/*
-       android/settings.gradle
-       android/tools/*
+       android/*
        cmake/FindLZ4.cmake
        cmake/FindVulkanVersion.cmake
        cmake/FindWAYLAND.cmake
@@ -33,35 +25,192 @@ Files: .clang-format
        external/*
        framework/CMakeLists.txt
        framework/generated/.clang-format
-       framework/generated/vulkan_generators/blacklists.json
-       framework/generated/vulkan_generators/capture_overrides.json
-       framework/generated/vulkan_generators/codegen.pyproj
-       framework/generated/vulkan_generators/codegen.sln
-       framework/generated/vulkan_generators/platform_types.json
-       framework/generated/vulkan_generators/replay_overrides.json
-       layer/json/*
-       layer/trace_layer.def
-       layer/vk_layer_settings.txt
-       scripts/clang-format-diff.py
+       framework/generated/vulkan_generators/*
+       layer/*
+       scripts/*
        tools/CMakeLists.txt
-       tools/capture/CMakeLists.txt
-       tools/gfxrecon/CMakeLists.txt
+       tools/capture/*
+       tools/gfxrecon/*
 Copyright: 2021, CopyrightLunarG Inc
-           2018-2020, LunarG, Inc
+           1998-2004, Gilles Vollant - http://www.winimage.com/zLibDll
+           1995-2017, Jean-loup Gailly and Mark Adler
+           2018-2022, LunarG, Inc
+           1995-2017, Mark Adler
            after any existing copyrights
            included
 License: Apache-2.0
 
-Files: debian/*
-Copyright: 2022, LunarG Inc
-License: BSD-3-clause or GPL-3 or MIT
-
 Files: framework/generated/vulkan_generators/base_generator.py
        framework/generated/vulkan_generators/gencode.py
-Copyright: 2018-2020, LunarG, Inc
+Copyright: 2018-2022, LunarG, Inc
            2013-2016, The Khronos Group Inc
-           2018-2020, Valve Corporation
+           2018-2021, Valve Corporation
 License: Apache-2 or Expat
+
+Files: CMakeLists.txt
+       LICENSE.txt
+       android/scripts/*
+       cmake/CodeStyle.cmake
+       cmake/Lint.cmake
+       cmake/Test.cmake
+       framework/application/*
+       framework/decode/*
+       framework/encode/*
+       framework/format/*
+       framework/generated/base_generators/*
+       framework/generated/generate_vulkan.py
+       framework/generated/generated_decode_pnext_struct.cpp
+       framework/generated/generated_encode_pnext_struct.cpp
+       framework/generated/generated_layer_func_table.h
+       framework/generated/generated_vulkan_api_call_encoders.cpp
+       framework/generated/generated_vulkan_api_call_encoders.h
+       framework/generated/generated_vulkan_ascii_consumer.cpp
+       framework/generated/generated_vulkan_ascii_consumer.h
+       framework/generated/generated_vulkan_command_buffer_util.cpp
+       framework/generated/generated_vulkan_command_buffer_util.h
+       framework/generated/generated_vulkan_consumer.h
+       framework/generated/generated_vulkan_decoder.cpp
+       framework/generated/generated_vulkan_decoder.h
+       framework/generated/generated_vulkan_dispatch_table.h
+       framework/generated/generated_vulkan_enum_to_string.cpp
+       framework/generated/generated_vulkan_enum_to_string.h
+       framework/generated/generated_vulkan_feature_util.cpp
+       framework/generated/generated_vulkan_object_info_table_base2.h
+       framework/generated/generated_vulkan_pnext_decoders_to_string.cpp
+       framework/generated/generated_vulkan_pnext_to_string.cpp
+       framework/generated/generated_vulkan_referenced_resource_consumer.cpp
+       framework/generated/generated_vulkan_referenced_resource_consumer.h
+       framework/generated/generated_vulkan_replay_consumer.cpp
+       framework/generated/generated_vulkan_replay_consumer.h
+       framework/generated/generated_vulkan_state_table.h
+       framework/generated/generated_vulkan_struct_decoders.cpp
+       framework/generated/generated_vulkan_struct_decoders.h
+       framework/generated/generated_vulkan_struct_decoders_forward.h
+       framework/generated/generated_vulkan_struct_decoders_to_string.cpp
+       framework/generated/generated_vulkan_struct_decoders_to_string.h
+       framework/generated/generated_vulkan_struct_encoders.cpp
+       framework/generated/generated_vulkan_struct_encoders.h
+       framework/generated/generated_vulkan_struct_handle_mappers.cpp
+       framework/generated/generated_vulkan_struct_handle_mappers.h
+       framework/generated/generated_vulkan_struct_handle_wrappers.cpp
+       framework/generated/generated_vulkan_struct_handle_wrappers.h
+       framework/generated/generated_vulkan_struct_to_string.cpp
+       framework/generated/generated_vulkan_struct_to_string.h
+       framework/generated/vulkan_generators/decode_pnext_struct_generator.py
+       framework/generated/vulkan_generators/encode_pnext_struct_generator.py
+       framework/generated/vulkan_generators/layer_func_table_generator.py
+       framework/generated/vulkan_generators/vulkan_api_call_encoders_body_generator.py
+       framework/generated/vulkan_generators/vulkan_api_call_encoders_header_generator.py
+       framework/generated/vulkan_generators/vulkan_ascii_consumer_body_generator.py
+       framework/generated/vulkan_generators/vulkan_command_buffer_util_body_generator.py
+       framework/generated/vulkan_generators/vulkan_command_buffer_util_header_generator.py
+       framework/generated/vulkan_generators/vulkan_consumer_header_generator.py
+       framework/generated/vulkan_generators/vulkan_decoder_body_generator.py
+       framework/generated/vulkan_generators/vulkan_decoder_header_generator.py
+       framework/generated/vulkan_generators/vulkan_dispatch_table_generator.py
+       framework/generated/vulkan_generators/vulkan_enum_to_string_body_generator.py
+       framework/generated/vulkan_generators/vulkan_enum_to_string_header_generator.py
+       framework/generated/vulkan_generators/vulkan_feature_util_body_generator.py
+       framework/generated/vulkan_generators/vulkan_object_info_table_base2_header_generator.py
+       framework/generated/vulkan_generators/vulkan_pnext_decoders_to_string_body_generator.py
+       framework/generated/vulkan_generators/vulkan_pnext_to_string_body_generator.py
+       framework/generated/vulkan_generators/vulkan_referenced_resource_consumer_body_generator.py
+       framework/generated/vulkan_generators/vulkan_referenced_resource_consumer_header_generator.py
+       framework/generated/vulkan_generators/vulkan_replay_consumer_body_generator.py
+       framework/generated/vulkan_generators/vulkan_state_table_header_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_decoders_body_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_decoders_forward_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_decoders_header_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_decoders_to_string_body_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_decoders_to_string_header_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_encoders_body_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_encoders_header_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_handle_mappers_body_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_handle_mappers_header_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_handle_wrappers_body_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_handle_wrappers_header_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_to_string_body_generator.py
+       framework/generated/vulkan_generators/vulkan_struct_to_string_header_generator.py
+       framework/graphics/*
+       framework/util/*
+       layer/CMakeLists.txt
+       layer/dll_main.cpp
+       layer/test/*
+       layer/trace_layer.cpp
+       layer/trace_layer.h
+       project_version.h.in
+       scripts/build.py
+       scripts/check_code_style.py
+       scripts/test.py
+       tools/capture/gfxrecon-capture.py
+       tools/compress/*
+       tools/convert/CMakeLists.txt
+       tools/convert/main.cpp
+       tools/extract/*
+       tools/gfxrecon/gfxrecon.py
+       tools/info/*
+       tools/optimize/*
+       tools/replay/*
+       tools/tool_settings.h
+Copyright: 2016-2021, Advanced Micro Devices, Inc
+           2021, Arm Limited
+           2021, Broadcom, Inc
+           2015-2022, LunarG, Inc
+           2015-2022, Valve Corporation
+License: Expat
+
+Files: external/Vulkan-Headers/*
+Copyright: 2018-2019, Collabora, Ltd
+           2015-2022, LunarG, Inc
+           2018-2019, The ANGLE Project Authors
+           2013-2022, The Khronos Group Inc
+           2015-2022, Valve Corporation
+License: Apache-2
+
+Files: external/Vulkan-Headers/.gitattributes
+       external/Vulkan-Headers/.github/*
+       external/Vulkan-Headers/BUILD.md
+       external/Vulkan-Headers/CODE_OF_CONDUCT.md
+       external/Vulkan-Headers/README.md
+       external/Vulkan-Headers/cmake/cmake_uninstall.cmake.in
+       external/Vulkan-Headers/cmake/install.cmake
+       external/Vulkan-Headers/registry/profiles/*
+       external/Vulkan-Headers/registry/validusage.json
+License: Apache-2
+Comment: No explicit license found, using license(s) from:
+ external/Vulkan-Headers/LICENSE.txt
+
+Files: external/precompiled/linux/include/*
+       external/precompiled/win32/include/*
+       external/precompiled/win64/include/*
+Copyright: 1995-2017, Jean-loup Gailly and Mark Adler
+           1995-2016, Jean-loup Gailly, Mark Adler
+License: Zlib
+
+Files: external/precompiled/android/include/*
+       external/precompiled/linux/include/lz4.h
+       external/precompiled/win32/include/lz4.h
+       external/precompiled/win64/include/lz4.h
+Copyright: 2011, present, Yann Collet
+License: BSD-2-clause
+
+Files: external/cmake-modules/*
+Copyright: 2009-2010, Iowa State University
+License: BSL-1
+
+Files: external/VulkanMemoryAllocator/*
+Copyright: 2017-2022, Advanced Micro Devices, Inc
+License: Expat
+
+Files: external/README.md
+Copyright: 2017-2020, Advanced Micro Devices, Inc
+           Iowa State University
+           1995-2017, Jean-loup Gailly and Mark Adler
+           2014-2015, Ryan A. Pavlik
+           2009-2014, Sensics, Inc
+           2015-2019, The Khronos Group Inc
+           2011-2016, Yann Collet
+License: Apache-2 or BSD-2-clause or BSL-1 or Expat or Zlib
 
 Files: LICENSE_ThirdParty.txt
 Copyright: 2017-2020, Advanced Micro Devices, Inc
@@ -69,6 +218,22 @@ Copyright: 2017-2020, Advanced Micro Devices, Inc
            2011-2016, Yann Collet
            2016, present, Facebook, Inc
 License: BSD-3-clause or Expat or Zlib
+
+Files: external/catch2/*
+Copyright: Catch2 Authors
+           2017-2022, Two Blue Cubes Ltd
+License: BSL-1
+
+Files: external/Vulkan-Headers/cmake/Copyright_cmake.txt
+Copyright: 2000-2018, Kitware, Inc
+License: BSD-3-clause
+
+Files: debian/*
+Copyright: 2023, LunarG Inc <johnz@lunarg.com>
+License: BSD-3-clause or GPL-3 or MIT
+
+License: Apache-2
+Comment: Add the corresponding license text here
 
 License: Apache-2.0
  Apache License
@@ -273,19 +438,8 @@ License: Apache-2.0
  See the License for the specific language governing permissions and
  limitations under the License.
 
-License: BSD-3-clause
- Copyright <YEAR> <COPYRIGHT HOLDER>
- .
- Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
- .
- 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
- .
- 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
- .
- 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
- .
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+License: BSD-2-clause
+Comment: Add the corresponding license text here
 
 License: BSD-3-clause
  Copyright <YEAR> <COPYRIGHT HOLDER>
@@ -299,6 +453,20 @@ License: BSD-3-clause
  3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
  .
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: BSL-1
+ Permission is hereby granted, free of charge, to any person or organization obtaining a copy of the software and accompanying documentation covered by this license (the "Software") to use, reproduce, display, distribute, execute, and transmit the Software, and to prepare derivative works of the Software, and to permit third-parties to whom the Software is furnished to do so, all subject to the following:
+ .
+ The copyright notices in the Software and this entire statement, including the above license grant, this restriction and the following disclaimer, must be included in all copies of the Software, in whole or in part, and all derivative works of the Software, unless such copies or derivative works are solely in the form of machine-executable object code generated by a source language processor.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+License: Expat
+ Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
 
 License: GPL-3
  GNU GENERAL PUBLIC LICENSE
@@ -975,13 +1143,6 @@ License: GPL-3
  the library.  If this is what you want to do, use the GNU Lesser General
  Public License instead of this License.  But first, please read
  <https://www.gnu.org/licenses/why-not-lgpl.html>.
-
-License: Expat
- Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- .
- The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- .
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
 
 License: MIT
  Copyright <YEAR> <COPYRIGHT HOLDER>

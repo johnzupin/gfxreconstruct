@@ -23,6 +23,11 @@
 
 #include "project_version.h"
 
+#if defined(D3D12_SUPPORT)
+#include "decode/dx_replay_options.h"
+#include <initguid.h>
+#include "generated/generated_dx12_decoder.h"
+#endif
 #include "decode/file_processor.h"
 #include "decode/vulkan_default_allocator.h"
 #include "decode/vulkan_realign_allocator.h"
@@ -64,6 +69,8 @@ const char kPausedOption[]                       = "--paused";
 const char kPauseFrameArgument[]                 = "--pause-frame";
 const char kSkipFailedAllocationShortOption[]    = "--sfa";
 const char kSkipFailedAllocationLongOption[]     = "--skip-failed-allocations";
+const char kDiscardCachedPsosShortOption[]       = "--dcp";
+const char kDiscardCachedPsosLongOption[]        = "--discard-cached-psos";
 const char kOmitPipelineCacheDataShortOption[]   = "--opcd";
 const char kOmitPipelineCacheDataLongOption[]    = "--omit-pipeline-cache-data";
 const char kWsiArgument[]                        = "--wsi";
@@ -85,6 +92,8 @@ const char kScreenshotRangeArgument[]            = "--screenshots";
 const char kScreenshotFormatArgument[]           = "--screenshot-format";
 const char kScreenshotDirArgument[]              = "--screenshot-dir";
 const char kScreenshotFilePrefixArgument[]       = "--screenshot-prefix";
+const char kForceWindowedShortArgument[]         = "--fw";
+const char kForceWindowedLongArgument[]          = "--force-windowed";
 const char kOutput[]                             = "--output";
 const char kMeasurementRangeArgument[]           = "--measurement-frame-range";
 const char kQuitAfterMeasurementRangeOption[]    = "--quit-after-measurement-range";
@@ -92,6 +101,7 @@ const char kFlushMeasurementRangeOption[]        = "--flush-measurement-range";
 const char kEnableUseCapturedSwapchainIndices[]  = "--use-captured-swapchain-indices";
 #if defined(WIN32)
 const char kApiFamilyOption[] = "--api";
+const char kDxTwoPassReplay[] = "--dx12-two-pass-replay";
 #endif
 
 enum class WsiPlatform
@@ -120,6 +130,7 @@ const char kMemoryTranslationRebind[]  = "rebind";
 
 #if defined(WIN32)
 const char kApiFamilyVulkan[] = "vulkan";
+const char kApiFamilyD3D12[]  = "d3d12";
 const char kApiFamilyAll[]    = "all";
 #endif
 
@@ -607,6 +618,10 @@ static bool IsApiFamilyIdEnabled(const gfxrecon::util::ArgumentParser& arg_parse
         {
             return (api == gfxrecon::format::ApiFamilyId::ApiFamily_Vulkan);
         }
+        else if (gfxrecon::util::platform::StringCompareNoCase(kApiFamilyD3D12, value.c_str()) == 0)
+        {
+            return (api == gfxrecon::format::ApiFamilyId::ApiFamily_D3D12);
+        }
         else
         {
             GFXRECON_LOG_WARNING("Ignoring unrecognized API option \"%s\"", value.c_str());
@@ -620,6 +635,29 @@ static bool IsApiFamilyIdEnabled(const gfxrecon::util::ArgumentParser& arg_parse
     }
 }
 #endif
+
+static void IsForceWindowed(gfxrecon::decode::ReplayOptions& options, const gfxrecon::util::ArgumentParser& arg_parser)
+{
+    auto value = arg_parser.GetArgumentValue(kForceWindowedShortArgument);
+
+    if (value.empty())
+    {
+        value = arg_parser.GetArgumentValue(kForceWindowedLongArgument);
+    }
+    if (!value.empty())
+    {
+        options.force_windowed = true;
+
+        std::istringstream value_input;
+        value_input.str(value);
+        std::string val;
+
+        std::getline(value_input, val, ',');
+        options.windowed_width = std::stoi(val);
+        std::getline(value_input, val, ',');
+        options.windowed_height = std::stoi(val);
+    }
+}
 
 static std::vector<int32_t> GetFilteredMsgs(const gfxrecon::util::ArgumentParser& arg_parser,
                                             const char*                           filter_messages)
@@ -687,6 +725,14 @@ static void GetReplayOptions(gfxrecon::decode::ReplayOptions& options, const gfx
     {
         options.flush_measurement_frame_range = true;
     }
+
+    const auto& override_gpu = arg_parser.GetArgumentValue(kOverrideGpuArgument);
+    if (!override_gpu.empty())
+    {
+        options.override_gpu_index = std::stoi(override_gpu);
+    }
+
+    IsForceWindowed(options, arg_parser);
 }
 
 static gfxrecon::decode::VulkanReplayOptions
@@ -702,12 +748,6 @@ GetVulkanReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parse
 #else
     replay_options.enable_vulkan = true;
 #endif
-
-    const auto& override_gpu = arg_parser.GetArgumentValue(kOverrideGpuArgument);
-    if (!override_gpu.empty())
-    {
-        replay_options.override_gpu_index = std::stoi(override_gpu);
-    }
 
     const auto& override_gpu_group = arg_parser.GetArgumentValue(kOverrideGpuGroupArgument);
     if (!override_gpu_group.empty())
@@ -763,6 +803,34 @@ GetVulkanReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parse
 
     return replay_options;
 }
+
+#if defined(D3D12_SUPPORT)
+static gfxrecon::decode::DxReplayOptions GetDxReplayOptions(const gfxrecon::util::ArgumentParser& arg_parser)
+{
+    gfxrecon::decode::DxReplayOptions replay_options;
+    GetReplayOptions(replay_options, arg_parser);
+
+    replay_options.enable_d3d12         = IsApiFamilyIdEnabled(arg_parser, gfxrecon::format::ApiFamily_D3D12);
+    replay_options.DeniedDebugMessages  = GetFilteredMsgs(arg_parser, kDeniedMessages);
+    replay_options.AllowedDebugMessages = GetFilteredMsgs(arg_parser, kAllowedMessages);
+
+    if (arg_parser.IsOptionSet(kDxTwoPassReplay))
+    {
+        replay_options.enable_d3d12_two_pass_replay = true;
+    }
+
+    if (arg_parser.IsOptionSet(kDiscardCachedPsosLongOption) || arg_parser.IsOptionSet(kDiscardCachedPsosShortOption))
+    {
+        replay_options.discard_cached_psos = true;
+    }
+
+    replay_options.screenshot_ranges      = GetScreenshotRanges(arg_parser);
+    replay_options.screenshot_format      = GetScreenshotFormat(arg_parser);
+    replay_options.screenshot_dir         = GetScreenshotDir(arg_parser);
+    replay_options.screenshot_file_prefix = arg_parser.GetArgumentValue(kScreenshotFilePrefixArgument);
+    return replay_options;
+}
+#endif
 
 static bool CheckOptionPrintVersion(const char* exe_name, const gfxrecon::util::ArgumentParser& arg_parser)
 {

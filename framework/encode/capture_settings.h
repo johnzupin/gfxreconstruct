@@ -39,9 +39,6 @@ GFXRECON_BEGIN_NAMESPACE(encode)
 
 class CaptureSettings
 {
-  private:
-    const static char kDefaultCaptureFileName[];
-
   public:
     enum MemoryTrackingMode
     {
@@ -72,6 +69,8 @@ class CaptureSettings
         uint32_t total{ 0 }; // Total number of frames to capture.
     };
 
+    const static char kDefaultCaptureFileName[];
+
     struct TraceSettings
     {
         std::string                   capture_file{ kDefaultCaptureFileName };
@@ -95,12 +94,17 @@ class CaptureSettings
         bool                          page_guard_signal_handler_watcher{ false };
         bool                          debug_layer{ false };
         bool                          debug_device_lost{ false };
+        bool                          disable_dxr{ false };
+        uint32_t                      accel_struct_padding{ 0 };
 
         // An optimization for the page_guard memory tracking mode that eliminates the need for shadow memory by
         // overriding vkAllocateMemory so that all host visible allocations use the external memory extension with a
         // memory allocation that the capture layer can monitor to determine which regions of memory have been modified
         // by the application.
         bool page_guard_external_memory{ false };
+
+        // IUnknown wrapping option
+        bool iunknown_wrapping{ false };
     };
 
   public:

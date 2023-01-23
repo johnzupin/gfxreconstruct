@@ -33,18 +33,49 @@ GFXRECON_BEGIN_NAMESPACE(util)
 GFXRECON_BEGIN_NAMESPACE(filepath)
 
 #if defined(WIN32)
-const char kPathSep         = '\\';
-const char kPathSepStr[]    = "\\";
-const char kAltPathSep      = '/';
-const char kAltPathSepStr[] = "/";
+const char kPathSep             = '\\';
+const char kPathSepStr[]        = "\\";
+const char kAltPathSep          = '/';
+const char kAltPathSepStr[]     = "/";
+const char kAltPathLastSepStr[] = "/\\";
 #else
 const char kPathSep      = '/';
 const char kPathSepStr[] = "/";
 #endif
 
+static constexpr uint32_t kMaxDriverInfoSize   = 1024;
+static constexpr uint32_t kMaxFilePropertySize = 256;
+static constexpr uint8_t  kFileVersionSize     = 4;
+
+struct FileInfo
+{
+    char     ProductVersion[kMaxFilePropertySize]   = {};
+    char     FileVersion[kMaxFilePropertySize]      = {};
+    uint32_t AppVersion[kFileVersionSize]           = {};
+    char     AppName[kMaxFilePropertySize]          = {};
+    char     CompanyName[kMaxFilePropertySize]      = {};
+    char     FileDescription[kMaxFilePropertySize]  = {};
+    char     InternalName[kMaxFilePropertySize]     = {};
+    char     OriginalFilename[kMaxFilePropertySize] = {};
+    char     ProductName[kMaxFilePropertySize]      = {};
+};
+
+enum ExeInfoMember
+{
+    kExeInfoCompanyName,
+    kExeInfoFileDescription,
+    kExeInfoFileVersion,
+    kExeInfoInternalName,
+    kExeInfoOriginalFilename,
+    kExeInfoProductName,
+    kExeInfoProductVersion
+};
+
 bool Exists(const std::string& path);
 
 bool IsFile(const std::string& path);
+
+bool FilesEqual(const std::string& first, const std::string& second);
 
 bool IsDirectory(const std::string& path);
 
@@ -55,6 +86,21 @@ std::string InsertFilenamePostfix(const std::string& filename, const std::string
 std::string GenerateTimestampedFilename(const std::string& filename, bool use_gmt = false);
 
 bool GetWindowsSystemLibrariesPath(std::string& base_path);
+
+bool QueryStringFileInfo(
+    const void* ver_data, std::string& ver_ret_val, uint32_t& query_size, uint32_t len, const char* predef_strings);
+
+void UpdateExeFileInfo(ExeInfoMember member, const std::string& value, FileInfo& info);
+
+void GetFileInfo(FileInfo& exe_info, const std::string& file_path);
+
+void GetApplicationInfo(FileInfo& file_info);
+
+void CheckReplayerName(const std::string& exe_info_name);
+
+bool EqualStr(const std::string& str1, const std::string& str2, bool case_sensitive);
+
+std::string FindModulePath(const std::string& target_module, bool case_sensitive);
 
 GFXRECON_END_NAMESPACE(filepath)
 GFXRECON_END_NAMESPACE(util)

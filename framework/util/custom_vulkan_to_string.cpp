@@ -21,6 +21,7 @@
 */
 
 #include "custom_vulkan_to_string.h"
+
 #include "generated/generated_vulkan_enum_to_string.h"
 #include "generated/generated_vulkan_struct_to_string.h"
 
@@ -34,19 +35,6 @@ GFXRECON_BEGIN_NAMESPACE(util)
 // NOTE : The following structures' ToString() functions aren't generated due
 //  to various reasons...ie unions, non standard counts for arrays, fields that
 //  need validation to interpret correctly, etc...
-
-template <>
-std::string ToString<SECURITY_ATTRIBUTES>(const SECURITY_ATTRIBUTES& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize)
-{
-    return ObjectToString(toStringFlags, tabCount, tabSize,
-        [&](std::stringstream& strStrm)
-        {
-            FieldToString(strStrm, true, "nLength", toStringFlags, tabCount, tabSize, ToString(obj.nLength, toStringFlags, tabCount, tabSize));
-            FieldToString(strStrm, false, "lpSecurityDescriptor", toStringFlags, tabCount, tabSize, Quote(PtrToString(obj.lpSecurityDescriptor)));
-            FieldToString(strStrm, false, "bInheritHandle", toStringFlags, tabCount, tabSize, ToString(obj.bInheritHandle, toStringFlags, tabCount, tabSize));
-        }
-    );
-}
 
 template <>
 std::string ToString<VkAccelerationStructureGeometryKHR>(const VkAccelerationStructureGeometryKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize)

@@ -25,6 +25,9 @@
 #define GFXRECON_ENCODE_PARAMETER_ENCODER_H
 
 #include "encode/vulkan_handle_wrapper_util.h"
+#if defined(WIN32)
+#include "encode/dx12_object_wrapper_util.h"
+#endif
 #include "format/format.h"
 #include "util/defines.h"
 #include "util/output_stream.h"
@@ -50,7 +53,9 @@ class ParameterEncoder
     // clang-format off
 
     // Values
+    void EncodeInt8Value(int8_t value)                                                                                { EncodeValue(value); }
     void EncodeUInt8Value(uint8_t value)                                                                              { EncodeValue(value); }
+    void EncodeInt16Value(int16_t value)                                                                              { EncodeValue(value); }
     void EncodeUInt16Value(uint16_t value)                                                                            { EncodeValue(value); }
     void EncodeInt32Value(int32_t value)                                                                              { EncodeValue(value); }
     void EncodeUInt32Value(uint32_t value)                                                                            { EncodeValue(value); }
@@ -80,8 +85,17 @@ class ParameterEncoder
     void EncodeFlags64Value(T value)                                                                                  { EncodeValue(static_cast<format::Flags64EncodeType>(value)); }
 
     // Pointers
+    void EncodeUInt8Ptr(const uint8_t* ptr, bool omit_data = false, bool omit_addr = false)                           { EncodePointer(ptr, omit_data, omit_addr); }
     void EncodeInt32Ptr(const int32_t* ptr, bool omit_data = false, bool omit_addr = false)                           { EncodePointer(ptr, omit_data, omit_addr); }
     void EncodeUInt32Ptr(const uint32_t* ptr, bool omit_data = false, bool omit_addr = false)                         { EncodePointer(ptr, omit_data, omit_addr); }
+
+#if defined(WIN32)
+    // Oveload for WIN32 DWORD type.  Pointers from the DWORD typedef of unsigned long are not compatible with uint32_t pointers.
+    void EncodeUInt32Ptr(const unsigned long* ptr, bool omit_data = false, bool omit_addr = false)                    { EncodePointer(ptr, omit_data, omit_addr); }
+    // Oveload for WIN32 SIZE_T type.  Pointers from the SIZE_T typedef of unsigned long are not compatible with size_t pointers.
+    void EncodeSizeTPtr(const unsigned long* ptr, bool omit_data = false, bool omit_addr = false)                     { EncodePointer(ptr, omit_data, omit_addr); }
+#endif
+
     void EncodeInt64Ptr(const int64_t* ptr, bool omit_data = false, bool omit_addr = false)                           { EncodePointer(ptr, omit_data, omit_addr); }
     void EncodeUInt64Ptr(const uint64_t* ptr, bool omit_data = false, bool omit_addr = false)                         { EncodePointer(ptr, omit_data, omit_addr); }
     void EncodeFloatPtr(const float* ptr, bool omit_data = false, bool omit_addr = false)                             { EncodePointer(ptr, omit_data, omit_addr); }
@@ -105,6 +119,8 @@ class ParameterEncoder
     void EncodeFlags64Ptr(const T* ptr, bool omit_data = false, bool omit_addr = false)                               { EncodePointerConverted<format::Flags64EncodeType>(ptr, omit_data, omit_addr); }
 
     // Arrays
+    void EncodeInt16Array(const int16_t* arr, size_t len, bool omit_data = false, bool omit_addr = false)             { EncodeArray(arr, len, omit_data, omit_addr); }
+    void EncodeUInt16Array(const uint16_t* arr, size_t len, bool omit_data = false, bool omit_addr = false)           { EncodeArray(arr, len, omit_data, omit_addr); }
     void EncodeInt32Array(const int32_t* arr, size_t len, bool omit_data = false, bool omit_addr = false)             { EncodeArray(arr, len, omit_data, omit_addr); }
     void EncodeUInt32Array(const uint32_t* arr, size_t len, bool omit_data = false, bool omit_addr = false)           { EncodeArray(arr, len, omit_data, omit_addr); }
     void EncodeInt64Array(const int64_t* arr, size_t len, bool omit_data = false, bool omit_addr = false)             { EncodeArray(arr, len, omit_data, omit_addr); }
@@ -194,6 +210,81 @@ class ParameterEncoder
             EncodeSizeTValue(len);
         }
     }
+
+#if defined(WIN32)
+    template <typename T>
+    void EncodeObjectValue(const T* value)
+    {
+        EncodeHandleIdValue(GetDx12WrappedId<T>(value));
+    }
+
+    template <typename T>
+    void EncodeObjectPtr(const T* const* value, bool omit_data = false, bool omit_addr = false)
+    {
+        EncodeWrappedObjectPointer(value, omit_data, omit_addr);
+    }
+
+    void EncodeObjectPtr(const void* const* value, bool omit_data = false, bool omit_addr = false)
+    {
+        EncodeWrappedObjectPointer(reinterpret_cast<const IUnknown* const*>(value), omit_data, omit_addr);
+    }
+
+    template <typename T>
+    void EncodeWrappedObjectPointer(const T* const* ptr, bool omit_data = false, bool omit_addr = false)
+    {
+        uint32_t pointer_attrib =
+            format::PointerAttributes::kIsSingle | GetPointerAttributeMask(ptr, omit_data, omit_addr);
+
+        output_stream_->Write(&pointer_attrib, sizeof(pointer_attrib));
+
+        if (ptr != nullptr)
+        {
+            if ((pointer_attrib & format::PointerAttributes::kHasAddress) == format::PointerAttributes::kHasAddress)
+            {
+                EncodeAddress(ptr);
+            }
+
+            if ((pointer_attrib & format::PointerAttributes::kHasData) == format::PointerAttributes::kHasData)
+            {
+                EncodeObjectValue<T>(*ptr);
+            }
+        }
+    }
+
+    template <typename T>
+    void EncodeObjectArray(T* const* arr, size_t len, bool omit_data = false, bool omit_addr = false)
+    {
+        EncodeWrappedObjectArray<T>(arr, len, omit_data, omit_addr);
+    }
+
+    template <typename T>
+    void EncodeWrappedObjectArray(T* const* arr, size_t len, bool omit_data = false, bool omit_addr = false)
+    {
+        uint32_t pointer_attrib =
+            format::PointerAttributes::kIsArray | GetPointerAttributeMask(arr, omit_data, omit_addr);
+
+        output_stream_->Write(&pointer_attrib, sizeof(pointer_attrib));
+
+        if (arr != nullptr)
+        {
+            if ((pointer_attrib & format::PointerAttributes::kHasAddress) == format::PointerAttributes::kHasAddress)
+            {
+                EncodeAddress(arr);
+            }
+
+            // Always write the array size when the pointer is not null.
+            EncodeSizeTValue(len);
+
+            if ((pointer_attrib & format::PointerAttributes::kHasData) == format::PointerAttributes::kHasData)
+            {
+                for (size_t i = 0; i < len; ++i)
+                {
+                    EncodeObjectValue<T>(arr[i]);
+                }
+            }
+        }
+    }
+#endif
 
   private:
     uint32_t GetPointerAttributeMask(const void* ptr, bool omit_data, bool omit_addr)

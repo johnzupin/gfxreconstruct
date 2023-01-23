@@ -31,6 +31,7 @@ add_library(gfxrecon_format STATIC "")
 target_sources(gfxrecon_format
                PRIVATE
                     ${CMAKE_CURRENT_LIST_DIR}/api_call_id.h
+                    $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/dx12_subobject_types.h>
                     ${CMAKE_CURRENT_LIST_DIR}/format.h
                     ${CMAKE_CURRENT_LIST_DIR}/format_util.h
                     ${CMAKE_CURRENT_LIST_DIR}/format_util.cpp
@@ -39,7 +40,8 @@ target_sources(gfxrecon_format
 
 target_include_directories(gfxrecon_format
                            PUBLIC
-                               ${CMAKE_SOURCE_DIR}/framework)
+                               ${CMAKE_SOURCE_DIR}/framework
+                               $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_SOURCE_DIR}/external/AgilitySDK/inc>)
 
 target_link_libraries(gfxrecon_format gfxrecon_util vulkan_registry platform_specific)
 

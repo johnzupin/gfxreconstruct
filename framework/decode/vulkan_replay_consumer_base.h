@@ -73,6 +73,11 @@ class VulkanReplayConsumerBase : public VulkanConsumer
 
     virtual ~VulkanReplayConsumerBase() override;
 
+    virtual void Process_ExeFileInfo(util::filepath::FileInfo& info_record)
+    {
+        gfxrecon::util::filepath::CheckReplayerName(info_record.AppName);
+    }
+
     void SetFatalErrorHandler(std::function<void(const char*)> handler) { fatal_error_handler_ = handler; }
 
     void SetFpsInfo(graphics::FpsInfo* fps_info) { fps_info_ = fps_info; }

@@ -42,7 +42,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
             // TODO: We assume that lpvReserved will always be NULL, because FreeLibrary should be
             //       invoked by the loader from vkDestroyInstance.  If this is not always the case,
             //       we will need to split destroy_layer into a shutdown function, responsible for
-            //       performing any finalization work, that would always run and a destroy funtion,
+            //       performing any finalization work, that would always run and a destroy function,
             //       responsible for releasing resources, that would only run when the process was
             //       not terminating.
             if (lpvReserved == nullptr)

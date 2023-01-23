@@ -1,6 +1,6 @@
 ###############################################################################
 # Copyright (c) 2018-2020 LunarG, Inc.
-# Copyright (c) 2020 Advanced Micro Devices, Inc.
+# Copyright (c) 2020-2021 Advanced Micro Devices, Inc.
 # All rights reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,8 +23,21 @@
 #
 # Author: LunarG Team
 # Author: AMD Developer Tools Team
-# Description: CMake script for framework util target
+# Description: CMake script for layer target
 ###############################################################################
+
+if (D3D12_SUPPORT)
+    set (LINK_ARCH "x64")
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set (LINK_ARCH "x86")
+    endif()
+    add_subdirectory(d3d12_capture)
+    add_subdirectory(d3d12)
+    add_subdirectory(dxgi)
+    if (${BUILD_LAUNCHER_AND_INTERCEPTOR})
+        add_subdirectory(gfxrecon_interceptor)
+    endif()
+endif()
 
 add_library(VkLayer_gfxreconstruct SHARED "")
 

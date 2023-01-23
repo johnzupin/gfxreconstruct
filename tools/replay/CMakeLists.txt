@@ -1,6 +1,6 @@
 ###############################################################################
 # Copyright (c) 2018-2021 LunarG, Inc.
-# Copyright (c) 2020 Advanced Micro Devices, Inc.
+# Copyright (c) 2020-2022 Advanced Micro Devices, Inc.
 # All rights reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -37,7 +37,15 @@ target_sources(gfxrecon-replay
 
 target_include_directories(gfxrecon-replay PUBLIC ${CMAKE_BINARY_DIR})
 
-target_link_libraries(gfxrecon-replay gfxrecon_application gfxrecon_decode gfxrecon_graphics gfxrecon_format gfxrecon_util platform_specific)
+target_link_libraries(gfxrecon-replay
+                          gfxrecon_application
+                          gfxrecon_decode
+                          gfxrecon_graphics
+                          gfxrecon_format
+                          gfxrecon_util
+                          platform_specific
+                          $<$<BOOL:${D3D12_SUPPORT}>:d3d12.lib>
+                          $<$<BOOL:${D3D12_SUPPORT}>:dxgi.lib>)
 
 # A multithreaded Vulkan driver loaded through dlopen() mechanism
 # won't work if libstdc++ has started in a single-threaded mode.
@@ -47,5 +55,7 @@ find_package(Threads REQUIRED)
 target_link_libraries(gfxrecon-replay Threads::Threads)
 
 common_build_directives(gfxrecon-replay)
+
+include(${CMAKE_SOURCE_DIR}/cmake/AgilitySDK.cmake)
 
 install(TARGETS gfxrecon-replay RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

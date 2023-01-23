@@ -45,6 +45,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "util/file_path.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
@@ -114,6 +115,8 @@ class CaptureManager
 
     void EndApiCallCapture();
 
+    void EndMethodCallCapture();
+
     void EndFrame();
 
     bool ShouldTriggerScreenshot();
@@ -132,6 +135,8 @@ class CaptureManager
 
     void WriteDisplayMessageCmd(const char* message);
 
+    void WriteExeFileInfo(const gfxrecon::util::filepath::FileInfo& info);
+
     /// @brief Inject an Annotation block into the capture file.
     /// @param type Identifies the contents of data as plain, xml, or json text
     /// @param label The key or name of the annotation.
@@ -139,6 +144,8 @@ class CaptureManager
     void WriteAnnotation(const format::AnnotationType type, const char* label, const char* data);
 
     virtual CaptureSettings::TraceSettings GetDefaultTraceSettings();
+
+    bool GetIUnknownWrappingSetting() const { return iunknown_wrapping_; }
 
   protected:
     enum CaptureModeFlags : uint32_t
@@ -226,11 +233,13 @@ class CaptureManager
     CaptureMode                         GetCaptureMode() const { return capture_mode_; }
     bool                                GetDebugLayerSetting() const { return debug_layer_; }
     bool                                GetDebugDeviceLostSetting() const { return debug_device_lost_; }
+    bool                                GetDisableDxrSetting() const { return disable_dxr_; }
+    auto                                GetAccelStructPaddingSetting() const { return accel_struct_padding_; }
 
-    std::string CreateTrimFilename(const std::string& base_filename, const CaptureSettings::TrimRange& trim_range);
-    bool        CreateCaptureFile(const std::string& base_filename);
-    void        ActivateTrimming();
-    void        DeactivateTrimming();
+    std::string  CreateTrimFilename(const std::string& base_filename, const CaptureSettings::TrimRange& trim_range);
+    virtual bool CreateCaptureFile(const std::string& base_filename);
+    virtual void ActivateTrimming();
+    virtual void DeactivateTrimming();
 
     void WriteFileHeader();
     void BuildOptionList(const format::EnabledOptions&        enabled_options,
@@ -307,6 +316,9 @@ class CaptureManager
     bool                                    debug_device_lost_;
     bool                                    screenshots_enabled_;
     std::vector<uint32_t>                   screenshot_indices_;
+    bool                                    disable_dxr_;
+    uint32_t                                accel_struct_padding_;
+    bool                                    iunknown_wrapping_;
 };
 
 GFXRECON_END_NAMESPACE(encode)

@@ -1,3 +1,1162 @@
+gfxreconstruct (0.9.17+4~rc1-1lunarg20.04-1) focal; urgency=medium
+
+  [ Dustin Graves ]
+  * Add method call block type to file format
+  * Add method call support for capture
+  * Add method call support for replay
+  * Add GetApiCallFamily utility function
+  * Add D3D12 dispatch tables
+  * Add proxy capture DLLs
+  * Add system DLL import libs
+  * Link proxy DLLs with system DLL copies
+  * Remove unused variable
+
+  [ locke-lunarg ]
+  * Add DX ApiCall id
+  * Add extenral data CppHeaderParser
+  * Generate encode header
+  * Generate encode body
+  * Add dx12_api_call_encoders into CMakeList
+
+  [ Rodrigo Urra ]
+  * Move D3D12-related DLLs into their own folders
+
+  [ Dustin Graves ]
+  * Add CMake option for D3D12
+  * Fix 32-bit build error with generated DX12 code
+
+  [ locke-lunarg ]
+  * Python code style description
+  * Remove registry
+  * Refactor encoder
+  * Separate shared code from Vulkan code generation
+  * Generate decode header
+  * Generate decode body
+  * Generate struct decoders
+  * Add decoder code into CMakeList
+  * Generate consumer header
+  * Add consumer code into CMakeList
+  * Generate replay consumer header
+  * Generate replay consumer body
+  * Generate ascii consumer
+  * Add replay code into CMakeList
+  * Custom union struct
+  * Use COM_Outptr to check object or void
+  * Check null in AddObject
+
+  [ Rodrigo Urra ]
+  * Implement infrastructure to launch, inject, and hook into D3D12 apps
+
+  [ locke-lunarg ]
+  * Move DX12CppClass
+  * Custom LARGE_INTEGER union
+  * Remove union code generation
+
+  [ Dustin Graves ]
+  * Refactor DX dispatch tables
+  * Add DX12 dispatch tables to TraceManager
+  * Move HandleUnwrapMemory to generic file
+
+  [ locke-lunarg ]
+  * Change DX12 to Dx12
+  * Use triple double quotes for docstring and move to inside
+  * Use lower_case_with_underscores
+  * Remove # noqa
+  * Add PEP8 style yapf config
+  * Python code style
+  * Format by yapf
+  * Fix flake8 issues
+  * Remove import *
+
+  [ Rodrigo Urra ]
+  * Improve control over when to hook into DXGI/D3D12 libraries
+
+  [ Dustin Graves ]
+  * Initial IUnknown wrapper and utilities
+  * Basic D3D12 class wrapper generation
+  * Initial code gen for wrapper creation functions
+
+  [ locke-lunarg ]
+  * Simplify encode object generation and move to custom
+  * Change encode parameter return to string
+
+  [ Rodrigo Urra ]
+  * Hookup CreateProcess and improve launcher
+  * Address review comments
+  * Apply clang-format
+
+  [ Locke Lin ]
+  * Code generation
+  * Change python format
+  * TrackManager to CaptureManager
+  * ReplayOptions to VulkanReplayOptions
+  * custom_encoder_commands to custom_vulkan_encoder_commands
+  * MetaDataType to MetaDataId
+
+  [ igorbrsn ]
+  * Virtual address mapping
+
+  [ Rodrigo Urra ]
+  * Move comments to header file
+
+  [ Dustin Graves ]
+  * Add functions to unwrap objects in structs
+  * fixup! Add functions to unwrap objects in structs
+  * Add QueryInterface wrapping
+  * Add WrapObject calls to wrapper codegen
+
+  [ igorbrsn ]
+  * clean info messages from VA mapping test
+
+  [ Dustin Graves ]
+  * Remove duplicate CMakeLists.txt entries
+  * Add object unwrapping to wrapper codegen
+  * Add stack count for wrapped functions
+  * Generate struct object unwrapping
+  * Unwrap arrays of objects
+
+  [ locke-lunarg ]
+  * Add VSCode workspace & set python3 for VK
+  * Remove redundant space
+  * Undo naming change
+  * Move EncodeObject into ParameterEncoder
+  * Fix win32 handle bug
+
+  [ Dustin Graves ]
+  * Integrate wrappers with proxy DLLs
+  * Add codegen for parameter encoding
+  * Add parameter encoding to IUnknown_Wrapper
+  * Add wrapper destructor
+  * Prevent duplicate wrapper creation
+
+  [ locke-lunarg ]
+  * Use EncodeObjectPtr for Dx object**
+
+  [ igorbrsn ]
+  * unordered_map implemetation for wrap objects
+
+  [ Dustin Graves ]
+  * Add custom pre/post call actions
+  * Split custom encoder commands file
+  * Enable D3D12 replay
+
+  [ locke-lunarg ]
+  * Add configuration .json files
+  * Fix replay generation bug
+
+  [ David Donaldson ]
+  * Consolidate common DLL initialization code
+
+  [ igorbrsn ]
+  * jenkinsfile added in order to trigger CI build
+
+  [ locke-lunarg ]
+  * Give Decoded_Struct value
+  * Add ReadFromSubresource\WriteToSubresource to list
+  * Add replay external object
+
+  [ Dustin Graves ]
+  * Add decode allocator begin/end for member funcs
+
+  [ locke-lunarg ]
+  * Replay map array objects
+  * Set DxObject is format::HandleId
+
+  [ Rodrigo Urra ]
+  * Hookup detours code to object wrappers
+
+  [ locke-lunarg ]
+  * Give decoded_value of return_value
+
+  [ Dustin Graves ]
+  * Disable GetWindowsSystemLibrariesPath for Linux
+  * Use format::HandleId with custom struct decoders
+
+  [ igorbrsn ]
+  * Igor jenkins test
+
+  [ locke-lunarg ]
+  * Use platform_types.json
+  * Set win32 handle as void*
+
+  [ Rodrigo Urra ]
+  * Address static code analysis bug
+
+  [ Dustin Graves ]
+  * Add D3D12 object info structs
+  * Use wrapper with pre/post calls
+  * Rename custom encoder to custom wrapper commands
+  * Move wrapper constructor/desctructor to body
+  * Add custom wrapper destroy commands
+  * Add wrapper map utilities
+  * Pass wrapped objects to param encode functions
+  * Add mapped memory tracking
+  * Add tex3d subresource size calculation
+
+  [ locke-lunarg ]
+  * Add dx12_object_mapping_util
+  * Add dx12_struct_object_mappers
+  * Use is_dx12_class() instead given type
+  * Call MapStructObjects in replay consumer
+
+  [ igorbrsn ]
+  * Replay overrides for swapchain creation
+
+  [ Dustin Graves ]
+  * Add replay info structures
+  * Provide info structs to replay overrides
+  * Add replay object reference tracking
+  * Add swapchain replay info
+  * Implement mapped memory writes for replay
+
+  [ locke-lunarg ]
+  * Run AllocateOutputData() before GetOutputPointer()
+  * Run AllocateOutputData() before override function
+
+  [ David Donaldson ]
+  * Rename TraceManager to CaptureManager
+  * Duplicate CaptureManager to Vulkan and D3D12 files
+  * Create Vulkan and D3D12 CaptureManager classes
+  * Cleanup CaptureManager and D3D12CaptureManager
+  * Cleanup VulkanCaptureManager
+  * Rename CaptureManager::*Trace functions to *Capture
+  * Misc CaptureManager code cleanup
+
+  [ Dustin Graves ]
+  * Add conversion check for map memory copy size
+  * Fix swapchain replay info intialization
+  * Add replay handle unwrapping for unions
+
+  [ locke-lunarg ]
+  * Wrap objects in struct
+
+  [ Dustin Graves ]
+  * Remove D3D12 condition from util test main
+  * Add missing headers to DX12 decoder
+  * Use base functions with capture unwrap codegen
+  * Handle recursive struct declarations in codegen
+  * Add descriptor heap info tracking for replay
+  * Add descriptor address mapping functions
+
+  [ igorbrsn ]
+  * silence extra email notification
+
+  [ David Donaldson ]
+  * Make CaptureManager members private with accessors
+
+  [ Dustin Graves ]
+  * Use size_t encoding rules with size_t types
+  * Add GPU VA mapping for replay
+  * Add D3D12 frame delimiters
+
+  [ Locke Lin ]
+  * Map CPU and GPU descriptors
+  * Add pRenderTargetDescriptors into ARRAY_SIZE_LIST
+  * Move Map functions into dx12_object_mapping_util
+  * Map CPU & GPU in struct
+  * Generate generated_dx12_struct_wrappers
+
+  [ igorbrsn ]
+  * GetWriteWatch tests
+
+  [ Locke Lin ]
+  * Modify underscore class_name
+  * Add capture overrides
+
+  [ Dustin Graves ]
+  * Add blacklist support for DX function/method calls
+  * Add custom CheckFeatureSupport implementation
+
+  [ Rodrigo Urra ]
+  * Implement process hopping across different bitness apps
+
+  [ Locke Lin ]
+  * Fix MapObjects issue
+
+  [ Dustin Graves ]
+  * Add replay HWND mapping
+  * Add overrides for fence signal/wait replay
+
+  [ Rodrigo Urra ]
+  * Add option to enable D3D12 debug layer for capture
+
+  [ Dustin Graves ]
+  * Fix forward decode struct declarations
+
+  [ igorbrsn ]
+  * CI build fix
+
+  [ Locke Lin ]
+  * Print HRESULT string
+
+  [ David Donaldson ]
+  * Rename ReplayOptions to VulkanReplayOptions
+  * Add ReplayOptions and DxReplayOptions
+  * Add more utils to find instance layers/extensions
+  * Parse --validate replay option
+  * Enable gfxrecon-replay arg --validate for Vulkan
+  * Enable gfxrecon-replay arg --validate for DX12
+  * Add validate arg to usage and Android gfxrecon.py
+
+  [ Dustin Graves ]
+  * Add custom D3D12_PIPELINE_STATE_STREAM_DESC encode
+  * Add D3D12_PIPELINE_STATE_STREAM_DESC unwrap/map
+  * Return valid event for memory budget notification
+  * Skip desc offset calc for start addr
+
+  [ Locke Lin ]
+  * Add fatal error handler
+
+  [ igorbrsn ]
+  * Mapped memory modification tracking with GetWriteWatch
+
+  [ Dustin Graves ]
+  * Silence some GpuVaMap info messages
+  * Release active objects on exit
+  * Release unused objects at replay
+
+  [ David Donaldson ]
+  * Encode API family with meta data type
+  * Add --api argument to replay to select replay APIs
+  * Fixup D3D gfxrecon-replay option naming
+
+  [ Locke Lin ]
+  * Use string literals instead of macros
+
+  [ Dustin Graves ]
+  * Restrict memory tracking to UPLOAD heaps
+  * Updates for persistent memory page guard mode
+  * Replay fence sync updates
+
+  [ igorbrsn ]
+  * overrides for heap and commit resources in capture manager
+
+  [ Dustin Graves ]
+  * Write watch updates
+  * Add OpenExistingHeapFromAddress support
+
+  [ Locke Lin ]
+  * Encapsulate descriptor CPU and GPU address mapping
+  * Move collect_struct_with_objects to base
+  * Add objects that are in struct
+  * Rename k2 ,v2 to class_name, class_value
+
+  [ Dustin Graves ]
+  * Move wrapped objects to IUnknown_Wrapper
+  * Remove Wrapper template type from utils
+  * Simplify wrapper creators
+  * Destroy object info before release on replay
+
+  [ Locke Lin ]
+  * Merge StructAddObject into struct_object_mappers
+
+  [ Dustin Graves ]
+  * Cleanup Dx12DescriptorMap includes
+  * Minor codegen fixes
+
+  [ Locke Lin ]
+  * Add some missing MapStructObjects
+
+  [ Dustin Graves ]
+  * Implement replay --sync option
+  * Pre-wrap swapchain images
+  * Add full DxInfoObject initalization for overrides
+  * Keep swapchain image replay info active
+  * Resize replay window when buffers are resized
+  * New descriptor mapping technique
+  * Remove unused descriptor mapping utilities
+  * Report descriptor increment size error
+  * Add templates for common cpu/gpu descriptor ops
+  * Fail pipeline library operations
+  * Skip failed pipeline library calls on replay
+  * Fix heap/resource overrides
+  * Add resource info init for more API calls
+  * Add utility func to check for disable write watch
+
+  [ igorbrsn ]
+  * Style and unit tests in Jenkins
+
+  [ Locke Lin ]
+  * Add omit_output_data
+  * Give StructPointerDecoder to override functions
+
+  [ Dustin Graves ]
+  * Use EncodeStructArray2D for ppGeometryDescs
+  * Fix WStringArrayDecoder string decoding
+  * Add GPU VA mapping funcs for black listed structs
+  * Manage replay object extra info with unique_ptr
+  * Add wait idle for replay exit
+
+  [ Locke Lin ]
+  * Change multi-thread to single
+
+  [ Rodrigo Urra ]
+  * Remove capture-time virtual address ranges from GpuVaMap
+  * Address review comments
+  * Improve warnings coming from GpuVaMap.
+  * Make catch() blocks take in a const ref
+
+  [ Locke Lin ]
+  * Add missing MapStructObjects
+  * Add D3D12_STATE_SUBOBJECT encode/decode
+  * Add D3D12_STATE_SUBOBJECT unwrap/map
+
+  [ Rodrigo Urra ]
+  * Enable debug layer without removing devices
+
+  [ Dustin Graves ]
+  * Reference existing D3D12_STATE_SUBOBJECT
+  * Use custom heap settings with write watch
+  * Use custom CreateHeap settings for write watch
+  * Report original heap properties with write watch
+  * Check GetBuffer result for SC image pre-acquire
+
+  [ igorbrsn ]
+  * Jenkins limit number of builds archives in CI
+
+  [ Dustin Graves ]
+  * Track queue wait/signal dependency
+  * Update --sync for outstanding queue waits
+  * Compare fence wait/signal values with <=
+  * Add event wait utility function
+
+  [ David Donaldson ]
+  * Fix possible inf wait in OverrideGetCompletedValue
+
+  [ Dustin Graves ]
+  * Alternate va mapping implementation
+  * Add get/set utilities for replay object info
+
+  [ igorbrsn ]
+  * Grouping gfx dlls
+  * Debug message layer
+
+  [ Locke Lin ]
+  * Run dx12 ascii consumer
+  * Parse d3d12sdklayers.h
+  * Add convert enum/IID to text
+  * Print more detail function calls
+
+  [ David Donaldson ]
+  * Add state table for Dx12 object wrappers
+  * Add file structure for DX12 state tracking
+
+  [ Locke Lin ]
+  * Add IDXGIFactory5::CheckFeatureSupport to custom
+  * Custom ascii ID3D12Device_CheckFeatureSupport
+  * Only print the value
+
+  [ David Donaldson ]
+  * Add state tracking for DX12 objects
+  * Move the per-API call shared lock
+  * Add state tracking for OpenExistingHeapFromAddress
+
+  [ Rodrigo Urra ]
+  * Apply different trace setting defaults per API
+
+  [ igorbrsn ]
+  * Filter debug messages
+
+  [ David Donaldson ]
+  * Track all create calls and object ref counts
+  * Track D3D12 debug objects
+  * Track descriptor and descriptor heap state
+  * Write and replay data contents for some resources
+
+  [ davidd-lunarg ]
+  * Wait for command queues to idle before writing state
+
+  [ David Donaldson ]
+  * Track fence signal and event state
+
+  [ Locke Lin ]
+  * Add object type in toascii
+  * Trim generate write empty in toascii
+
+  [ David Donaldson ]
+  * Track command list commands
+  * Misc Dx12StateWriter fixes
+
+  [ davidd-lunarg ]
+  * Track parent object wrapper info
+
+  [ Rodrigo Urra ]
+  * Address overflow bug in GPU VA map
+
+  [ Locke Lin ]
+  * Generate AddEntry functions for object wrappers
+  * Generate state table
+  * Integrate return name into return_value
+  * Encode ShaderIdentifier as VoidArray
+  * Map ShaderIdentifier
+
+  [ Rodrigo Urra ]
+  * Update third party licenses file
+
+  [ David Donaldson ]
+  * Add GFXRECON_ASSERT macro and CMake opt to disable
+  * Add DX12 com ptr typedefs to graphics util class
+  * Use queue->GetDevice() for tracking device obj
+  * Track resource barrier state transitions
+
+  [ Brad Grantham ]
+  * Remove TODO
+
+  [ Dror Smolarsky ]
+  * Improvement to the capture script
+
+  [ bradgrantham-lunarg ]
+  * Revert "Improvement to the capture script"
+
+  [ Dror Smolarsky ]
+  * Lint and style fixes to the capture script
+  * Add printout of capture process output to capture script tool
+  * Add a an option to the capture script to set the layer path
+  * Fix an issue with setting the capture layer path
+
+  [ Locke Lin ]
+  * Remove "Remove" implementation in Dx12ShaderIdMap
+  * Avoid importing reg error
+
+  [ David Donaldson ]
+  * Write open command lists last in trim state block
+  * Add DX12 resource data utility
+
+  [ Locke Lin ]
+  * Capture trimming swapchain info
+  * Replay trimming swapchain info
+
+  [ Rodrigo Urra ]
+  * Enable support for DX12 DRED in the replayer
+
+  [ xooi ]
+  * Add DX12ResourceTrackingConsumer class
+  * Rename dx12 resource consumer class and variable name and formatting.
+  * change the constant variable name for two pass replay.
+  * Change DX12ResourceTrackingConsumer to DX12TrackingConsumer.
+  * rename "resource tracking" to "tracking"
+  * Change define naming in tracking consumer header.
+  * formattting dx12 tracking consumer file.
+
+  [ Rodrigo Urra ]
+  * Add SetBreadcrumbContextEnablement() to DRED initialization for capture
+  * Enable DRED for capture via environment variable
+
+  [ David Donaldson ]
+  * Use GetCurrentBackBuffer when writing state
+  * Capture and replay resource data for trim state
+  * Remove unnecessary unmap warning
+  * Track descriptor copies for trimming
+  * Fix subresource size calculation in resource util
+  * Cleanup descriptor tracking code
+  * Track reserved resources
+
+  [ igorbrsn ]
+  * Screenshot write to disk
+
+  [ Locke Lin ]
+  * Track objects in command and ignore invalid for writing
+
+  [ bradgrantham-lunarg ]
+  * Add issue templates for capture and replay failure
+
+  [ David Donaldson ]
+  * Don't capture resource data for accel structs
+
+  [ Locke Lin ]
+  * Toascii print bits enum
+
+  [ David Donaldson ]
+  * Track & replay swapchain buffer sizes for trimming
+
+  [ Locke Lin ]
+  * Toascii print 0 value of bits enum
+
+  [ xooi ]
+  * Add frame number for GFXR DX12 Ascii dump.
+
+  [ Locke Lin ]
+  * Track descriptors in command
+  * Track descriptors in create resource and ignore writting
+
+  [ David Donaldson ]
+  * Fix command list resource id check
+  * Fix tracking for command list reset
+  * Fix AddTransitionBarrier
+  * Store descriptor resource ids in static array
+
+  [ Locke Lin ]
+  * Trimming for enable debug layer
+
+  [ Rodrigo Urra ]
+  * Implement capture-time screenshots for validation
+
+  [ igorbrsn ]
+  * DXGI_FORMAT set for supported formats
+
+  [ xooi ]
+  * Add check for descriptor resources in state write
+
+  [ Locke Lin ]
+  * Fix decode ptr ptr struct
+
+  [ David Donaldson ]
+  * Track swap chain buffers
+  * Update internal buffer state after ResizeBuffers
+  * Create state objects after root sig in trim state
+
+  [ Locke Lin ]
+  * Trimming for EnableDRED
+
+  [ igorbrsn ]
+  * Changed label for the build machine
+
+  [ Locke Lin ]
+  * Trimming fps info
+  * Ascii print nullptr if handle is 0
+
+  [ David Donaldson ]
+  * Check for invalid source in CopyDescriptors
+  * CPU copy upload and readback heap resource data
+  * ResourceDataUtil: make target resource resident
+
+  [ Brad Grantham ]
+  * move end paren in DumpPresentWithFrameNumber so it always is printed
+
+  [ Locke Lin ]
+  * Trmming ID3D12Device1::SetResidencyPriority
+  * Trimming SetPrivateData
+
+  [ Brad Grantham ]
+  * Don't print output structs for encoded calls with result != S_OK
+  * Use D3D12_GPU_DESCRIPTOR_HANDLE verbatim
+
+  [ David Donaldson ]
+  * Don't try to CPU copy data of reserved resources
+  * Clear descriptor resource tracking on creation
+  * Evict resources after copying data for state write
+
+  [ Rodrigo Urra ]
+  * Further validate playback by creating dummy resources and heaps
+
+  [ igorbrsn ]
+  * Changing Jenkins retention rule for artifacts
+
+  [ Locke Lin ]
+  * All creations using StandardCreateWrite
+  * Trimming: Remove priority info when release
+
+  [ David Donaldson ]
+  * Check for empty source in CopyDescriptors
+  * Add a capture option to report DXR unsupported
+
+  [ Brad Grantham ]
+  * add --discard-cached-psos option forcing CachedPSO to nullptr
+
+  [ David Donaldson ]
+  * Process all pending waits for a fence signal
+
+  [ igorbrsn ]
+  * Artifacts path changing
+
+  [ PatrickPurcell ]
+  * Setting dx12 enum to string
+  * Setting up dx12_struct_to_string
+  * Setting up dx12 ascii consumer
+  * Setting up object type output
+  * Stubbing out custom dx12 ascii consumer handlers
+  * Setting up ascii consumer
+  * Setting up custom dx12 to string
+  * Setting up codegen for dx12 to ascii
+  * Setting up custom api call handlers
+  * Clearing todos in ascii consumer generator
+  * Clearing todos in dx12 struct generation
+  * Rearranging output
+  * Updating formatting
+  * Setting up custom ToString handlers
+
+  [ Locke Lin ]
+  * GetWrappedId to GetDx12WrappedId
+
+  [ PatrickPurcell ]
+  * General cleanup
+
+  [ David Donaldson ]
+  * Track GPUVA dependencies for ConstantBufferViews
+
+  [ PatrickPurcell ]
+  * General cleanup
+
+  [ David Donaldson ]
+  * Check for valid GPUVA before writing command list
+
+  [ PatrickPurcell ]
+  * Merging base
+  * General cleanup
+  * Fixing bigobj compilation failure and missing quotes around manually implemented enum output
+  * Addressing code review
+  * General cleanup
+  * General cleanup
+  * Rearranging method/function output
+
+  [ patrick-lunarg ]
+  * Fixing quotes around enum array elements
+  * Cleaning up pipeline library output
+
+  [ Rodrigo Urra ]
+  * Check against null desc for CBV create
+
+  [ Locke Lin ]
+  * Fix merge error
+
+  [ Rodrigo Urra ]
+  * Fix lost device when taking screenshots with wrong queue
+
+  [ David Donaldson ]
+  * Store a copy of the IID instead of a reference
+
+  [ Locke Lin ]
+  * Decoder gives ApiCallInfo to consumer
+  * Support Dx12 wsi context
+
+  [ patrick-lunarg ]
+  * Merging with base
+  * General cleanup
+  * Fix Build After Bad Merge
+
+  [ bradgrantham-lunarg ]
+  * Revert "Fix Build After Bad Merge"
+
+  [ patrick-lunarg ]
+  * Fixing Linux build
+  * Fixing Windows build
+  * Fixiung Windows build
+  * Fixing closing header guard
+
+  [ Brad Grantham ]
+  * add option to increase object limit for generated dx12 ascii consumer
+
+  [ patrick-lunarg ]
+  * Setting up toascii output for IUnknown out parameters
+
+  [ Locke Lin ]
+  * Add --force-windowed replay option
+
+  [ Brad Grantham ]
+  * fix spelling of toStriingFlags
+
+  [ xooi ]
+  * Update dx12 generator scripts to support Win10 SDK 10.0.20348.1
+
+  [ Locke Lin ]
+  * Generate code
+  * VkFlags64's enum need a diffferent way to print
+  * Merge bug fix
+  * MapStructObjects D3D12_GPU_VIRTUAL_ADDRESS
+
+  [ David Donaldson ]
+  * Reset command allocator in Dx12ResourceDataUtil
+  * Don't map resources on upload heap for reading
+  * Add callback function to QueueSyncEventInfo
+  * Add additional com ptr typedefs
+  * Optionally return resource_id in Dx12GpuVaMap::Map
+  * Remove unused mapping util functions
+  * Interface changes to the Dx12ShaderIdMap
+  * Add overrides to be used for DXR & ExecuteIndirect
+
+  [ patrick-lunarg ]
+  * patrick-to-ascii-decode-handle-fix
+
+  [ David Donaldson ]
+  * Track values to map in ExecuteIndirect resources
+  * Map values in resources used by ExecuteIndirect
+  * Track values to map when copied between resources
+  * Refactor resource value copy loop
+  * Map GPU VAs for acceleration struct builds
+  * Map shader IDs in ray tracing shader tables
+
+  [ igorbrsn ]
+  * Retrieve executable file info
+
+  [ David Donaldson ]
+  * Parse info for values contained in root signatures
+  * Parse shader ID to local root sig associations
+  * Map shader record local root sig values
+
+  [ igorbrsn ]
+  * Encode and decode executable info
+
+  [ David Donaldson ]
+  * Copy LRS resource value infos into shader id map
+
+  [ igorbrsn ]
+  * Warning of replay name mismatch
+  * propogate warning of mismatch replayer name to replay consumers
+
+  [ feimao-gfxr ]
+  * Redundant D3D12 PSO optimization
+
+  [ David Donaldson ]
+  * Add option to pad reported accel struct size
+  * Add documentation for D3D12 capture options
+  * Use UINT for GFXRECON_ACCEL_STRUCT_PADDING option
+
+  [ Rodrigo Urra ]
+  * Warn on AS size mismatch between capture and replay
+  * Add a warning if user tries to trim a DXR workload
+
+  [ feimao-gfxr ]
+  * Redundant D3D12 PSO optimization, fixing issues in the previous PR
+
+  [ igorbrsn ]
+  * Decoder early exit to make metadata retrieval faster
+  * jenkinsfile update credentials
+  * Add param to gfxrecon-info to only fetch exe info
+
+  [ Rodrigo Urra ]
+  * Enable gfxrecon-compress for D3D12
+
+  [ David Donaldson ]
+  * Remove warning if no accel struct padding option
+  * Track GPU VAs to allow lookup of resource from VA
+  * Track the creating wrapper for all create methods
+  * Add utils to 1) create a buffer and 2) get a device
+
+  [ JerryAMD ]
+  * Application defined LRS in DXIL.
+
+  [ David Donaldson ]
+  * Add calls to GetShaderIdentifier to trim state
+  * Promote align util function to platform util
+
+  [ igorbrsn ]
+  * update jenkinsfile for CI
+
+  [ David Donaldson ]
+  * Track info for build acceleration struct commands
+  * Track AS sizes and handle overlapping builds
+  * Don't wait forever for queues to idle on exit
+  * Compute AS build data input sizes
+  * Copy AS build input data to tracking resource
+  * Track unique ID for each accel struct
+  * Add ref to AS inputs resource for pending builds
+  * Add the framework for tracking accel struct copies
+  * Track accel struct copies
+  * Write accel struct data to trim state
+  * Track and recreate root sig when needed for SO
+  * Decode handling for init DX12 accel struct cmds
+  * Replay trimmed accel structs builds
+
+  [ igorbrsn ]
+  * Move capture and replay screenshots to pre-present
+
+  [ Bob Ellison ]
+  * scripts: add keyframes.py
+
+  [ David Donaldson ]
+  * Add resource barriers for copying AS inputs data
+
+  [ igorbrsn ]
+  * App swapchain dimensions in gfxrecon-info
+  * Complete early exit
+
+  [ JerryAMD ]
+  * Fixed DXR sample playback recapture trace file issue
+
+  [ David Donaldson ]
+  * Build toascii when D3D12 is built
+
+  [ Rodrigo Urra ]
+  * Add missing compressor codepath for init subresource
+  * Add renaming script
+  * Add another safeguard before deleting renamed replayer
+
+  [ igorbrsn ]
+  * Acceleration structure compressor for DXR trimmed
+
+  [ David Donaldson ]
+  * Fix asserts hit in Dx12StateWriter
+  * Take replay screenshots using swap chain's queue
+  * Take capture screenshots using swap chain's queue
+
+  [ igorbrsn ]
+  * Separate gfxrecon-info stat gathering and printing
+
+  [ David Donaldson ]
+  * Fix assert in Dx12ResourceValueMapper
+
+  [ JerryAMD ]
+  * Removed unnecessary Fence creation
+
+  [ Rodrigo Urra ]
+  * Simplification of end-user capture requirements
+
+  [ igorbrsn ]
+  * gfxrecon-info fixed --exe-info-only option
+
+  [ David Donaldson ]
+  * Set block index for all block types
+  * Move duplicated func GetExtraInfo() to shared file
+
+  [ Ming Zheng ]
+  * Fix GetResourceTiling capture crash
+
+  [ David Donaldson ]
+  * Add util to track FillMemCmd src for DXR data
+  * Track resources values from mulitple fill cmds
+  * Fix decoded block index to be 0-based
+
+  [ Rodrigo Urra ]
+  * Make info tool display whether there is a DXR workload
+
+  [ David Donaldson ]
+  * Interface changes for Dx12ResourceValueTracker
+  * Define file format for optimized DXR data
+  * Refactor DX12 specific optimizer code
+  * Add Dx12ResourceValueTracker consumer to optimizer
+  * Use value tracker data to write DXR optimized file
+  * Reduce memory usage when optimizing for DXR
+  * Decode FillMemoryResourceValueCommand
+  * Move ownership of shader id map to replay consumer
+  * Process fill mem resource value command in replay
+  * Use new meta data command to optimize DXR replay
+
+  [ Rodrigo Urra ]
+  * Add adapter info into captures
+
+  [ David Donaldson ]
+  * Fix issue when synchronizing cmd list executions
+
+  [ feimao-gfxr ]
+  * discard_cached_psos will be true for creating Dx12ResourceValueTrackingConsumer.
+
+  [ David Donaldson ]
+  * Add DXR optimization support for trimmed captures
+  * Check res type to avoid unneeded optimize tracking
+
+  [ Rodrigo Urra ]
+  * Track software adapters
+
+  [ igorbrsn ]
+  * update renaming script
+
+  [ feimao-gfxr ]
+  * Apply API detection to Optimizer and Info.
+  * Fix: Optimizer outputs new file if nothing needed to be optimized
+
+  [ igorbrsn ]
+  * add optimizer rename script
+
+  [ feimao-gfxr ]
+  * Check resource_value_mapper_ before using it. It can be null pointer.
+
+  [ igorbrsn ]
+  * update jenkinsfile
+
+  [ Rodrigo Urra ]
+  * Bring optimizer usage output back up-to-date
+  * Small grammar fix for optimizer usage
+
+  [ igorbrsn ]
+  * add adapter info to consumer via ProcessDxgiAdapterInfo
+
+  [ Rodrigo Urra ]
+  * Cleanup info usage output
+  * Cleanup renaming scripts usage output
+  * Cleanup toascii usage output
+  * Separate common/Vulkan/D3D12 options usage output
+
+  [ Ming Zheng ]
+  * Handling ID3D12Resource::Map when ppData is null
+  * Add support for WriteToSubresource
+
+  [ igorbrsn ]
+  * Driver versioning added to captures and gfxrecon-info
+
+  [ feimao-gfxr ]
+  * The --dcp as default for the replay for DXR optimization scan was removed by another PR by mistake. Resume it.
+
+  [ JerryAMD ]
+  * Add environment variable GFXRECON_CAPTURE_IUNKNOWN_WRAPPING
+
+  [ feimao-gfxr ]
+  * Separate PSO scan pass and DXR optimization scan pass
+
+  [ Rodrigo Urra ]
+  * Allow PSO scan to detect if DXR opt is required
+
+  [ JerryAMD ]
+  * Batch copies for trimmed captures
+
+  [ Rodrigo Urra ]
+  * Show DXR-optimization state in gfxrecon-info
+  * Add documentation for D3D12
+
+  [ igorbrsn ]
+  * update artifacts with readme files
+
+  [ Rodrigo Urra ]
+  * Fix info tool adapter spacing
+  * Issue warning when unsupported objects are created
+
+  [ igorbrsn ]
+  * update optimizer renaming script
+
+  [ Rodrigo Urra ]
+  * Update doc to reflect usage of gfxrecon-optimize-renamed.py
+
+  [ igorbrsn ]
+  * Updated optimize rename script
+
+  [ David Donaldson ]
+  * Fix load of trim state resource values for DXR opt
+  * Don't write trim descriptor create for invalid AS
+
+  [ JerryAMD ]
+  * Multi adapters support
+
+  [ David Donaldson ]
+  * Null check optional pDesc struct arg before use
+
+  [ igorbrsn ]
+  * message for old traces without driver info
+
+  [ Brad Grantham ]
+  * remove spurious toascii brackets due to Vulkan consumer
+  * only emit newline after first record
+
+  [ igorbrsn ]
+  * added to build script option to specify SDK
+
+  [ JerryAMD ]
+  * Replay full-screen trimmed trace file crash.
+
+  [ igorbrsn ]
+  * Insure the input and output paths wrapped in quotes
+
+  [ JerryAMD ]
+  * Allow gfxrecon-replay to select GPU adapter via --gpu option
+  * Info tool says trimmed captures of DXR 1.1 trace file don't contain DXR work.
+  * Track and restore added to state obj dependencies
+
+  [ igorbrsn ]
+  * Compression support for FillMemoryResourceValueCommands
+  * disable assert in release
+  * to string generator update
+  * rename capture script to capture-vulkan
+
+  [ Rodrigo Urra ]
+  * Add the number of extra dummy frames to info tool
+
+  [ David Donaldson ]
+  * Add support for ExecuteIndirect DispatchRays
+  * Check for valid shader identifier before mapping
+
+  [ Rodrigo Urra ]
+  * Warn when catching empty resource info
+
+  [ JerryAMD ]
+  * Implement ID3D12CommandList support
+
+  [ Rodrigo Urra ]
+  * Write and read Agility SDK version to/from captures
+  * Manual conflict resolution and code fixes to make GFXR functional
+  * Attempt Linux build fix
+  * Fix Linux build
+  * Fix Linux build
+  * Remove application null-check
+  * Address some code review items
+  * Restore AcquireUniqueStateLock() for D3D12 capture
+  * Address review comments
+  * Sync up the licenses from ThirdParty.txt and README.md
+
+  [ JerryAMD ]
+  * Change unknown IID to debug message.
+
+  [ Rodrigo Urra ]
+  * Remove DX12 TODO identifiers
+
+  [ igorbrsn ]
+  * Optionally disable D3D12 support
+
+  [ Rodrigo Urra ]
+  * Add support for Agility SDK 606.4
+
+  [ igorbrsn ]
+  * D3D12 support for Convert as experimental
+
+  [ David Donaldson ]
+  * Cleanup Dx12ResourceValueTracker interface
+  * Move Dx12ResourceValueTrackingConsumer to new file
+  * Add experimental DXR optimizer
+
+  [ JerryAMD ]
+  * Remove Injected Barriers from Trim Capture
+
+  [ Rodrigo Urra ]
+  * Remove straggling issue number
+
+  [ igorbrsn ]
+  * Add "+dx12" to GFXRECON_PROJECT_VERSION_SHA1
+  * Fix build issue with convert when dx12 is disabled
+
+  [ Rodrigo Urra ]
+  * Fix D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS warning
+  * Warn users if a capture has not been optimized
+
+  [ David Donaldson ]
+  * Clean up DXR-related log messages
+  * Manually resolve merge conflicts
+
+  [ Brad Grantham ]
+  * Add some lines lost in merge
+
+  [ Rodrigo Urra ]
+  * Remove some URL references
+
+  [ Andrew Cox - LunarG ]
+  * Support for 64 bit Enums and Flag sets in Convert (#905)
+
+  [ bradgrantham-lunarg ]
+  * Fixup generated code from #905 (#927)
+  * block EXT_shader_module_identifier (#906)
+
+  [ Tatsuyuki Ishi ]
+  * Don't write signal for zero valued timeline semaphores (#908)
+
+  [ Andrew Cox - LunarG ]
+  * Convert: Handling for non-void non-VkResult return (#913)
+
+  [ Brad Grantham ]
+  * use ubuntu-18.04 image for building release packages
+
+  [ David Donaldson ]
+  * Add usage info about required Agility SDK runtime
+
+  [ bradgrantham-lunarg ]
+  * Package up DX12 artifacts and clean up (#946)
+  * package up the new API-specific USAGE files (#952)
+
+  [ John Zupin ]
+  * packaging: debian: update copyright
+
+  [ David Donaldson ]
+  * Update readme with DXR recapture requirements
+
+  [ bradgrantham-lunarg ]
+  * Use GetInstanceProcAddr for SetDebugUtilsObject{Name,Tag} (#948)
+
+  [ Locke Lin ]
+  * Update headers to 1.3.238
+
+  [ Andrew Cox - LunarG ]
+  * Check for Zero Render Target Descriptor Count (#939)
+
+  [ locke-lunarg ]
+  * Update headers to 1.3.239
+
+ -- john <john@odin>  Mon, 23 Jan 2023 13:01:53 -0700
+
 gfxreconstruct (0.9.15+111~rc1-1lunarg20.04-1) focal; urgency=medium
 
   [ bradgrantham-lunarg ]

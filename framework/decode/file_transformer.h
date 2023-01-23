@@ -129,9 +129,14 @@ class FileTransformer
 
     virtual bool ProcessFunctionCall(const format::BlockHeader& block_header, format::ApiCallId call_id);
 
+    virtual bool
+    ProcessMethodCall(const format::BlockHeader& block_header, format::ApiCallId call_id, uint64_t block_index = 0);
+
     virtual bool ProcessMetaData(const format::BlockHeader& block_header, format::MetaDataId meta_data_id);
 
     virtual bool ProcessStateMarker(const format::BlockHeader& block_header, format::MarkerType marker_type);
+
+    uint64_t GetCurrentBlockIndex() { return block_index_; }
 
   private:
     bool ProcessFileHeader();
@@ -153,6 +158,7 @@ class FileTransformer
     std::vector<uint8_t>                parameter_buffer_;
     std::vector<uint8_t>                compressed_parameter_buffer_;
     std::unique_ptr<util::Compressor>   compressor_;
+    uint64_t                            block_index_{ 0 };
 };
 
 GFXRECON_END_NAMESPACE(decode)

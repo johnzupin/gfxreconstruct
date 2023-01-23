@@ -247,6 +247,7 @@ void ArgumentParser::Init(std::vector<std::string> command_line_args,
                             arguments_present_[cur_argument.second] = true;
                             argument_values_[cur_argument.second]   = argument_value;
                         }
+
                         is_argument = true;
                         break;
                     }

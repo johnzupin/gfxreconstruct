@@ -50,7 +50,7 @@ GFXReconstruct project is updated to support new Vulkan API releases.
 If a submodule update like the one below pulls in a new version of the
 Vulkan headers at `external/Vulkan-Headers` and your in-flight branch has
 touched Python files related to code generation, you may need to run the
-Python 3 code generator.
+Python 3 code generator.  The minimum required Python version is 3.8.
 
 ```bash
 git submodule update
@@ -133,6 +133,22 @@ ClangFormat style.
 The build script also has an option to apply `clang-format` to project files
 before build.  Run the script with the `-h` option for additional usage
 information.
+### **Python code style**
+
+- Changes to the GFXReconstruct project's Python code should conform to the
+  coding style defined by [PEP 8](https://www.python.org/dev/peps/pep-0008/)
+  - Python code formatting may be automatically applied with
+    [yapf](https://github.com/google/yapf), based on the rules specified in
+    the repository's .style.yapf file, using the following command:
+
+```bash
+# Apply formatting to files in place.
+$ yapf -i <files>
+
+# Apply formatting to all python files in this path.
+$ yapf -i -r <path>
+```
+
 ### **Python code style**
 
 - Changes to the GFXReconstruct project's Python code should conform to the

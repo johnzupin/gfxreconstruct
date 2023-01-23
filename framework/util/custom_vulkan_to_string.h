@@ -24,6 +24,7 @@
 #define GFXRECON_CUSTOM_VULKAN_TO_STRING_H
 
 #include "format/platform_types.h"
+#include "util/custom_common_to_string.h"
 #include "util/defines.h"
 #include "util/to_string.h"
 
@@ -35,12 +36,6 @@ GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(util)
 
 std::string PNextToString(const void* pNext, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
-
-template <>
-std::string ToString<SECURITY_ATTRIBUTES>(const SECURITY_ATTRIBUTES& obj,
-                                          ToStringFlags              toStringFlags,
-                                          uint32_t                   tabCount,
-                                          uint32_t                   tabSize);
 
 template <>
 std::string ToString<VkAccelerationStructureGeometryKHR>(const VkAccelerationStructureGeometryKHR& obj,

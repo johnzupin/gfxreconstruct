@@ -1,5 +1,6 @@
 /*
 ** Copyright (c) 2020 LunarG, Inc.
+** Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -60,7 +61,12 @@ struct BmpInfoHeader
 
 #pragma pack(pop)
 
-bool WriteBmpImage(const std::string& filename, uint32_t width, uint32_t height, uint64_t data_size, const void* data);
+bool WriteBmpImage(const std::string& filename,
+                   uint32_t           width,
+                   uint32_t           height,
+                   uint64_t           data_size,
+                   const void*        data,
+                   uint32_t           pitch = 0);
 
 GFXRECON_END_NAMESPACE(imagewriter)
 GFXRECON_END_NAMESPACE(util)

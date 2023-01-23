@@ -62,7 +62,7 @@ Application::Application(const std::string&     name,
                          decode::FileProcessor* file_processor) :
     name_(name),
     file_processor_(file_processor), cli_wsi_extension_(cli_wsi_extension), running_(false), paused_(false),
-    pause_frame_(0)
+    pause_frame_(0), fps_info_(nullptr)
 {
     if (!cli_wsi_extension_.empty())
     {
@@ -290,6 +290,13 @@ void Application::InitializeWsiContext(const char* pSurfaceExtensionName, void* 
         }
     }
 }
+
+#if defined(D3D12_SUPPORT)
+void Application::InitializeDx12WsiContext()
+{
+    wsi_contexts_["Dx12WsiContext"] = std::make_unique<Win32Context>(this);
+}
+#endif
 
 GFXRECON_END_NAMESPACE(application)
 GFXRECON_END_NAMESPACE(gfxrecon)

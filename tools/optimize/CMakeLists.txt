@@ -1,5 +1,6 @@
 ###############################################################################
 # Copyright (c) 2020 LunarG, Inc.
+# Copyright (c) 2022 Advanced Micro Devices, Inc.
 # All rights reserved
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,12 +33,30 @@ target_sources(gfxrecon-optimize
                    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
                    ${CMAKE_CURRENT_LIST_DIR}/file_optimizer.h
                    ${CMAKE_CURRENT_LIST_DIR}/file_optimizer.cpp
+                   $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/dx12_file_optimizer.h>
+                   $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/dx12_file_optimizer.cpp>
+                   $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/dx12_optimize_util.h>
+                   $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/dx12_optimize_util.cpp>
+                   $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/dx12_resource_value_tracking_consumer.h>
+                   $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/dx12_resource_value_tracking_consumer.cpp>
+                   $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/block_skipping_file_processor.h>
+                   $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/block_skipping_file_processor.cpp>
               )
 
 target_include_directories(gfxrecon-optimize PUBLIC ${CMAKE_BINARY_DIR})
 
-target_link_libraries(gfxrecon-optimize gfxrecon_decode gfxrecon_graphics gfxrecon_format gfxrecon_util platform_specific)
+target_link_libraries(gfxrecon-optimize
+                          gfxrecon_application
+                          gfxrecon_decode
+                          gfxrecon_graphics
+                          gfxrecon_format
+                          gfxrecon_util
+                          platform_specific
+                          $<$<BOOL:${D3D12_SUPPORT}>:d3d12.lib>
+                          $<$<BOOL:${D3D12_SUPPORT}>:dxgi.lib>)
 
 common_build_directives(gfxrecon-optimize)
+
+include(${CMAKE_SOURCE_DIR}/cmake/AgilitySDK.cmake)
 
 install(TARGETS gfxrecon-optimize RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

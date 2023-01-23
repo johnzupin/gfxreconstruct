@@ -75,6 +75,15 @@ void VulkanDecoderBase::DispatchFillMemoryCommand(
     }
 }
 
+void VulkanDecoderBase::DispatchFillMemoryResourceValueCommand(
+    const format::FillMemoryResourceValueCommandHeader& command_header, const uint8_t* data)
+{
+    for (auto consumer : consumers_)
+    {
+        consumer->ProcessFillMemoryResourceValueCommand(command_header, data);
+    }
+}
+
 void VulkanDecoderBase::DispatchResizeWindowCommand(format::ThreadId thread_id,
                                                     format::HandleId surface_id,
                                                     uint32_t         width,
@@ -127,6 +136,18 @@ void VulkanDecoderBase::DispatchDestroyHardwareBufferCommand(format::ThreadId th
     for (auto consumer : consumers_)
     {
         consumer->ProcessDestroyHardwareBufferCommand(buffer_id);
+    }
+}
+
+void VulkanDecoderBase::DispatchCreateHeapAllocationCommand(format::ThreadId thread_id,
+                                                            uint64_t         allocation_id,
+                                                            uint64_t         allocation_size)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(thread_id);
+
+    for (auto consumer : consumers_)
+    {
+        consumer->ProcessCreateHeapAllocationCommand(allocation_id, allocation_size);
     }
 }
 
@@ -262,6 +283,15 @@ void VulkanDecoderBase::DispatchInitImageCommand(format::ThreadId             th
     for (auto consumer : consumers_)
     {
         consumer->ProcessInitImageCommand(device_id, image_id, data_size, aspect, layout, level_sizes, data);
+    }
+}
+
+void VulkanDecoderBase::DispatchInitSubresourceCommand(const format::InitSubresourceCommandHeader& command_header,
+                                                       const uint8_t*                              data)
+{
+    for (auto consumer : consumers_)
+    {
+        consumer->ProcessInitSubresourceCommand(command_header, data);
     }
 }
 

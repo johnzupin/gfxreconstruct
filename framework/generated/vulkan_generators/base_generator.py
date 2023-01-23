@@ -71,7 +71,7 @@ _emit_extensions = []
 _remove_extensions = [
     "VK_KHR_video_queue", "VK_KHR_video_decode_queue",
     "VK_KHR_video_encode_queue", "VK_EXT_video_encode_h264",
-    "VK_EXT_video_decode_h264", "VK_EXT_video_decode_h265",
+    "VK_KHR_video_decode_h264", "VK_KHR_video_decode_h265", 
     "VK_EXT_video_encode_h265", "VK_FUCHSIA_buffer_collection",
     "VK_NVX_binary_import", "VK_HUAWEI_subpass_shading",
     "VK_EXT_pipeline_properties", "VK_EXT_metal_objects",
@@ -88,6 +88,29 @@ _remove_extensions_pat = _make_re_string(_remove_extensions)
 _emit_extensions_pat = _make_re_string(_emit_extensions, '.*')
 _features_pat = _make_re_string(_features, '.*')
 
+def removesuffix(self: str, suffix: str, /) -> str:
+    # suffix='' should not call self[:-0].
+    if suffix and self.endswith(suffix):
+        return self[:-len(suffix)]
+    else:
+        return self[:]
+
+# Strip the "Bit" ending or near-ending from an enum representing a group of
+# flag bits to give the name of the type (typedef of Flags or Flags64) used to
+# hold a disjoint set of them.
+# It works for true enums and the 64 bit collections of static const variables
+# which are tied together only with a naming convention in the C header.
+def BitsEnumToFlagsTypedef(enum):
+    # if enum.endswith
+    flags = removesuffix(enum, 'Bits')
+    if flags != enum:
+        flags = flags + 's'
+        return flags
+    flags = removesuffix(enum, 'Bits2')
+    if flags != enum:
+        flags = flags + 's2'
+    # Gods preserve us from Bits 3, 4, 5, etc.
+    return flags
 
 class ValueInfo():
     """ValueInfo - Class to store parameter/struct member information.
@@ -660,7 +683,7 @@ class BaseGenerator(OutputGenerator):
 
     def is_function_ptr(self, base_type):
         """Check for function pointer type."""
-        if base_type[:4] == 'PFN_':
+        if (base_type[:4] == 'PFN_') or (base_type[-4:] == 'Func'):
             return True
         return False
 
@@ -850,7 +873,8 @@ class BaseGenerator(OutputGenerator):
         structs_with_handles,
         structs_with_handle_ptrs=None,
         ignore_output=False,
-        structs_with_map_data=None
+        structs_with_map_data=None,
+        extra_types=None
     ):
         """Determines if the specified struct type contains members that have a handle type or are structs that contain handles.
         Structs with member handles are added to a dictionary, where the key is the structure type and the value is a list of the handle members.
@@ -860,7 +884,9 @@ class BaseGenerator(OutputGenerator):
         has_handle_pointer = False
         map_data = []
         for value in self.feature_struct_members[typename]:
-            if self.is_handle(value.base_type) or self.is_class(value):
+            if self.is_handle(value.base_type) or self.is_class(value) or (
+                extra_types and value.base_type in extra_types
+            ):
                 # The member is a handle.
                 handles.append(value)
                 if (
@@ -1374,3 +1400,19 @@ class BaseGenerator(OutputGenerator):
             platform_structs = platform['structs']
             if platform_structs:
                 self.PLATFORM_STRUCTS += platform_structs
+
+    # Return true if the type passed in is used to hold a set of bitwise flags
+    # that is 64 bits wide.
+    def is_64bit_flags(self, flag_type):
+        if flag_type in self.flags_types:
+            if self.flags_types[flag_type] == 'VkFlags64':
+                return True
+        return False
+
+    # Return true if the enum or 64 bit pseudo enum passed-in represents a set
+    # of bitwise flags.
+    # Note, all 64 bit pseudo-enums represent flags since the only reason to go to
+    # 64 bits is to allow more than 32 flags to be represented.
+    def is_flags_enum_64bit(self, enum):
+        flag_type = BitsEnumToFlagsTypedef(enum)
+        return self.is_64bit_flags(flag_type)

@@ -113,6 +113,11 @@ macro(common_build_directives TARGET)
     add_target_to_test_package(${TARGET})
 endmacro()
 
+option(GFXRECON_ENABLE_RELEASE_ASSERTS "Enable release builds to output failed conditions caught by GFXRECON_ASSERT macro." OFF)
+if(${GFXRECON_ENABLE_RELEASE_ASSERTS})
+    add_definitions(-DGFXRECON_ENABLE_RELEASE_ASSERTS)
+endif()
+
 if(MSVC)
     # Default to using the precompiled LZ4 and ZLIB binaries for VisualStudio builds.
     set (PRECOMPILED_ARCH "64")
@@ -126,17 +131,48 @@ if(MSVC)
 
     # Enable LARGEADDRESSAWARE to increase memory address space for 32-bit executables
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
-elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-    set(CMAKE_PREFIX_PATH
-        ${CMAKE_PREFIX_PATH}
-       "${CMAKE_SOURCE_DIR}/external/precompiled/linux/lib/arm64-v8a")
-elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
-    set(CMAKE_PREFIX_PATH
-        ${CMAKE_PREFIX_PATH}
-       "${CMAKE_SOURCE_DIR}/external/precompiled/linux/lib/arm")
-endif()
+
+    # Add option to enable/disable D3D12 support.
+    option(D3D12_SUPPORT "Build with Direct3D 12 support enabled" ON)
+
+    # Add option to enable/disable launcher and interceptor.
+    option(BUILD_LAUNCHER_AND_INTERCEPTOR "Build launcher and interceptor" OFF)
+
+    # Add option to enable/disable D3D12 gfxrecon-convert support.
+    option(CONVERT_EXPERIMENTAL_D3D12 "Build with convert DX12 enabled" OFF)
+
+    if(${D3D12_SUPPORT})
+        add_definitions(-DD3D12_SUPPORT)
+        if(${CONVERT_EXPERIMENTAL_D3D12})
+            add_definitions(-DCONVERT_EXPERIMENTAL_D3D12)
+        endif()
+    else()
+        set(BUILD_LAUNCHER_AND_INTERCEPTOR OFF)
+    endif()
+
+
+    if(${BUILD_LAUNCHER_AND_INTERCEPTOR})
+        add_definitions(-DBUILD_LAUNCHER_AND_INTERCEPTOR)
+    endif()
+	
+else(MSVC)
+    # Turn off D3D12 support for non MSVC builds.
+    set(D3D12_SUPPORT OFF)
+    set(BUILD_LAUNCHER_AND_INTERCEPTOR OFF)
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+        set(CMAKE_PREFIX_PATH
+            ${CMAKE_PREFIX_PATH}
+        "${CMAKE_SOURCE_DIR}/external/precompiled/linux/lib/arm64-v8a")
+    elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
+        set(CMAKE_PREFIX_PATH
+            ${CMAKE_PREFIX_PATH}
+        "${CMAKE_SOURCE_DIR}/external/precompiled/linux/lib/arm")
+    endif()
+endif(MSVC)
 
 # GFXReconstruct provided find modules
+find_package(AGS)
+find_package(Detours)
 find_package(LZ4)
 find_package(ZSTD)
 if(UNIX)
@@ -167,8 +203,17 @@ if(UNIX)
 endif(UNIX)
 
 add_library(windows_specific INTERFACE)
-target_compile_definitions(windows_specific INTERFACE WIN32_LEAN_AND_MEAN NOMINMAX VK_USE_PLATFORM_WIN32_KHR
-$<$<BOOL:${HEADLESS}>:VK_USE_PLATFORM_HEADLESS>)
+
+target_compile_definitions(windows_specific INTERFACE
+    WIN32_LEAN_AND_MEAN
+    NOMINMAX
+    VK_USE_PLATFORM_WIN32_KHR
+    $<$<BOOL:${HEADLESS}>:VK_USE_PLATFORM_HEADLESS>
+    $<$<BOOL:${BUILD_LAUNCHER_AND_INTERCEPTOR}>:"GFXR_INTERCEPTOR_PATH=\"$<TARGET_FILE:gfxrecon_interceptor>\"">
+    $<$<BOOL:${D3D12_SUPPORT}>:"GFXR_D3D12_CAPTURE_PATH=\"$<TARGET_FILE:d3d12_capture>\"">
+    $<$<BOOL:${D3D12_SUPPORT}>:"GFXR_D3D12_PATH=\"$<TARGET_FILE:d3d12>\"">
+    $<$<BOOL:${D3D12_SUPPORT}>:"GFXR_DXGI_PATH=\"$<TARGET_FILE:dxgi>\"">)
+
 
 add_library(linux_specific INTERFACE)
 target_compile_definitions(linux_specific INTERFACE _FILE_OFFSET_BITS=64 PAGE_GUARD_ENABLE_UCONTEXT_WRITE_DETECTION
@@ -215,3 +260,5 @@ if (${RUN_TESTS})
     add_test_package_file(${CMAKE_CURRENT_LIST_DIR}/scripts/test.py)
     generate_test_package(gfx_reconstruct_test)
 endif()
+
+add_subdirectory(scripts)

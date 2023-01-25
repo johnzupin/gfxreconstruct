@@ -1,3 +1,10 @@
+gfxreconstruct (0.9.17+4~rc3-1lunarg20.04-1) focal; urgency=medium
+
+  [ John Zupin ]
+  * packaging: debian: don't build gfxrecon with d3d12 support
+
+ -- john <john@odin>  Wed, 25 Jan 2023 11:32:06 -0700
+
 gfxreconstruct (0.9.17+4~rc2-1lunarg20.04-1) focal; urgency=medium
 
   [ David Donaldson ]

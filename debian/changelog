@@ -1,3 +1,14 @@
+gfxreconstruct (0.9.17+4~rc4-1lunarg22.04-1) jammy; urgency=medium
+
+  [ bradgrantham-lunarg ]
+  * add a deprecated version of capture (#964)
+  * use script's actual name (#963)
+
+  [ Andrew Cox - LunarG ]
+  * Fixed UtcString Months (#969)
+
+ -- john <john@odin>  Thu, 26 Jan 2023 13:30:04 -0700
+
 gfxreconstruct (0.9.17+4~rc3-1lunarg22.04-1) jammy; urgency=medium
 
   [ John Zupin ]

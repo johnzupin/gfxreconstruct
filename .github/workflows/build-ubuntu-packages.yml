@@ -1,0 +1,64 @@
+name: build-ubuntu-packages
+run-name: Build Debian style packages for Ubuntu
+on:
+  push:
+  workflow_call:
+    inputs:
+      gfxreconstruct:
+        required: true
+        type: string
+        default: '{"repo":"johnzupin/gfxreconstruct","ref":"ubuntu/focal"}'
+        description: "A json object that defines repo and ref. Ex) {repo:johnzupin/gfxreconstruct, ref:ubuntu/focal}"
+  workflow_dispatch:
+    inputs:
+      gfxreconstruct:
+        required: true
+        type: string
+        default: '{"repo":"johnzupin/gfxreconstruct","ref":"ubuntu/focal"}'
+        description: "A json object that defines repo and ref. Ex) {repo:johnzupin/gfxreconstruct, ref:ubuntu/focal}"
+
+jobs:
+  get-gfxrecon-ref:
+    runs-on: ubuntu-latest
+    outputs:
+      gfxrecon-repo: ${{ steps.deps-refs.outputs.GFXRECON_REPO }}
+      gfxrecon-ref: ${{ steps.deps-refs.outputs.GFXRECON_REF }}
+    steps:
+      - name: "Inputs have been specified - Set repo/ref variables with specified input"
+        if: ${{ inputs.gfxreconstruct != '' }}
+        run: |
+          echo GFXRECON_REPO="${{ fromJSON(inputs.gfxreconstruct).repo }}" >> "$GITHUB_ENV"
+          echo GFXRECON_REF="${{ fromJSON(inputs.gfxreconstruct).ref }}" >> "$GITHUB_ENV"
+      - name: "No input specified"
+        if: ${{ inputs.gfxreconstruct == '' }}
+        run: |
+          echo GFXRECON_REPO="$GITHUB_REPOSITORY" >> "$GITHUB_ENV"
+          echo GFXRECON_REF="$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+      - id: deps-refs
+        run: |
+          echo GFXRECON_REPO="${{ env.GFXRECON_REPO }}" >> "$GITHUB_OUTPUT"
+          echo GFXRECON_REF="${{ env.GFXRECON_REF }}" >> "$GITHUB_OUTPUT"
+
+  build-gfxreconstruct-amd64-focal-package:
+    needs: "get-gfxrecon-ref"
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+    steps:
+      - run: |
+          apt-get update && \
+          DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y \
+          git cmake build-essential libx11-xcb-dev libxcb-keysyms1-dev \
+          libwayland-dev libxrandr-dev zlib1g-dev liblz4-dev libzstd-dev \
+          libxkbcommon-dev git-buildpackage python3 debhelper
+      - uses: actions/checkout@v3
+        with:
+          repository: "${{needs.get-gfxrecon-ref.outputs.gfxrecon-repo}}"
+          ref: "${{needs.get-gfxrecon-ref.outputs.gfxrecon-ref}}"
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - run: "git submodule update --init"
+      - run: "gbp buildpackage --git-verbose --git-force-create --git-upstream-tree=branch --git-ignore-branch --git-upstream-branch=${{needs.get-gfxrecon-ref.outputs.gfxrecon-ref}} --no-sign"
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "gfxreconstruct-focal-package"
+          path: "${{ runner.workspace }}/gfxrecon*20.04*amd64.deb"

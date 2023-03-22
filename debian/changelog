@@ -1,3 +1,114 @@
+gfxreconstruct (0.9.18+39~rc1-1lunarg20.04-1) focal; urgency=medium
+
+  [ Andrew Cox - LunarG ]
+  * Correct JSON Output of Handles Represented as uint64_t (#942)
+  * Removed Subscript of Potentially Empty Vector (#957)
+  * Windows ARM64 Build for D3D12 Branch (#940)
+
+  [ David Donaldson ]
+  * Restore previous behavior of `gfxrecon.py capture`
+
+  [ locke-lunarg ]
+  * Set version to 0.9.18
+
+  [ bradgrantham-lunarg ]
+  * disable win dbg popup if GFXRECON_NO_DEBUG_POPUP is enabled value (#897)
+  * add a deprecated version of capture (#964)
+  * use script's actual name (#963)
+
+  [ Andrew Cox - LunarG ]
+  * Fixed UtcString Months (#969)
+  * Documented GFXReconstruct PR Process (#968)
+
+  [ David Donaldson ]
+  * Limit amount of mem used to read/write trim state
+  * Use STATE_COMMON to read/write resource data
+  * Set C++ standard to 17
+  * Remove use of deprecated `std::codecvt`
+  * Store HandleId for swapchain buffer in info struct
+
+  [ Locke Lin ]
+  * Generate code for video extensions
+
+  [ locke-lunarg ]
+  * Parse video.xml to generate Std code
+  * Initialize output struct pNext
+
+  [ igorbrsn ]
+  * update replayer script to get realtime output (#974)
+
+  [ locke-lunarg ]
+  * Fix dx12 code generations
+
+  [ bradgrantham-lunarg ]
+  * add missing overrides (#987)
+
+  [ Andrew Cox ]
+  * Function to Check Whether a Device is UMA
+  *  Caching UMA Feature of Devices
+
+  [ bradgrantham-lunarg ]
+  * add notes about disabling D3D12 support (#988)
+
+  [ David Donaldson ]
+  * Unify DX12/Vulkan capture manager mutex use
+  * Fix CaptureManager's shared mutex
+  * Rename `CaptureManager::state_mutex_`
+
+  [ Brad Grantham ]
+  * fixup generated code for video extension calls
+
+  [ bradgrantham-lunarg ]
+  * don't do some find_package depending on platform (#986)
+
+  [ Andrew Cox ]
+  * Final Plumbing of Device4::CreateReservedResource1 for Encode
+  * Noted SDK env var Needed for DX12 Codegen
+  * Fixed CreateCreate typos and Regenerated for DX12
+
+  [ locke-lunarg ]
+  * Update headers to 1.3.241
+  * Set version to 0.9.19
+
+  [ bradgrantham-lunarg ]
+  * avoid sync val error in virtual swapchain Blit (#1000)
+
+  [ igorbrsn ]
+  * Util function to store deactive adapters (#977)
+
+  [ Andrew Cox ]
+  * Escaped Strings in JSON Header
+
+  [ igorbrsn ]
+  * Registry driver version info (#970)
+
+  [ Víctor Manuel Jáquez Leal ]
+  * Fix JSON generated on Array2DMatrixToString
+
+  [ Andrew Cox ]
+  * More Robust Unit Tests for UtcString() Function
+  * Removed VkPerformanceCounterResultKHR ToString
+
+  [ locke-lunarg ]
+  * Use BOTTOM_OF_PIPE for swapchain image
+
+  [ Andrew Cox ]
+  * Updated CMake Min Version and Project
+
+  [ locke-lunarg ]
+  * Bugfix: GetWrappedId access handle, not wrapper
+  * Use real handles, not fake(wrapper addresses)
+  * Clean up wrap/unwrap code
+  * Add template<Wrapper> to fix 32-bit error
+  * Change map to unordered_map
+  * Bugfix: Get TempCommandPoolId by temp handle
+  * Update headers to 1.3.243
+
+  [ Mark Young ]
+  * Replay: Add ignorable extensions
+
+ -- john <john@odin>  Wed, 22 Mar 2023 13:21:10 -0600
+
 gfxreconstruct (0.9.17+4~rc4-1lunarg20.04-1) focal; urgency=medium
 
   [ bradgrantham-lunarg ]

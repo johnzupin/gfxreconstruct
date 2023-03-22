@@ -36,7 +36,6 @@
 #include "util/defines.h"
 #include "util/file_output_stream.h"
 #include "util/keyboard.h"
-#include "util/shared_mutex.h"
 
 #include <atomic>
 #include <cassert>
@@ -55,15 +54,9 @@ class CaptureManager
   public:
     static format::HandleId GetUniqueId() { return ++unique_id_counter_; }
 
-    std::shared_lock<util::SharedMutex> AcquireSharedStateLock()
-    {
-        return std::shared_lock<util::SharedMutex>(state_mutex_);
-    }
+    static auto AcquireSharedApiCallLock() { return std::move(std::shared_lock<ApiCallMutexT>(api_call_mutex_)); }
 
-    std::unique_lock<util::SharedMutex> AcquireUniqueStateLock()
-    {
-        return std::move(std::unique_lock<util::SharedMutex>(state_mutex_));
-    }
+    static auto AcquireExclusiveApiCallLock() { return std::move(std::unique_lock<ApiCallMutexT>(api_call_mutex_)); }
 
     HandleUnwrapMemory* GetHandleUnwrapMemory()
     {
@@ -148,6 +141,8 @@ class CaptureManager
     bool GetIUnknownWrappingSetting() const { return iunknown_wrapping_; }
 
   protected:
+    typedef std::shared_mutex ApiCallMutexT;
+
     enum CaptureModeFlags : uint32_t
     {
         kModeDisabled      = 0x0,
@@ -236,10 +231,10 @@ class CaptureManager
     bool                                GetDisableDxrSetting() const { return disable_dxr_; }
     auto                                GetAccelStructPaddingSetting() const { return accel_struct_padding_; }
 
-    std::string  CreateTrimFilename(const std::string& base_filename, const CaptureSettings::TrimRange& trim_range);
-    virtual bool CreateCaptureFile(const std::string& base_filename);
-    virtual void ActivateTrimming();
-    virtual void DeactivateTrimming();
+    std::string CreateTrimFilename(const std::string& base_filename, const CaptureSettings::TrimRange& trim_range);
+    bool        CreateCaptureFile(const std::string& base_filename);
+    void        ActivateTrimming();
+    void        DeactivateTrimming();
 
     void WriteFileHeader();
     void BuildOptionList(const format::EnabledOptions&        enabled_options,
@@ -287,7 +282,7 @@ class CaptureManager
     static std::mutex                               instance_lock_;
     static thread_local std::unique_ptr<ThreadData> thread_data_;
     static std::atomic<format::HandleId>            unique_id_counter_;
-    static util::SharedMutex                        state_mutex_;
+    static ApiCallMutexT                            api_call_mutex_;
 
     const format::ApiFamilyId api_family_;
 

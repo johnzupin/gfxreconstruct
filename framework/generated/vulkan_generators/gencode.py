@@ -760,23 +760,23 @@ def gen_target(args):
                 file=sys.stderr
             )
             write(
-                '* options.default_extensions =',
-                options.default_extensions,
+                '* options.defaultExtensions =',
+                options.defaultExtensions,
                 file=sys.stderr
             )
             write(
-                '* options.add_extensions     =',
-                options.add_extensions,
+                '* options.addExtensions     =',
+                options.addExtensions,
                 file=sys.stderr
             )
             write(
-                '* options.remove_extensions  =',
-                options.remove_extensions,
+                '* options.removeExtensions  =',
+                options.removeExtensions,
                 file=sys.stderr
             )
             write(
-                '* options.emit_extensions    =',
-                options.emit_extensions,
+                '* options.emitEtensions    =',
+                options.emitExtensions,
                 file=sys.stderr
             )
 
@@ -831,6 +831,12 @@ if __name__ == '__main__':
         action='store',
         default='vk.xml',
         help='Use specified registry file instead of vk.xml'
+    )
+    parser.add_argument(
+        '-video',
+        action='store',
+        default='video.xml',
+        help='Use specified video file instead of video.xml'
     )
     parser.add_argument(
         '-headers-dir',
@@ -899,6 +905,7 @@ if __name__ == '__main__':
 
     start_timer(args.time)
     tree = etree.parse(args.registry)
+    gen.VIDEO_TREE = etree.parse(args.video)
     end_timer(args.time, '* Time to make ElementTree =')
 
     start_timer(args.time)

@@ -1,6 +1,6 @@
 /*
 ** Copyright (c) 2021 LunarG, Inc.
-** Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+** Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -652,7 +652,7 @@ void TrackAdapters(HRESULT result, void** ppFactory, graphics::dx12::ActiveAdapt
         if (SUCCEEDED(factory1->QueryInterface(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&factory1))))
         {
             // Get a fresh enumeration, in case it was previously filled by 1.0 tracking
-            adapters.clear();
+            RemoveDeactivatedAdapters(adapters);
 
             // Enumerate 1.1 adapters and fetch data with GetDesc1()
             IDXGIAdapter1* adapter1 = nullptr;
@@ -700,6 +700,23 @@ void TrackAdapters(HRESULT result, void** ppFactory, graphics::dx12::ActiveAdapt
                 }
             }
         }
+    }
+}
+
+void RemoveDeactivatedAdapters(graphics::dx12::ActiveAdapterMap& adapters)
+{
+    std::vector<int64_t> deactivated_adapters;
+    for (const auto& adapter : adapters)
+    {
+        if (adapter.second.active == false)
+        {
+            deactivated_adapters.push_back(adapter.first);
+        }
+    }
+
+    for (auto deactive_adapter : deactivated_adapters)
+    {
+        adapters.erase(deactive_adapter);
     }
 }
 
@@ -767,6 +784,24 @@ bool GetAdapterAndIndexbyLUID(LUID                              luid,
     return success;
 }
 
+void GetActiveAdapterLuids(graphics::dx12::ActiveAdapterMap adapters, std::vector<LUID>& adapter_luids)
+{
+    for (auto& adapter : adapters)
+    {
+        if (adapter.second.active == true)
+        {
+            LUID info;
+            info.HighPart = adapter.second.internal_desc.LuidHighPart;
+            info.LowPart  = adapter.second.internal_desc.LuidLowPart;
+            adapter_luids.push_back(info);
+        }
+    }
+    if (adapter_luids.empty())
+    {
+        GFXRECON_LOG_WARNING("No active adapters were found");
+    }
+}
+
 IDXGIAdapter* GetAdapterbyIndex(graphics::dx12::ActiveAdapterMap& adapters, int32_t index)
 {
     for (auto adapter : adapters)
@@ -817,14 +852,38 @@ bool GetAdapterAndIndexbyDevice(ID3D12Device*                     device,
     return success;
 }
 
-uint64_t GetAvailableGpuAdapterMemory(IDXGIAdapter3* adapter)
+bool IsUma(ID3D12Device* device)
+{
+    GFXRECON_ASSERT(nullptr != device && "Null device pointer is expected to have been checked by callers.");
+    bool                             isUma = false;
+    D3D12_FEATURE_DATA_ARCHITECTURE1 architecture_info{};
+    const auto                       result =
+        device->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE1, &architecture_info, sizeof(architecture_info));
+    if (SUCCEEDED(result))
+    {
+        isUma = architecture_info.UMA;
+    }
+    else
+    {
+        GFXRECON_LOG_ERROR("CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE,...) failed with result: %ld. The GPU will be assumed to be non-UMA.",
+                           static_cast<long>(result));
+    }
+    return isUma;
+}
+
+uint64_t GetAvailableGpuAdapterMemory(IDXGIAdapter3* adapter, const bool is_uma)
 {
     uint64_t available_mem = 0;
 
     if (adapter != nullptr)
     {
         DXGI_QUERY_VIDEO_MEMORY_INFO video_memory_info = {};
-        if (SUCCEEDED(adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &video_memory_info)))
+        DXGI_MEMORY_SEGMENT_GROUP memory_segment       = DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL;
+        if (is_uma)
+        {
+            memory_segment = DXGI_MEMORY_SEGMENT_GROUP_LOCAL;
+        }
+        if (SUCCEEDED(adapter->QueryVideoMemoryInfo(0, memory_segment, &video_memory_info)))
         {
             if (video_memory_info.Budget > video_memory_info.CurrentUsage)
             {
@@ -848,7 +907,7 @@ uint64_t GetAvailableGpuAdapterMemory(IDXGIAdapter3* adapter)
     return available_mem;
 }
 
-uint64_t GetAvailableCpuVirtualMemory()
+uint64_t GetAvailableCpuMemory(double max_usage)
 {
     MEMORYSTATUSEX mem_info = {};
     mem_info.dwLength       = sizeof(MEMORYSTATUSEX);
@@ -856,21 +915,31 @@ uint64_t GetAvailableCpuVirtualMemory()
     {
         GFXRECON_LOG_ERROR("Failed to get available virtual memory");
     }
-    return mem_info.ullAvailVirtual;
+
+    // Only limit by available physical memory if max_usage <= 1.0.
+    uint64_t avail_phys = std::numeric_limits<uint64_t>::max();
+    if (max_usage <= 1.0)
+    {
+        double reserved_phys = mem_info.ullTotalPhys * (1.0 - max_usage);
+        avail_phys           = static_cast<uint64_t>(std::max(0.0, mem_info.ullAvailPhys - reserved_phys));
+    }
+
+    // Always limit by available virtual memory.
+    return std::min(avail_phys, mem_info.ullAvailVirtual);
 }
 
-bool IsMemoryAvailable(uint64_t required_memory, IDXGIAdapter3* adapter)
+bool IsMemoryAvailable(uint64_t required_memory, IDXGIAdapter3* adapter, double max_cpu_mem_usage, const bool is_uma)
 {
     bool available = false;
 #ifdef _WIN64
     // For 32bit, only upload one buffer at one time, to save memory usage.
     if (adapter != nullptr)
     {
-        uint64_t total_available_gpu_adapter_memory = GetAvailableGpuAdapterMemory(adapter);
-        uint64_t total_available_cpu_virtual_memory = GetAvailableCpuVirtualMemory();
+        uint64_t total_available_gpu_adapter_memory = GetAvailableGpuAdapterMemory(adapter, is_uma);
+        uint64_t total_available_cpu_memory         = GetAvailableCpuMemory(max_cpu_mem_usage);
         uint64_t total_required_memory              = static_cast<uint64_t>(required_memory * kMemoryTolerance);
         if ((total_required_memory < total_available_gpu_adapter_memory) &&
-            (total_required_memory < total_available_cpu_virtual_memory))
+            (total_required_memory < total_available_cpu_memory))
         {
             available = true;
         }

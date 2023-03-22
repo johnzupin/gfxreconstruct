@@ -1,7 +1,7 @@
 /*
 ** Copyright (c) 2018-2020 Valve Corporation
 ** Copyright (c) 2018-2021 LunarG, Inc.
-** Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+** Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -61,27 +61,6 @@ void D3D12CaptureManager::DestroyInstance()
                                         delete instance_;
                                         instance_ = nullptr;
                                     });
-}
-
-bool D3D12CaptureManager::CreateCaptureFile(const std::string& base_filename)
-{
-    auto state_lock = AcquireUniqueStateLock();
-
-    return CaptureManager::CreateCaptureFile(base_filename);
-}
-
-void D3D12CaptureManager::ActivateTrimming()
-{
-    auto state_lock = AcquireUniqueStateLock();
-
-    CaptureManager::ActivateTrimming();
-}
-
-void D3D12CaptureManager::DeactivateTrimming()
-{
-    auto state_lock = AcquireUniqueStateLock();
-
-    CaptureManager::DeactivateTrimming();
 }
 
 void D3D12CaptureManager::EndCreateApiCallCapture(HRESULT result, REFIID riid, void** handle)
@@ -367,12 +346,17 @@ void D3D12CaptureManager::InitializeID3D12DeviceInfo(IUnknown* adapter, void** d
 
     if ((device != nullptr) && (*device != nullptr))
     {
-        auto info = reinterpret_cast<ID3D12Device_Wrapper*>(*device)->GetObjectInfo();
+        auto device_wrapper = reinterpret_cast<ID3D12Device_Wrapper*>(*device);
+        auto info = device_wrapper->GetObjectInfo();
 
         if (info != nullptr)
         {
             graphics::dx12::GetAdapterAndIndexbyDevice(
                 reinterpret_cast<ID3D12Device*>(*device), info->adapter3, info->adapter_node_index, adapters_);
+
+            // Cache info on device features:
+            auto wrapped_device = device_wrapper->GetWrappedObjectAs<ID3D12Device>();
+            info->is_uma        = graphics::dx12::IsUma(wrapped_device);
         }
     }
 }
@@ -827,6 +811,40 @@ void D3D12CaptureManager::PostProcess_ID3D12Device_CreateReservedResource(
     void**                     resource)
 {
     GFXRECON_UNREFERENCED_PARAMETER(optimized_clear_value);
+    GFXRECON_UNREFERENCED_PARAMETER(riid);
+
+    if (SUCCEEDED(result) && (wrapper != nullptr) && (desc != nullptr) && (resource != nullptr) &&
+        ((*resource) != nullptr))
+    {
+        auto resource_wrapper = reinterpret_cast<ID3D12Resource_Wrapper*>(*resource);
+
+        uint64_t total_size_in_bytes = GetResourceSizeInBytes(wrapper, desc);
+
+        InitializeID3D12ResourceInfo(wrapper,
+                                     resource_wrapper,
+                                     desc->Dimension,
+                                     desc->Width,
+                                     total_size_in_bytes,
+                                     D3D12_HEAP_TYPE_DEFAULT,
+                                     D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+                                     D3D12_MEMORY_POOL_UNKNOWN,
+                                     initial_state,
+                                     false);
+    }
+}
+
+void D3D12CaptureManager::PostProcess_ID3D12Device4_CreateReservedResource1(
+    ID3D12Device4_Wrapper*     wrapper,
+    HRESULT                    result,
+    const D3D12_RESOURCE_DESC* desc,
+    D3D12_RESOURCE_STATES      initial_state,
+    const D3D12_CLEAR_VALUE*   optimized_clear_value,
+    ID3D12ProtectedResourceSession* protected_session,
+    REFIID                     riid,
+    void**                     resource)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(optimized_clear_value);
+    GFXRECON_UNREFERENCED_PARAMETER(protected_session);
     GFXRECON_UNREFERENCED_PARAMETER(riid);
 
     if (SUCCEEDED(result) && (wrapper != nullptr) && (desc != nullptr) && (resource != nullptr) &&
@@ -2359,8 +2377,12 @@ void D3D12CaptureManager::WriteDx12DriverInfo()
 {
     if ((GetCaptureMode() & kModeWrite) == kModeWrite)
     {
-        std::string driverinfo = "";
-        if (gfxrecon::util::driverinfo::GetDriverInfo(driverinfo, format::ApiFamilyId::ApiFamily_D3D12) == true)
+        std::string       driverinfo = "";
+        std::vector<LUID> adapter_luids;
+
+        gfxrecon::graphics::dx12::GetActiveAdapterLuids(adapters_, adapter_luids);
+
+        if (util::driverinfo::GetDriverInfo(driverinfo, format::ApiFamilyId::ApiFamily_D3D12, adapter_luids) == true)
         {
             WriteDriverInfoCommand(driverinfo);
         }

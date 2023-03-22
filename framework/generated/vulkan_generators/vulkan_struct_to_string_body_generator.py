@@ -87,6 +87,7 @@ class VulkanStructToStringBodyGenerator(BaseGenerator):
             #include "util/custom_vulkan_to_string.h"
             #include "generated_vulkan_struct_to_string.h"
             #include "generated_vulkan_enum_to_string.h"
+            #include "decode/custom_vulkan_ascii_consumer.h"
 
             GFXRECON_BEGIN_NAMESPACE(gfxrecon)
             GFXRECON_BEGIN_NAMESPACE(util)
@@ -144,8 +145,17 @@ class VulkanStructToStringBodyGenerator(BaseGenerator):
     # yapf: disable
     def makeStructBody(self, name, values):
         body = ''
+
+        # If the struct has a member which is a handle represented as a uint64_t,
+        # remember the name of that member:
+        cloakedHandleName = 'NO_MATCH'
+        if name in self.GENERIC_HANDLE_STRUCTS:
+            for key in self.GENERIC_HANDLE_STRUCTS[name].keys():
+                cloakedHandleName = key
+
         for value in values:
             length_expr = ''
+            array_dimension = ''
 
             # Start with a static_assert() so that if any values make it through the logic
             #   below without being handled the generated code will fail to compile
@@ -165,6 +175,10 @@ class VulkanStructToStringBodyGenerator(BaseGenerator):
                     toString = 'CStrArrayToString({1}, obj.{0}, toStringFlags, tabCount, tabSize)'
                 else:
                     toString = 'CStrToString(obj.{0})'
+
+            # A handle represented as a uint64_t
+            elif cloakedHandleName == value.name:
+                toString = 'decode::HandleIdToString(obj.{0})'
 
             # There's some repeated code in this if/else block...for instance, arrays of
             #   structs, enums, and primitives all route through ArrayToString()...It's
@@ -202,18 +216,20 @@ class VulkanStructToStringBodyGenerator(BaseGenerator):
                         toString = '(obj.{0} ? ToString(*obj.{0}, toStringFlags, tabCount, tabSize) : "null")'
             else:
                 if value.is_array:
+                    if value.array_dimension > 1:
+                        array_dimension =  str(value.array_dimension) + 'DMatrix'
                     if self.is_handle(value.base_type):
-                        toString = 'VkHandleArrayToString({1}, obj.{0}, toStringFlags, tabCount, tabSize)'
+                        toString = 'VkHandleArray{3}ToString({1}, obj.{0}, toStringFlags, tabCount, tabSize)'
                     elif self.is_struct(value.base_type):
-                        toString = 'ArrayToString({1}, obj.{0}, toStringFlags, tabCount, tabSize)'
+                        toString = 'Array{3}ToString({1}, obj.{0}, toStringFlags, tabCount, tabSize)'
                     elif self.is_enum(value.base_type):
-                        toString = 'ArrayToString({1}, obj.{0}, toStringFlags, tabCount, tabSize)'
+                        toString = 'Array{3}ToString({1}, obj.{0}, toStringFlags, tabCount, tabSize)'
                     elif 'char' in value.base_type:
-                        toString = 'CStrToString(obj.{0})'
+                        toString = 'CStr{3}ToString(obj.{0})'
                     elif 'UUID' in value.array_length or 'LUID' in value.array_length:
-                        toString = 'Quote(UIDToString({1}, obj.{0}))'
+                        toString = 'Quote{3}(UIDToString({1}, obj.{0}))'
                     else:
-                        toString = 'ArrayToString({1}, obj.{0}, toStringFlags, tabCount, tabSize)'
+                        toString = 'Array{3}ToString({1}, obj.{0}, toStringFlags, tabCount, tabSize)'
                 else:
                     if self.is_handle(value.base_type):
                         toString = 'Quote(VkHandleToString(obj.{0}))'
@@ -238,7 +254,7 @@ class VulkanStructToStringBodyGenerator(BaseGenerator):
             if length_expr and ('value' in length_expr):
                 length_expr.replace('value', 'obj')
             
-            toString = toString.format(value.name, length_expr, value.base_type)
+            toString = toString.format(value.name, length_expr, value.base_type, array_dimension)
             body += '            FieldToString(strStrm, {0}, "{1}", toStringFlags, tabCount, tabSize, {2});\n'.format(firstField, value.name, toString)
         return body
     # yapf: enable

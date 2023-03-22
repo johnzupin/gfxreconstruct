@@ -36,6 +36,13 @@
 #include "util/defines.h"
 
 #include "vulkan/vulkan.h"
+#include "vk_video/vulkan_video_codec_h264std.h"
+#include "vk_video/vulkan_video_codec_h264std_decode.h"
+#include "vk_video/vulkan_video_codec_h264std_encode.h"
+#include "vk_video/vulkan_video_codec_h265std.h"
+#include "vk_video/vulkan_video_codec_h265std_decode.h"
+#include "vk_video/vulkan_video_codec_h265std_encode.h"
+#include "vk_video/vulkan_video_codecs_common.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
@@ -63,8 +70,6 @@ void MapStructHandles(Decoded_VkSparseImageMemoryBind* wrapper, const VulkanObje
 void MapStructHandles(Decoded_VkSparseImageMemoryBindInfo* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkBindSparseInfo* wrapper, const VulkanObjectInfoTable& object_info_table);
-
-void MapStructHandles(Decoded_VkBufferCreateInfo* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkBufferViewCreateInfo* wrapper, const VulkanObjectInfoTable& object_info_table);
 
@@ -162,8 +167,6 @@ void MapStructHandles(Decoded_VkRenderingAttachmentInfo* wrapper, const VulkanOb
 
 void MapStructHandles(Decoded_VkRenderingInfo* wrapper, const VulkanObjectInfoTable& object_info_table);
 
-void MapStructHandles(Decoded_VkDeviceBufferMemoryRequirements* wrapper, const VulkanObjectInfoTable& object_info_table);
-
 void MapStructHandles(Decoded_VkDeviceImageMemoryRequirements* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkSwapchainCreateInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
@@ -183,6 +186,18 @@ void MapStructHandles(Decoded_VkDisplayPlanePropertiesKHR* wrapper, const Vulkan
 void MapStructHandles(Decoded_VkDisplayPropertiesKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkDisplaySurfaceCreateInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
+
+void MapStructHandles(Decoded_VkVideoPictureResourceInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
+
+void MapStructHandles(Decoded_VkVideoReferenceSlotInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
+
+void MapStructHandles(Decoded_VkBindVideoSessionMemoryInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
+
+void MapStructHandles(Decoded_VkVideoSessionParametersCreateInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
+
+void MapStructHandles(Decoded_VkVideoBeginCodingInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
+
+void MapStructHandles(Decoded_VkVideoDecodeInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkRenderingFragmentShadingRateAttachmentInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
 
@@ -225,6 +240,8 @@ void MapStructHandles(Decoded_VkPipelineInfoKHR* wrapper, const VulkanObjectInfo
 void MapStructHandles(Decoded_VkPipelineExecutableInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkPipelineLibraryCreateInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
+
+void MapStructHandles(Decoded_VkVideoEncodeInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkDebugMarkerObjectNameInfoEXT* wrapper, const VulkanObjectInfoTable& object_info_table);
 

@@ -32,8 +32,73 @@
 #include "format/platform_types.h"
 #include "util/to_string.h"
 #include "vulkan/vulkan.h"
+#include "vk_video/vulkan_video_codec_h264std.h"
+#include "vk_video/vulkan_video_codec_h264std_decode.h"
+#include "vk_video/vulkan_video_codec_h264std_encode.h"
+#include "vk_video/vulkan_video_codec_h265std.h"
+#include "vk_video/vulkan_video_codec_h265std_decode.h"
+#include "vk_video/vulkan_video_codec_h265std_encode.h"
+#include "vk_video/vulkan_video_codecs_common.h"
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(util)
+template <> std::string ToString<StdVideoH264SpsVuiFlags>(const StdVideoH264SpsVuiFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH264HrdParameters>(const StdVideoH264HrdParameters& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH264SequenceParameterSetVui>(const StdVideoH264SequenceParameterSetVui& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH264SpsFlags>(const StdVideoH264SpsFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH264ScalingLists>(const StdVideoH264ScalingLists& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH264SequenceParameterSet>(const StdVideoH264SequenceParameterSet& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH264PpsFlags>(const StdVideoH264PpsFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH264PictureParameterSet>(const StdVideoH264PictureParameterSet& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoDecodeH264PictureInfoFlags>(const StdVideoDecodeH264PictureInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoDecodeH264PictureInfo>(const StdVideoDecodeH264PictureInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoDecodeH264ReferenceInfoFlags>(const StdVideoDecodeH264ReferenceInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoDecodeH264ReferenceInfo>(const StdVideoDecodeH264ReferenceInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264WeightTableFlags>(const StdVideoEncodeH264WeightTableFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264WeightTable>(const StdVideoEncodeH264WeightTable& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264SliceHeaderFlags>(const StdVideoEncodeH264SliceHeaderFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264PictureInfoFlags>(const StdVideoEncodeH264PictureInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264ReferenceInfoFlags>(const StdVideoEncodeH264ReferenceInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264ReferenceListsInfoFlags>(const StdVideoEncodeH264ReferenceListsInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264RefListModEntry>(const StdVideoEncodeH264RefListModEntry& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264RefPicMarkingEntry>(const StdVideoEncodeH264RefPicMarkingEntry& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264ReferenceListsInfo>(const StdVideoEncodeH264ReferenceListsInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264PictureInfo>(const StdVideoEncodeH264PictureInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264ReferenceInfo>(const StdVideoEncodeH264ReferenceInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH264SliceHeader>(const StdVideoEncodeH264SliceHeader& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265ProfileTierLevelFlags>(const StdVideoH265ProfileTierLevelFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265ProfileTierLevel>(const StdVideoH265ProfileTierLevel& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265DecPicBufMgr>(const StdVideoH265DecPicBufMgr& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265SubLayerHrdParameters>(const StdVideoH265SubLayerHrdParameters& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265HrdFlags>(const StdVideoH265HrdFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265HrdParameters>(const StdVideoH265HrdParameters& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265VpsFlags>(const StdVideoH265VpsFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265VideoParameterSet>(const StdVideoH265VideoParameterSet& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265ScalingLists>(const StdVideoH265ScalingLists& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265ShortTermRefPicSetFlags>(const StdVideoH265ShortTermRefPicSetFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265ShortTermRefPicSet>(const StdVideoH265ShortTermRefPicSet& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265LongTermRefPicsSps>(const StdVideoH265LongTermRefPicsSps& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265SpsVuiFlags>(const StdVideoH265SpsVuiFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265SequenceParameterSetVui>(const StdVideoH265SequenceParameterSetVui& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265PredictorPaletteEntries>(const StdVideoH265PredictorPaletteEntries& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265SpsFlags>(const StdVideoH265SpsFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265SequenceParameterSet>(const StdVideoH265SequenceParameterSet& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265PpsFlags>(const StdVideoH265PpsFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoH265PictureParameterSet>(const StdVideoH265PictureParameterSet& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoDecodeH265PictureInfoFlags>(const StdVideoDecodeH265PictureInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoDecodeH265PictureInfo>(const StdVideoDecodeH265PictureInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoDecodeH265ReferenceInfoFlags>(const StdVideoDecodeH265ReferenceInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoDecodeH265ReferenceInfo>(const StdVideoDecodeH265ReferenceInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265WeightTableFlags>(const StdVideoEncodeH265WeightTableFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265WeightTable>(const StdVideoEncodeH265WeightTable& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265SliceSegmentLongTermRefPics>(const StdVideoEncodeH265SliceSegmentLongTermRefPics& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265SliceSegmentHeaderFlags>(const StdVideoEncodeH265SliceSegmentHeaderFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265SliceSegmentHeader>(const StdVideoEncodeH265SliceSegmentHeader& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265ReferenceListsInfoFlags>(const StdVideoEncodeH265ReferenceListsInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265ReferenceListsInfo>(const StdVideoEncodeH265ReferenceListsInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265PictureInfoFlags>(const StdVideoEncodeH265PictureInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265PictureInfo>(const StdVideoEncodeH265PictureInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265ReferenceInfoFlags>(const StdVideoEncodeH265ReferenceInfoFlags& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<StdVideoEncodeH265ReferenceInfo>(const StdVideoEncodeH265ReferenceInfo& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkExtent2D>(const VkExtent2D& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkExtent3D>(const VkExtent3D& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkOffset2D>(const VkOffset2D& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
@@ -333,6 +398,32 @@ template <> std::string ToString<VkXcbSurfaceCreateInfoKHR>(const VkXcbSurfaceCr
 template <> std::string ToString<VkWaylandSurfaceCreateInfoKHR>(const VkWaylandSurfaceCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkAndroidSurfaceCreateInfoKHR>(const VkAndroidSurfaceCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkWin32SurfaceCreateInfoKHR>(const VkWin32SurfaceCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkQueueFamilyQueryResultStatusPropertiesKHR>(const VkQueueFamilyQueryResultStatusPropertiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkQueueFamilyVideoPropertiesKHR>(const VkQueueFamilyVideoPropertiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoProfileInfoKHR>(const VkVideoProfileInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoProfileListInfoKHR>(const VkVideoProfileListInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoCapabilitiesKHR>(const VkVideoCapabilitiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkPhysicalDeviceVideoFormatInfoKHR>(const VkPhysicalDeviceVideoFormatInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoFormatPropertiesKHR>(const VkVideoFormatPropertiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoPictureResourceInfoKHR>(const VkVideoPictureResourceInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoReferenceSlotInfoKHR>(const VkVideoReferenceSlotInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoSessionMemoryRequirementsKHR>(const VkVideoSessionMemoryRequirementsKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkBindVideoSessionMemoryInfoKHR>(const VkBindVideoSessionMemoryInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoSessionCreateInfoKHR>(const VkVideoSessionCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoSessionParametersCreateInfoKHR>(const VkVideoSessionParametersCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoSessionParametersUpdateInfoKHR>(const VkVideoSessionParametersUpdateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoBeginCodingInfoKHR>(const VkVideoBeginCodingInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEndCodingInfoKHR>(const VkVideoEndCodingInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoCodingControlInfoKHR>(const VkVideoCodingControlInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeCapabilitiesKHR>(const VkVideoDecodeCapabilitiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeUsageInfoKHR>(const VkVideoDecodeUsageInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeInfoKHR>(const VkVideoDecodeInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH264ProfileInfoKHR>(const VkVideoDecodeH264ProfileInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH264CapabilitiesKHR>(const VkVideoDecodeH264CapabilitiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH264SessionParametersAddInfoKHR>(const VkVideoDecodeH264SessionParametersAddInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH264SessionParametersCreateInfoKHR>(const VkVideoDecodeH264SessionParametersCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH264PictureInfoKHR>(const VkVideoDecodeH264PictureInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH264DpbSlotInfoKHR>(const VkVideoDecodeH264DpbSlotInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkRenderingFragmentShadingRateAttachmentInfoKHR>(const VkRenderingFragmentShadingRateAttachmentInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkRenderingFragmentDensityMapAttachmentInfoEXT>(const VkRenderingFragmentDensityMapAttachmentInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkAttachmentSampleCountInfoAMD>(const VkAttachmentSampleCountInfoAMD& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
@@ -379,6 +470,12 @@ template <> std::string ToString<VkDisplayPlaneCapabilities2KHR>(const VkDisplay
 template <> std::string ToString<VkPhysicalDevicePortabilitySubsetFeaturesKHR>(const VkPhysicalDevicePortabilitySubsetFeaturesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDevicePortabilitySubsetPropertiesKHR>(const VkPhysicalDevicePortabilitySubsetPropertiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDeviceShaderClockFeaturesKHR>(const VkPhysicalDeviceShaderClockFeaturesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH265ProfileInfoKHR>(const VkVideoDecodeH265ProfileInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH265CapabilitiesKHR>(const VkVideoDecodeH265CapabilitiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH265SessionParametersAddInfoKHR>(const VkVideoDecodeH265SessionParametersAddInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH265SessionParametersCreateInfoKHR>(const VkVideoDecodeH265SessionParametersCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH265PictureInfoKHR>(const VkVideoDecodeH265PictureInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoDecodeH265DpbSlotInfoKHR>(const VkVideoDecodeH265DpbSlotInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkDeviceQueueGlobalPriorityCreateInfoKHR>(const VkDeviceQueueGlobalPriorityCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR>(const VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkQueueFamilyGlobalPriorityPropertiesKHR>(const VkQueueFamilyGlobalPriorityPropertiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
@@ -398,6 +495,12 @@ template <> std::string ToString<VkPipelineExecutableInternalRepresentationKHR>(
 template <> std::string ToString<VkPipelineLibraryCreateInfoKHR>(const VkPipelineLibraryCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPresentIdKHR>(const VkPresentIdKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDevicePresentIdFeaturesKHR>(const VkPhysicalDevicePresentIdFeaturesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeInfoKHR>(const VkVideoEncodeInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeCapabilitiesKHR>(const VkVideoEncodeCapabilitiesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkQueryPoolVideoEncodeFeedbackCreateInfoKHR>(const VkQueryPoolVideoEncodeFeedbackCreateInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeUsageInfoKHR>(const VkVideoEncodeUsageInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeRateControlLayerInfoKHR>(const VkVideoEncodeRateControlLayerInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeRateControlInfoKHR>(const VkVideoEncodeRateControlInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkQueueFamilyCheckpointProperties2NV>(const VkQueueFamilyCheckpointProperties2NV& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkCheckpointData2NV>(const VkCheckpointData2NV& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR>(const VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
@@ -419,6 +522,28 @@ template <> std::string ToString<VkPhysicalDeviceTransformFeedbackPropertiesEXT>
 template <> std::string ToString<VkPipelineRasterizationStateStreamCreateInfoEXT>(const VkPipelineRasterizationStateStreamCreateInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkImageViewHandleInfoNVX>(const VkImageViewHandleInfoNVX& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkImageViewAddressPropertiesNVX>(const VkImageViewAddressPropertiesNVX& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264CapabilitiesEXT>(const VkVideoEncodeH264CapabilitiesEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264SessionParametersAddInfoEXT>(const VkVideoEncodeH264SessionParametersAddInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264SessionParametersCreateInfoEXT>(const VkVideoEncodeH264SessionParametersCreateInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264NaluSliceInfoEXT>(const VkVideoEncodeH264NaluSliceInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264VclFrameInfoEXT>(const VkVideoEncodeH264VclFrameInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264DpbSlotInfoEXT>(const VkVideoEncodeH264DpbSlotInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264ProfileInfoEXT>(const VkVideoEncodeH264ProfileInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264RateControlInfoEXT>(const VkVideoEncodeH264RateControlInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264QpEXT>(const VkVideoEncodeH264QpEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264FrameSizeEXT>(const VkVideoEncodeH264FrameSizeEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH264RateControlLayerInfoEXT>(const VkVideoEncodeH264RateControlLayerInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265CapabilitiesEXT>(const VkVideoEncodeH265CapabilitiesEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265SessionParametersAddInfoEXT>(const VkVideoEncodeH265SessionParametersAddInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265SessionParametersCreateInfoEXT>(const VkVideoEncodeH265SessionParametersCreateInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265NaluSliceSegmentInfoEXT>(const VkVideoEncodeH265NaluSliceSegmentInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265VclFrameInfoEXT>(const VkVideoEncodeH265VclFrameInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265DpbSlotInfoEXT>(const VkVideoEncodeH265DpbSlotInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265ProfileInfoEXT>(const VkVideoEncodeH265ProfileInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265RateControlInfoEXT>(const VkVideoEncodeH265RateControlInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265QpEXT>(const VkVideoEncodeH265QpEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265FrameSizeEXT>(const VkVideoEncodeH265FrameSizeEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkVideoEncodeH265RateControlLayerInfoEXT>(const VkVideoEncodeH265RateControlLayerInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkTextureLODGatherFormatPropertiesAMD>(const VkTextureLODGatherFormatPropertiesAMD& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkShaderResourceUsageAMD>(const VkShaderResourceUsageAMD& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkShaderStatisticsInfoAMD>(const VkShaderStatisticsInfoAMD& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
@@ -635,6 +760,7 @@ template <> std::string ToString<VkSurfaceCapabilitiesPresentBarrierNV>(const Vk
 template <> std::string ToString<VkSwapchainPresentBarrierCreateInfoNV>(const VkSwapchainPresentBarrierCreateInfoNV& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDeviceDiagnosticsConfigFeaturesNV>(const VkPhysicalDeviceDiagnosticsConfigFeaturesNV& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkDeviceDiagnosticsConfigCreateInfoNV>(const VkDeviceDiagnosticsConfigCreateInfoNV& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkQueryLowLatencySupportNV>(const VkQueryLowLatencySupportNV& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDeviceGraphicsPipelineLibraryFeaturesEXT>(const VkPhysicalDeviceGraphicsPipelineLibraryFeaturesEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT>(const VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkGraphicsPipelineLibraryCreateInfoEXT>(const VkGraphicsPipelineLibraryCreateInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
@@ -720,6 +846,9 @@ template <> std::string ToString<VkPhysicalDeviceClusterCullingShaderPropertiesH
 template <> std::string ToString<VkPhysicalDeviceBorderColorSwizzleFeaturesEXT>(const VkPhysicalDeviceBorderColorSwizzleFeaturesEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkSamplerBorderColorComponentMappingCreateInfoEXT>(const VkSamplerBorderColorComponentMappingCreateInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT>(const VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkPhysicalDeviceShaderCorePropertiesARM>(const VkPhysicalDeviceShaderCorePropertiesARM& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkPhysicalDeviceImageSlicedViewOf3DFeaturesEXT>(const VkPhysicalDeviceImageSlicedViewOf3DFeaturesEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkImageViewSlicedCreateInfoEXT>(const VkImageViewSlicedCreateInfoEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDeviceDescriptorSetHostMappingFeaturesVALVE>(const VkPhysicalDeviceDescriptorSetHostMappingFeaturesVALVE& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkDescriptorSetBindingReferenceVALVE>(const VkDescriptorSetBindingReferenceVALVE& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkDescriptorSetLayoutHostMappingInfoVALVE>(const VkDescriptorSetLayoutHostMappingInfoVALVE& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
@@ -767,6 +896,9 @@ template <> std::string ToString<VkPhysicalDeviceRayTracingInvocationReorderProp
 template <> std::string ToString<VkPhysicalDeviceRayTracingInvocationReorderFeaturesNV>(const VkPhysicalDeviceRayTracingInvocationReorderFeaturesNV& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDeviceShaderCoreBuiltinsFeaturesARM>(const VkPhysicalDeviceShaderCoreBuiltinsFeaturesARM& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkPhysicalDeviceShaderCoreBuiltinsPropertiesARM>(const VkPhysicalDeviceShaderCoreBuiltinsPropertiesARM& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkPhysicalDevicePipelineLibraryGroupHandlesFeaturesEXT>(const VkPhysicalDevicePipelineLibraryGroupHandlesFeaturesEXT& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkPhysicalDeviceMultiviewPerViewRenderAreasFeaturesQCOM>(const VkPhysicalDeviceMultiviewPerViewRenderAreasFeaturesQCOM& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
+template <> std::string ToString<VkMultiviewPerViewRenderAreasRenderPassBeginInfoQCOM>(const VkMultiviewPerViewRenderAreasRenderPassBeginInfoQCOM& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkAccelerationStructureBuildRangeInfoKHR>(const VkAccelerationStructureBuildRangeInfoKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkAccelerationStructureGeometryTrianglesDataKHR>(const VkAccelerationStructureGeometryTrianglesDataKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);
 template <> std::string ToString<VkAccelerationStructureGeometryAabbsDataKHR>(const VkAccelerationStructureGeometryAabbsDataKHR& obj, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);

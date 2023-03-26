@@ -1,3 +1,10 @@
+gfxreconstruct (0.9.18+39~rc2-1lunarg22.04-1) jammy; urgency=medium
+
+  [ locke-lunarg ]
+  * Bugfix for using real handles
+
+ -- john <john@odin>  Sun, 26 Mar 2023 12:30:58 -0600
+
 gfxreconstruct (0.9.18+39~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Andrew Cox - LunarG ]

@@ -1,3 +1,141 @@
+gfxreconstruct (0.9.19+35~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ Fei Mao ]
+  * Fix GetCPUDescriptorHandleForHeapStart typo for convert tool
+
+  [ David Pinedo ]
+  * Skip call to vkAcquireNextImage if capture status wasn't VK_SUCCESS
+
+  [ igorbrsn ]
+  * Merging decoders used by gfxrecon-info (#976)
+
+  [ locke-lunarg ]
+  * Bugfix for using real handles
+
+  [ Juan Ramos ]
+  * cmake: Use CMake min of 3.16.3
+  * ci: Test CMake 3.16.3
+  * docs: Update CMake version recommendation
+
+  [ locke-lunarg ]
+  * Add option FORCE_COMMAND_SERIALIZATION
+
+  [ Ming Zheng ]
+  * [Bugfix] DX12 Unknown layout texture save/restore (#973)
+
+  [ JerryAMD ]
+  * Fix Multiple Resource Sharing the Same GPUVA Range (#1021)
+
+  [ Andrew Cox ]
+  * Updated Copyrights to 2023 in Generated Files
+
+  [ JerryAMD ]
+  * Add ExecuteIndirect() CountBuffer Support (#1013)
+
+  [ bartosz-muszarski-arm ]
+  * Remove competing surface extensions with wsi option (#1022)
+
+  [ David Donaldson ]
+  * Check for EI workloads when optimizing with --dxr
+
+  [ locke-lunarg ]
+  * Add option FORCE_COMMAND_SERIALIZATION for d3d
+
+  [ bradgrantham-lunarg ]
+  * update supported Ubuntu version (#1081)
+
+  [ Mark Young ]
+  * Clean up Android documentation
+  * Android docs: Fixed invalid TOC entries
+
+  [ Brad Grantham ]
+  * upgrade release build GitHub workflow Ubuntu version
+
+  [ igorbrsn ]
+  * Logging if the D3D12 folder with DLLs do not exist (#978)
+
+  [ locke-lunarg ]
+  * Update headers to 1.3.246
+  * Set version to 0.9.20
+
+  [ Andrew Cox - LunarG ]
+  * Replaced Convert Based On ToASCII With Version Based on Export External Contribution (#1050)
+
+  [ Andrew Cox ]
+  * Using the args Field by Reference
+
+  [ David Donaldson ]
+  * Exit replay on D3D12_ERROR_INVALID_REDIST error
+
+  [ Rodrigo Urra ]
+  * Assign ID3D12Object names during replay to assist debugging (#1038)
+  * Improvements for launcher tool (#1045)
+
+  [ Andrew Cox ]
+  * Removed Gratuitous Lambda
+
+  [ David Donaldson ]
+  * Add replay support for CreateCommandQueue1
+
+  [ Andrew Cox ]
+  * Flush After Presents
+
+  [ David Donaldson ]
+  * Only initialize DXGI and D3D12 DLLs once each
+  * Make DX12 DLL initialization thread safe
+  * Include EI optimization in log messages
+  * Mark captures that don't use DXR/EI as optimized
+  * Check for DXR/EI opt bypass when opt with `--dxr`
+
+  [ Brad Grantham ]
+  * use shell to evaluate subprocess parameters
+
+  [ Mark Young ]
+  * Add static libs for x86/x86_64 Android
+
+  [ David Donaldson ]
+  * Fix some captures not marked as DXR/EI optimized
+
+  [ Andrew Cox ]
+  * Disable Debug Assert Popups in Unit Tests
+  * Modernised Some CMake
+  * Added SplitString Function
+  * Refactored Pasted Code Into RemoveWhitespace()
+  * Made Vulkan Replay Consumer Options Const
+
+  [ David Donaldson ]
+  * Use shared_mutex in VulkanStateTable
+
+  [ igorbrsn ]
+  * Inject adapter ID into metadata and calculate submits per adapter (#1023)
+
+  [ Mark Young ]
+  * docs: Link to HOWTO_android.md in other docs
+
+  [ bradgrantham-lunarg ]
+  * Support graphics_pipeline_library (#1113)
+
+  [ igorbrsn ]
+  * enable launcher build from build script (#1108)
+
+  [ Mark Young ]
+  * screenshot: Add support to export PNG format
+  * Add proper D3D12 PNG capture formating
+
+  [ Brad Grantham ]
+  * read screenshot format env var for D3D12 capture
+
+  [ Ming Zheng ]
+  * Fix raytracing trim error in state tracking (#1114)
+
+  [ JerryAMD ]
+  * Update Help Output and USAGE File (#1112)
+
+  [ locke-lunarg ]
+  * Update headers to 1.3.250
+
+ -- john <john@odin>  Tue, 23 May 2023 15:05:54 -0600
+
 gfxreconstruct (0.9.18+39~rc2-1lunarg22.04-1) jammy; urgency=medium
 
   [ locke-lunarg ]

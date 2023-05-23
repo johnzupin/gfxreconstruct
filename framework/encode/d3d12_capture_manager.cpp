@@ -244,6 +244,7 @@ void D3D12CaptureManager::ResizeSwapChainImages(IDXGISwapChain_Wrapper* wrapper,
 void D3D12CaptureManager::InitializeID3D12ResourceInfo(ID3D12Device_Wrapper*    device_wrapper,
                                                        ID3D12Resource_Wrapper*  resource_wrapper,
                                                        D3D12_RESOURCE_DIMENSION dimension,
+                                                       D3D12_TEXTURE_LAYOUT     layout,
                                                        UINT64                   width,
                                                        UINT64                   size,
                                                        D3D12_HEAP_TYPE          heap_type,
@@ -263,6 +264,8 @@ void D3D12CaptureManager::InitializeID3D12ResourceInfo(ID3D12Device_Wrapper*    
     info->memory_pool     = memory_pool;
     info->has_write_watch = has_write_watch;
     info->size_in_bytes   = size;
+    info->dimension       = dimension;
+    info->layout          = layout;
 
     if (dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
     {
@@ -347,7 +350,7 @@ void D3D12CaptureManager::InitializeID3D12DeviceInfo(IUnknown* adapter, void** d
     if ((device != nullptr) && (*device != nullptr))
     {
         auto device_wrapper = reinterpret_cast<ID3D12Device_Wrapper*>(*device);
-        auto info = device_wrapper->GetObjectInfo();
+        auto info           = device_wrapper->GetObjectInfo();
 
         if (info != nullptr)
         {
@@ -359,6 +362,11 @@ void D3D12CaptureManager::InitializeID3D12DeviceInfo(IUnknown* adapter, void** d
             info->is_uma        = graphics::dx12::IsUma(wrapped_device);
         }
     }
+}
+
+bool D3D12CaptureManager::IsAccelerationStructureResource(format::HandleId id)
+{
+    return state_tracker_->IsAccelerationStructureResource(id);
 }
 
 void D3D12CaptureManager::CheckWriteWatchIgnored(D3D12_HEAP_FLAGS flags, format::HandleId id)
@@ -413,14 +421,14 @@ bool D3D12CaptureManager::IsUploadResource(D3D12_HEAP_TYPE type, D3D12_CPU_PAGE_
 uint64_t D3D12CaptureManager::GetResourceSizeInBytes(ID3D12Device_Wrapper*      device_wrapper,
                                                      const D3D12_RESOURCE_DESC* desc)
 {
-    auto device      = device_wrapper->GetWrappedObjectAs<ID3D12Device>();
+    auto device = device_wrapper->GetWrappedObjectAs<ID3D12Device>();
     return graphics::dx12::GetResourceSizeInBytes(device, desc);
 }
 
 uint64_t D3D12CaptureManager::GetResourceSizeInBytes(ID3D12Device8_Wrapper*      device_wrapper,
                                                      const D3D12_RESOURCE_DESC1* desc)
 {
-    auto device      = device_wrapper->GetWrappedObjectAs<ID3D12Device8>();
+    auto device = device_wrapper->GetWrappedObjectAs<ID3D12Device8>();
     return graphics::dx12::GetResourceSizeInBytes(device, desc);
 }
 
@@ -530,7 +538,8 @@ void D3D12CaptureManager::PrePresent(IDXGISwapChain_Wrapper* swapchain_wrapper)
                                                      swapchain_info->command_queue,
                                                      swapchain,
                                                      global_frame_count_ + 1,
-                                                     screenshot_prefix_);
+                                                     screenshot_prefix_,
+                                                     screenshot_format_);
         }
         else
         {
@@ -752,6 +761,7 @@ void D3D12CaptureManager::PostProcess_ID3D12Device_CreateCommittedResource(
             wrapper,
             resource_wrapper,
             desc->Dimension,
+            desc->Layout,
             desc->Width,
             total_size_in_bytes,
             heap_properties->Type,
@@ -791,6 +801,7 @@ void D3D12CaptureManager::PostProcess_ID3D12Device_CreatePlacedResource(ID3D12De
         InitializeID3D12ResourceInfo(wrapper,
                                      resource_wrapper,
                                      desc->Dimension,
+                                     desc->Layout,
                                      desc->Width,
                                      total_size_in_bytes,
                                      heap_info->heap_type,
@@ -823,6 +834,7 @@ void D3D12CaptureManager::PostProcess_ID3D12Device_CreateReservedResource(
         InitializeID3D12ResourceInfo(wrapper,
                                      resource_wrapper,
                                      desc->Dimension,
+                                     desc->Layout,
                                      desc->Width,
                                      total_size_in_bytes,
                                      D3D12_HEAP_TYPE_DEFAULT,
@@ -834,14 +846,14 @@ void D3D12CaptureManager::PostProcess_ID3D12Device_CreateReservedResource(
 }
 
 void D3D12CaptureManager::PostProcess_ID3D12Device4_CreateReservedResource1(
-    ID3D12Device4_Wrapper*     wrapper,
-    HRESULT                    result,
-    const D3D12_RESOURCE_DESC* desc,
-    D3D12_RESOURCE_STATES      initial_state,
-    const D3D12_CLEAR_VALUE*   optimized_clear_value,
+    ID3D12Device4_Wrapper*          wrapper,
+    HRESULT                         result,
+    const D3D12_RESOURCE_DESC*      desc,
+    D3D12_RESOURCE_STATES           initial_state,
+    const D3D12_CLEAR_VALUE*        optimized_clear_value,
     ID3D12ProtectedResourceSession* protected_session,
-    REFIID                     riid,
-    void**                     resource)
+    REFIID                          riid,
+    void**                          resource)
 {
     GFXRECON_UNREFERENCED_PARAMETER(optimized_clear_value);
     GFXRECON_UNREFERENCED_PARAMETER(protected_session);
@@ -857,6 +869,7 @@ void D3D12CaptureManager::PostProcess_ID3D12Device4_CreateReservedResource1(
         InitializeID3D12ResourceInfo(wrapper,
                                      resource_wrapper,
                                      desc->Dimension,
+                                     desc->Layout,
                                      desc->Width,
                                      total_size_in_bytes,
                                      D3D12_HEAP_TYPE_DEFAULT,
@@ -961,6 +974,7 @@ void D3D12CaptureManager::PostProcess_ID3D12Device4_CreateCommittedResource1(
             wrapper,
             resource_wrapper,
             desc->Dimension,
+            desc->Layout,
             desc->Width,
             total_size_in_bytes,
             heap_properties->Type,
@@ -1000,6 +1014,7 @@ void D3D12CaptureManager::PostProcess_ID3D12Device8_CreateCommittedResource2(
             wrapper,
             resource_wrapper,
             desc->Dimension,
+            desc->Layout,
             desc->Width,
             total_size_in_bytes,
             heap_properties->Type,
@@ -1040,6 +1055,7 @@ void D3D12CaptureManager::PostProcess_ID3D12Device8_CreatePlacedResource1(
         InitializeID3D12ResourceInfo(wrapper,
                                      resource_wrapper,
                                      desc->Dimension,
+                                     desc->Layout,
                                      desc->Width,
                                      total_size_in_bytes,
                                      heap_info->heap_type,
@@ -1877,9 +1893,22 @@ void D3D12CaptureManager::PostProcess_D3D12CreateDevice(
                 format::DxgiAdapterDesc* active_adapter = graphics::dx12::MarkActiveAdapter(device, adapters_);
 
                 // Write adapter desc to file if it was marked active, and has not already been seen
+                auto adapter_id = GetDx12WrappedId<IUnknown>(pAdapter);
                 if (active_adapter != nullptr)
                 {
+                    graphics::dx12::InjectAdapterCaptureId(active_adapter->extra_info, adapter_id);
                     WriteDxgiAdapterInfoCommand(*active_adapter);
+                }
+                else
+                {
+                    // we have to write adapter if it is already marked active and as a result active_adapter is null
+                    // this is essential for marking active adapter for system with multiple GPUs
+                    auto parent_adapter = graphics::dx12::GetAdapterDescByLUID(device->GetAdapterLuid(), adapters_);
+                    if (parent_adapter != nullptr)
+                    {
+                        graphics::dx12::InjectAdapterCaptureId(parent_adapter->extra_info, adapter_id);
+                        WriteDxgiAdapterInfoCommand(*parent_adapter);
+                    }
                 }
             }
         }

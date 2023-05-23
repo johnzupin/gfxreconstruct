@@ -52,6 +52,8 @@ GFXRECON_BEGIN_NAMESPACE(encode)
 class CaptureManager
 {
   public:
+    typedef std::shared_mutex ApiCallMutexT;
+
     static format::HandleId GetUniqueId() { return ++unique_id_counter_; }
 
     static auto AcquireSharedApiCallLock() { return std::move(std::shared_lock<ApiCallMutexT>(api_call_mutex_)); }
@@ -114,6 +116,8 @@ class CaptureManager
 
     bool ShouldTriggerScreenshot();
 
+    util::ScreenshotFormat GetScreenshotFormat() { return screenshot_format_; }
+
     void CheckContinueCaptureForWriteMode();
 
     void CheckStartCaptureForTrackMode();
@@ -139,10 +143,9 @@ class CaptureManager
     virtual CaptureSettings::TraceSettings GetDefaultTraceSettings();
 
     bool GetIUnknownWrappingSetting() const { return iunknown_wrapping_; }
+    auto GetForceCommandSerialization() const { return force_command_serialization_; }
 
   protected:
-    typedef std::shared_mutex ApiCallMutexT;
-
     enum CaptureModeFlags : uint32_t
     {
         kModeDisabled      = 0x0,
@@ -255,6 +258,7 @@ class CaptureManager
     std::mutex                        mapped_memory_lock_;
     util::Keyboard                    keyboard_;
     std::string                       screenshot_prefix_;
+    util::ScreenshotFormat            screenshot_format_;
     uint32_t                          global_frame_count_;
 
     void WriteToFile(const void* data, size_t size);
@@ -314,6 +318,7 @@ class CaptureManager
     bool                                    disable_dxr_;
     uint32_t                                accel_struct_padding_;
     bool                                    iunknown_wrapping_;
+    bool                                    force_command_serialization_;
 };
 
 GFXRECON_END_NAMESPACE(encode)

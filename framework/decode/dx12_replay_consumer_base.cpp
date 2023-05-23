@@ -1,6 +1,6 @@
 /*
 ** Copyright (c) 2021-2023 LunarG, Inc.
-** Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
+** Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,7 @@
 #include "decode/dx12_replay_consumer_base.h"
 
 #include "decode/dx12_enum_util.h"
+#include "generated/generated_dx12_call_id_to_string.h"
 #include "graphics/dx12_util.h"
 #include "graphics/dx12_image_renderer.h"
 #include "util/gpu_va_range.h"
@@ -287,7 +288,15 @@ void Dx12ReplayConsumerBase::ProcessFillMemoryResourceValueCommand(
     if (resource_value_mapper_ != nullptr)
     {
         resource_value_mapper_ = nullptr;
-        GFXRECON_LOG_DEBUG("Found data to enable optimized playback of DXR and/or ExecuteIndirect commands.");
+        if (resource_value_count > 0)
+        {
+            GFXRECON_LOG_DEBUG("Found data to enable optimized playback of DXR and/or ExecuteIndirect commands.");
+        }
+        else
+        {
+            GFXRECON_LOG_DEBUG("This file was processed by the DXR/EI optimizer. It did not contain any DXR/EI "
+                               "commands that require additional replay processing.");
+        }
     }
 
     opt_fillmem_ = true;
@@ -391,12 +400,17 @@ void Dx12ReplayConsumerBase::ProcessInitSubresourceCommand(const format::InitSub
     ResourceInitInfo resource_init_info = {};
     resource_init_info.resource         = resource;
     bool is_reserved_resource           = false;
+    bool is_texture_with_unknown_layout = false;
     if (resource_info->extra_info != nullptr)
     {
         // Reserved resource has to be uploaded via staging buffer
-        is_reserved_resource = GetExtraInfo<D3D12ResourceInfo>(resource_info)->is_reserved_resource;
+        auto resource_extra_info       = GetExtraInfo<D3D12ResourceInfo>(resource_info);
+        is_reserved_resource           = resource_extra_info->is_reserved_resource;
+        is_texture_with_unknown_layout = graphics::dx12::IsTextureWithUnknownLayout(resource_extra_info->desc.Dimension,
+                                                                                    resource_extra_info->desc.Layout);
     }
-    resource_init_info.try_map_and_copy = !is_reserved_resource;
+
+    resource_init_info.try_map_and_copy = !is_reserved_resource && !is_texture_with_unknown_layout;
 
     auto find_resource_info = resource_init_infos_.find(resource);
     if (find_resource_info == resource_init_infos_.end())
@@ -594,10 +608,10 @@ void Dx12ReplayConsumerBase::CheckReplayResult(const char* call_name, HRESULT ca
 {
     if (capture_result != replay_result)
     {
-        if (replay_result == DXGI_ERROR_DEVICE_REMOVED)
+        if ((replay_result == DXGI_ERROR_DEVICE_REMOVED) || (replay_result == D3D12_ERROR_INVALID_REDIST))
         {
             GFXRECON_LOG_FATAL(
-                "%s returned %s, which does not match the value returned at capture %s.  Replay cannot continue.",
+                "%s returned %s, which does not match the value returned at capture %s. Replay cannot continue.",
                 call_name,
                 enumutil::GetResultValueString(replay_result).c_str(),
                 enumutil::GetResultValueString(capture_result).c_str());
@@ -703,7 +717,8 @@ void Dx12ReplayConsumerBase::PrePresent(DxObjectInfo* swapchain_object_info)
                                                swapchain_extra_info->command_queue,
                                                swapchain,
                                                screenshot_handler_->GetCurrentFrame(),
-                                               screenshot_file_prefix_);
+                                               screenshot_file_prefix_,
+                                               screenshot_format_);
             }
             else
             {
@@ -1038,6 +1053,28 @@ void Dx12ReplayConsumerBase::DetectAdapters()
     }
 }
 
+void Dx12ReplayConsumerBase::InitCommandQueueExtraInfo(ID3D12Device*                device,
+                                                       HandlePointerDecoder<void*>* command_queue_decoder)
+{
+    auto command_queue_info = std::make_unique<D3D12CommandQueueInfo>();
+
+    // Create the fence used for when command queues require sync after command list execution.
+    // Note that this fence is used only for waiting on command list execution. When needed, it will be signalled by
+    // the command queue in OverrideExecuteCommandLists and wait on in WaitForCommandListExecution.
+    auto fence_result = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&command_queue_info->sync_fence));
+
+    if (SUCCEEDED(fence_result))
+    {
+        command_queue_info->sync_event = CreateEventA(nullptr, TRUE, FALSE, nullptr);
+    }
+    else
+    {
+        GFXRECON_LOG_ERROR("Failed to create ID3D12Fence object used to sync after command list execution.");
+    }
+
+    SetExtraInfo(command_queue_decoder, std::move(command_queue_info));
+}
+
 HRESULT Dx12ReplayConsumerBase::OverrideCreateCommandQueue(DxObjectInfo* replay_object_info,
                                                            HRESULT       original_result,
                                                            StructPointerDecoder<Decoded_D3D12_COMMAND_QUEUE_DESC>* desc,
@@ -1046,8 +1083,8 @@ HRESULT Dx12ReplayConsumerBase::OverrideCreateCommandQueue(DxObjectInfo* replay_
 {
     GFXRECON_UNREFERENCED_PARAMETER(original_result);
 
-    assert((replay_object_info != nullptr) && (replay_object_info->object != nullptr) && (desc != nullptr) &&
-           (command_queue != nullptr));
+    GFXRECON_ASSERT((replay_object_info != nullptr) && (replay_object_info->object != nullptr) && (desc != nullptr) &&
+                    (command_queue != nullptr));
 
     auto replay_object = static_cast<ID3D12Device*>(replay_object_info->object);
     auto replay_result =
@@ -1055,24 +1092,32 @@ HRESULT Dx12ReplayConsumerBase::OverrideCreateCommandQueue(DxObjectInfo* replay_
 
     if (SUCCEEDED(replay_result))
     {
-        auto command_queue_info = std::make_unique<D3D12CommandQueueInfo>();
+        InitCommandQueueExtraInfo(replay_object, command_queue);
+    }
 
-        // Create the fence used for when command queues require sync after command list execution.
-        // Note that this fence is used only for waiting on command list execution. When needed, it will be signalled by
-        // the command queue in OverrideExecuteCommandLists and wait on in WaitForCommandListExecution.
-        auto fence_result =
-            replay_object->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&command_queue_info->sync_fence));
+    return replay_result;
+}
 
-        if (SUCCEEDED(fence_result))
-        {
-            command_queue_info->sync_event = CreateEventA(nullptr, TRUE, FALSE, nullptr);
-        }
-        else
-        {
-            GFXRECON_LOG_ERROR("Failed to create ID3D12Fence object used to sync after command list execution.");
-        }
+HRESULT
+Dx12ReplayConsumerBase::OverrideCreateCommandQueue1(DxObjectInfo* device9_object_info,
+                                                    HRESULT       original_result,
+                                                    StructPointerDecoder<Decoded_D3D12_COMMAND_QUEUE_DESC>* desc,
+                                                    Decoded_GUID                                            creator_id,
+                                                    Decoded_GUID                                            riid,
+                                                    HandlePointerDecoder<void*>* command_queue_decoder)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(original_result);
 
-        SetExtraInfo(command_queue, std::move(command_queue_info));
+    GFXRECON_ASSERT((device9_object_info != nullptr) && (device9_object_info->object != nullptr) && (desc != nullptr) &&
+                    (command_queue_decoder != nullptr));
+
+    auto device9       = static_cast<ID3D12Device9*>(device9_object_info->object);
+    auto replay_result = device9->CreateCommandQueue1(
+        desc->GetPointer(), *creator_id.decoded_value, *riid.decoded_value, command_queue_decoder->GetHandlePointer());
+
+    if (SUCCEEDED(replay_result))
+    {
+        InitCommandQueueExtraInfo(device9, command_queue_decoder);
     }
 
     return replay_result;
@@ -2764,11 +2809,12 @@ void Dx12ReplayConsumerBase::ReadDebugMessages()
 void Dx12ReplayConsumerBase::InitializeScreenshotHandler()
 {
     screenshot_file_prefix_ = options_.screenshot_file_prefix;
-
     if (screenshot_file_prefix_.empty())
     {
         screenshot_file_prefix_ = kDefaultScreenshotFilePrefix;
     }
+
+    screenshot_format_ = options_.screenshot_format;
 
     if (!options_.screenshot_dir.empty())
     {
@@ -3566,6 +3612,38 @@ void Dx12ReplayConsumerBase::PostReplay()
                 "Use gfxrecon-optimize to obtain an optimized capture with improved playback performance.");
         }
     }
+}
+
+HRESULT
+Dx12ReplayConsumerBase::OverrideSetName(DxObjectInfo* replay_object_info, HRESULT original_result, WStringDecoder* Name)
+{
+    GFXRECON_ASSERT(replay_object_info != nullptr);
+    GFXRECON_ASSERT(replay_object_info->object != nullptr);
+
+    HRESULT result = original_result;
+
+    if (options_.override_object_names == false)
+    {
+        auto object = static_cast<ID3D12Device*>(replay_object_info->object);
+
+        if (object != nullptr)
+        {
+            result = object->SetName(Name->GetPointer());
+        }
+    }
+
+    return result;
+}
+
+std::wstring Dx12ReplayConsumerBase::ConstructObjectName(format::HandleId capture_id, format::ApiCallId call_id)
+{
+    std::wstring object_creator = util::GetDx12CallIdString(call_id);
+
+    std::wstring constructed_name = L"gfxr_obj_";
+    constructed_name.append(std::to_wstring(capture_id));
+    constructed_name.append(L" (" + object_creator + L")");
+
+    return constructed_name;
 }
 
 GFXRECON_END_NAMESPACE(decode)

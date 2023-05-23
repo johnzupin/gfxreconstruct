@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved.
 // Copyright (c) 2022 Valve Corporation
-// Copyright (c) 2022 LunarG, Inc.
+// Copyright (c) 2022-2023 LunarG, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -36,85 +36,11 @@
 using namespace gfxrecon::util::strings;
 using namespace gfxrecon::util::datetime;
 
-TEST_CASE("JSONEscape", "[to_string]")
-{
-    gfxrecon::util::Log::Init(gfxrecon::util::Log::kDebugSeverity);
-
-    std::string escaped;
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("", escaped);
-    REQUIRE(escaped == "");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("a", escaped);
-    REQUIRE(escaped == "a");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("a.b", escaped);
-    REQUIRE(escaped == "a.b");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\"", escaped);
-    REQUIRE(escaped == "\\\"");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\"\"", escaped);
-    REQUIRE(escaped == "\\\"\\\"");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\"\"\"", escaped);
-    REQUIRE(escaped == "\\\"\\\"\\\"");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\"\"\"\"", escaped);
-    REQUIRE(escaped == "\\\"\\\"\\\"\\\"");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\t", escaped);
-    REQUIRE(escaped == "\\t");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\r", escaped);
-    REQUIRE(escaped == "\\r");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\n", escaped);
-    REQUIRE(escaped == "\\n");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\f", escaped);
-    REQUIRE(escaped == "\\f");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\b", escaped);
-    REQUIRE(escaped == "\\b");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("/", escaped);
-    REQUIRE(escaped == "/");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\\", escaped);
-    REQUIRE(escaped == "\\\\");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("/home/tracer/captures/app1/capture.gfxr", escaped);
-    REQUIRE(escaped == "/home/tracer/captures/app1/capture.gfxr");
-
-    escaped = "";
-    gfxrecon::util::JSONEscape("\\home\\tracer\\captures\\app1\\capture.gfxr", escaped);
-    REQUIRE(escaped == "\\\\home\\\\tracer\\\\captures\\\\app1\\\\capture.gfxr");
-
-    gfxrecon::util::Log::Release();
-}
-
 TEST_CASE("Quote", "[to_string]")
 {
     using namespace gfxrecon::util;
     gfxrecon::util::Log::Init(gfxrecon::util::Log::kDebugSeverity);
 
-    REQUIRE(gfxrecon::util::Quote(nullptr) == "\"\"");
     REQUIRE(gfxrecon::util::Quote("") == "\"\"");
     REQUIRE(gfxrecon::util::Quote(std::string("")) == "\"\"");
 
@@ -197,6 +123,73 @@ TEST_CASE("TabRight", "[strings]")
     REQUIRE(gfxrecon::util::strings::TabRight("\t\t") == "\t\t\t");
     REQUIRE(gfxrecon::util::strings::TabRight("l1\nl2\nl3") == "\tl1\n\tl2\n\tl3");
     REQUIRE_FALSE(gfxrecon::util::strings::TabRight("l1\nl2\n\nl3") == "\tl1\n\tl2\n\tl3");
+
+    gfxrecon::util::Log::Release();
+}
+
+TEST_CASE("SplitString", "[strings]")
+{
+    using std::string;
+    auto s = [](auto x) { return string{ x }; };
+
+    gfxrecon::util::Log::Init(gfxrecon::util::Log::kDebugSeverity);
+
+    REQUIRE(gfxrecon::util::strings::SplitString("", '+') == std::vector<string>());
+    REQUIRE(gfxrecon::util::strings::SplitString("a", '.') == std::vector<string>({ s("a") }));
+    REQUIRE(gfxrecon::util::strings::SplitString("foobar", '.') == std::vector<string>({ s("foobar") }));
+    REQUIRE(gfxrecon::util::strings::SplitString("+", '+') == std::vector<string>());
+    REQUIRE(gfxrecon::util::strings::SplitString("++", '+') == std::vector<string>());
+    REQUIRE(gfxrecon::util::strings::SplitString("+++", '+') == std::vector<string>());
+    REQUIRE(gfxrecon::util::strings::SplitString("++++++++++++++++++++", '+') == std::vector<string>());
+    REQUIRE(gfxrecon::util::strings::SplitString("+++++++++++++++++++++", '+') == std::vector<string>());
+    REQUIRE(gfxrecon::util::strings::SplitString(" + ", '+') == std::vector<string>({ s(" "), s(" ") }));
+    REQUIRE(gfxrecon::util::strings::SplitString("z+y", '+') == std::vector<string>({ s("z"), s("y") }));
+    REQUIRE(gfxrecon::util::strings::SplitString(".a..b...c....d.....", '.') ==
+            std::vector<string>({ s('a'), s('b'), s('c'), s('d') }));
+    REQUIRE(gfxrecon::util::strings::SplitString(".a..b...c....d.....", ',') ==
+            std::vector<string>({ s(".a..b...c....d.....") }));
+    REQUIRE(gfxrecon::util::strings::SplitString(".a..b...c,,,,d.....", ',') ==
+            std::vector<string>({ s(".a..b...c"), s("d.....") }));
+
+    gfxrecon::util::Log::Release();
+}
+
+TEST_CASE("RemoveWhitespace", "[strings]")
+{
+    using std::string;
+    auto s = [](auto x) { return string{ x }; };
+
+    gfxrecon::util::Log::Init(gfxrecon::util::Log::kDebugSeverity);
+
+    string s1{ "1 2 3 4 5 6 7 8 9 10" };
+    gfxrecon::util::strings::RemoveWhitespace(s1);
+    REQUIRE(s1 == "12345678910");
+
+    string s2{ "    left" };
+    gfxrecon::util::strings::RemoveWhitespace(s2);
+    REQUIRE(s2 == "left");
+
+    {
+        string s{ "right      " };
+        gfxrecon::util::strings::RemoveWhitespace(s);
+        REQUIRE(s == "right");
+    }
+    {
+        string s{ " \t\n\n\n\t   £$%Keep_Me+*&  \r\f\t\f\t \f\r\t\n\n\n\n " };
+        gfxrecon::util::strings::RemoveWhitespace(s);
+        REQUIRE(s == "£$%Keep_Me+*&");
+        // Check that repeated applications don't change an already-shrunk string:
+        for (int i = 0; i < 100; ++i)
+        {
+            gfxrecon::util::strings::RemoveWhitespace(s);
+            REQUIRE(s == "£$%Keep_Me+*&");
+        }
+    }
+    {
+        string s{ " \t\n\n\n\t   £$%\t\tK  e\n\n\n\n\re \f\rp_\nM\t e+*&  \r\f\t\f\t \f\r\t\n\n\n\n " };
+        gfxrecon::util::strings::RemoveWhitespace(s);
+        REQUIRE(s == "£$%Keep_Me+*&");
+    }
 
     gfxrecon::util::Log::Release();
 }

@@ -53,6 +53,9 @@
     "ID3D12Device8": {
       "CreateCommittedResource2": "OverrideCreateCommittedResource2"
     },
+    "ID3D12Device9": {
+      "CreateCommandQueue1": "OverrideCreateCommandQueue1"
+    },
     "ID3D12DescriptorHeap": {
       "GetCPUDescriptorHandleForHeapStart": "OverrideGetCPUDescriptorHandleForHeapStart",
       "GetGPUDescriptorHandleForHeapStart": "OverrideGetGPUDescriptorHandleForHeapStart"
@@ -117,6 +120,9 @@
     },
     "IDXGISwapChain3": {
       "ResizeBuffers1": "OverrideResizeBuffers1"
+    },
+    "ID3D12Object": {
+      "SetName": "OverrideSetName"
     }
   }
 }

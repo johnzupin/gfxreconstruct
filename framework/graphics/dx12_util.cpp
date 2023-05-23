@@ -36,7 +36,8 @@ void TakeScreenshot(std::unique_ptr<graphics::DX12ImageRenderer>& image_renderer
                     ID3D12CommandQueue*                           queue,
                     IDXGISwapChain*                               swapchain,
                     uint32_t                                      frame_num,
-                    const std::string&                            filename_prefix)
+                    const std::string&                            filename_prefix,
+                    gfxrecon::util::ScreenshotFormat              screenshot_format)
 {
     if (queue != nullptr && swapchain != nullptr)
     {
@@ -89,13 +90,14 @@ void TakeScreenshot(std::unique_ptr<graphics::DX12ImageRenderer>& image_renderer
 
                     if (capture_result == S_OK)
                     {
+                        bool convert_to_bgra  = (screenshot_format == gfxrecon::util::ScreenshotFormat::kBmp);
                         auto buffer_byte_size = pitch * fb_desc.Height;
-                        auto desc             = frame_buffer_resource->GetDesc();
                         capture_result        = image_renderer->RetrieveImageData(&captured_image,
                                                                            static_cast<unsigned int>(fb_desc.Width),
                                                                            fb_desc.Height,
                                                                            static_cast<unsigned int>(pitch),
-                                                                           desc.Format);
+                                                                           fb_desc.Format,
+                                                                           convert_to_bgra);
 
                         if (capture_result == S_OK)
                         {
@@ -104,14 +106,40 @@ void TakeScreenshot(std::unique_ptr<graphics::DX12ImageRenderer>& image_renderer
 
                             filename += "_frame_";
                             filename += std::to_string(frame_num);
-                            filename += ".bmp";
 
-                            util::imagewriter::WriteBmpImage(filename,
-                                                             static_cast<unsigned int>(fb_desc.Width),
-                                                             static_cast<unsigned int>(fb_desc.Height),
-                                                             datasize,
-                                                             std::data(captured_image.data),
-                                                             static_cast<unsigned int>(pitch));
+                            switch (screenshot_format)
+                            {
+                                default:
+                                    GFXRECON_LOG_ERROR(
+                                        "Screenshot format invalid!  Expected BMP or PNG, falling back to BMP.");
+                                    // Intentional fall-through
+                                case gfxrecon::util::ScreenshotFormat::kBmp:
+                                    if (!util::imagewriter::WriteBmpImage(filename + ".bmp",
+                                                                          static_cast<unsigned int>(fb_desc.Width),
+                                                                          static_cast<unsigned int>(fb_desc.Height),
+                                                                          datasize,
+                                                                          std::data(captured_image.data),
+                                                                          static_cast<unsigned int>(pitch)))
+                                    {
+                                        GFXRECON_LOG_ERROR(
+                                            "Screenshot could not be created: failed to write BMP file %s",
+                                            filename.c_str());
+                                    }
+                                    break;
+                                case gfxrecon::util::ScreenshotFormat::kPng:
+                                    if (!util::imagewriter::WritePngImage(filename + ".png",
+                                                                          static_cast<unsigned int>(fb_desc.Width),
+                                                                          static_cast<unsigned int>(fb_desc.Height),
+                                                                          datasize,
+                                                                          std::data(captured_image.data),
+                                                                          static_cast<unsigned int>(pitch)))
+                                    {
+                                        GFXRECON_LOG_ERROR(
+                                            "Screenshot could not be created: failed to write PNG file %s",
+                                            filename.c_str());
+                                    }
+                                    break;
+                            }
                         }
                     }
                 }
@@ -120,22 +148,47 @@ void TakeScreenshot(std::unique_ptr<graphics::DX12ImageRenderer>& image_renderer
     }
 }
 
-HRESULT MapSubresource(ID3D12Resource* resource, UINT subresource, const D3D12_RANGE* read_range, uint8_t*& data_ptr)
+HRESULT MapSubresource(ID3D12Resource*    resource,
+                       UINT               subresource,
+                       const D3D12_RANGE* read_range,
+                       uint8_t*&          data_ptr,
+                       bool               is_texture_with_unknown_layout)
 {
     HRESULT result = E_FAIL;
 
     // Map the readable resource.
-    void* void_ptr = nullptr;
-    result         = resource->Map(subresource, read_range, &void_ptr);
-    if (SUCCEEDED(result))
+    if (!is_texture_with_unknown_layout)
     {
-        data_ptr = static_cast<uint8_t*>(void_ptr);
-        if (data_ptr == nullptr)
+        void* void_ptr = nullptr;
+        result         = resource->Map(subresource, read_range, &void_ptr);
+        if (SUCCEEDED(result))
         {
-            D3D12_RANGE write_range = { 0, 0 };
-            resource->Unmap(subresource, &write_range);
-            result = E_POINTER;
+            data_ptr = static_cast<uint8_t*>(void_ptr);
+            if (data_ptr == nullptr)
+            {
+                D3D12_RANGE write_range = { 0, 0 };
+                resource->Unmap(subresource, &write_range);
+                result = E_POINTER;
+            }
         }
+    }
+    else
+    {
+        // Quote: "A null pointer is valid and is useful to cache a CPU virtual address range for methods like
+        // WriteToSubresource."
+        //
+        // Source: https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12resource-map
+        //
+        // Compared with other types of resource, it has the following difference for mapping
+        // and access data of texture with unknown layout:
+        //
+        // 1. Map call cannot get map pointer and ppData parameter must be nullptr.
+        //
+        // 2. After mapping, the following access to the resource data need call
+        //    ID3D12Resource::WriteToSubresource or ID3D12Resource::ReadFromSubresource.
+
+        result   = resource->Map(subresource, read_range, nullptr);
+        data_ptr = nullptr;
     }
 
     return result;
@@ -629,7 +682,7 @@ void TrackAdapterDesc(IDXGIAdapter*                     adapter,
         internal_desc.SharedSystemMemory    = dxgi_desc.SharedSystemMemory;
         internal_desc.LuidLowPart           = dxgi_desc.AdapterLuid.LowPart;
         internal_desc.LuidHighPart          = dxgi_desc.AdapterLuid.HighPart;
-        internal_desc.type                  = type;
+        InjectAdapterType(internal_desc.extra_info, type);
 
         ActiveAdapterInfo adapter_info = {};
         adapter_info.internal_desc     = internal_desc;
@@ -755,14 +808,52 @@ format::DxgiAdapterDesc* MarkActiveAdapter(ID3D12Device* device, graphics::dx12:
 bool IsSoftwareAdapter(const format::DxgiAdapterDesc& adapter_desc)
 {
     bool software_desc = false;
+    auto adapter_type  = ExtractAdapterType(adapter_desc.extra_info);
 
-    if ((adapter_desc.type & format::AdapterType::kSoftwareAdapter) ||
+    if ((adapter_type & format::AdapterType::kSoftwareAdapter) ||
         (adapter_desc.DeviceId == 0x8c) && (adapter_desc.VendorId == 0x1414))
     {
         software_desc = true;
     }
 
     return software_desc;
+}
+
+bool VerifyAgilitySDKRuntime()
+{
+    bool        detected_runtime = false;
+    std::string tool_executable_path;
+
+#if defined(D3D12_SUPPORT)
+    std::vector<char> module_name(MAX_PATH);
+
+    auto ret = GetModuleFileNameA(nullptr, module_name.data(), MAX_PATH);
+    if ((ret == 0) || ((ret == MAX_PATH) && (GetLastError() == ERROR_INSUFFICIENT_BUFFER)))
+    {
+        GFXRECON_LOG_ERROR("GetModuleFileNameA failed with error code %d", GetLastError());
+    }
+    else
+    {
+        tool_executable_path = module_name.data();
+    }
+
+    if (!tool_executable_path.empty())
+    {
+        std::string tool_working_dir = "";
+        size_t      dir_location     = tool_executable_path.find_last_of(util::filepath::kAltPathLastSepStr);
+        if (dir_location >= 0)
+        {
+            tool_working_dir = tool_executable_path.substr(0, dir_location);
+        }
+        const std::string runtime_path = "\\D3D12\\D3D12Core.dll";
+        if (gfxrecon::util::filepath::IsFile(tool_working_dir + runtime_path))
+        {
+            detected_runtime = true;
+        }
+    }
+#endif
+
+    return detected_runtime;
 }
 
 bool GetAdapterAndIndexbyLUID(LUID                              luid,
@@ -852,6 +943,21 @@ bool GetAdapterAndIndexbyDevice(ID3D12Device*                     device,
     return success;
 }
 
+format::DxgiAdapterDesc* GetAdapterDescByLUID(LUID parent_adapter_luid, graphics::dx12::ActiveAdapterMap& adapters)
+{
+    const int64_t            packed_luid         = (parent_adapter_luid.HighPart << 31) | parent_adapter_luid.LowPart;
+    format::DxgiAdapterDesc* parent_adapter_desc = nullptr;
+    for (auto& adapter : adapters)
+    {
+        if (adapter.first == packed_luid)
+        {
+            parent_adapter_desc = &adapter.second.internal_desc;
+            break;
+        }
+    }
+    return parent_adapter_desc;
+}
+
 bool IsUma(ID3D12Device* device)
 {
     GFXRECON_ASSERT(nullptr != device && "Null device pointer is expected to have been checked by callers.");
@@ -865,7 +971,8 @@ bool IsUma(ID3D12Device* device)
     }
     else
     {
-        GFXRECON_LOG_ERROR("CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE,...) failed with result: %ld. The GPU will be assumed to be non-UMA.",
+        GFXRECON_LOG_ERROR("CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE,...) failed with result: %ld. The GPU will "
+                           "be assumed to be non-UMA.",
                            static_cast<long>(result));
     }
     return isUma;
@@ -878,7 +985,7 @@ uint64_t GetAvailableGpuAdapterMemory(IDXGIAdapter3* adapter, const bool is_uma)
     if (adapter != nullptr)
     {
         DXGI_QUERY_VIDEO_MEMORY_INFO video_memory_info = {};
-        DXGI_MEMORY_SEGMENT_GROUP memory_segment       = DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL;
+        DXGI_MEMORY_SEGMENT_GROUP    memory_segment    = DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL;
         if (is_uma)
         {
             memory_segment = DXGI_MEMORY_SEGMENT_GROUP_LOCAL;
@@ -971,6 +1078,22 @@ uint64_t GetResourceSizeInBytes(ID3D12Device8* device, const D3D12_RESOURCE_DESC
     }
 
     return size;
+}
+
+bool IsTextureWithUnknownLayout(D3D12_RESOURCE_DIMENSION dimension, D3D12_TEXTURE_LAYOUT layout)
+{
+    bool is_texture_with_unknown_layout = false;
+
+    if (layout == D3D12_TEXTURE_LAYOUT_UNKNOWN)
+    {
+        if ((dimension == D3D12_RESOURCE_DIMENSION_TEXTURE1D) || (dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D) ||
+            (dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D))
+        {
+            is_texture_with_unknown_layout = true;
+        }
+    }
+
+    return is_texture_with_unknown_layout;
 }
 
 GFXRECON_END_NAMESPACE(dx12)

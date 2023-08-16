@@ -1,7 +1,7 @@
 /*
 ** Copyright (c) 2018-2022 Valve Corporation
 ** Copyright (c) 2018-2022 LunarG, Inc.
-** Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+** Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -112,6 +112,8 @@ class CaptureManager
 
     void EndMethodCallCapture();
 
+    void WriteFrameMarker(format::MarkerType marker_type);
+
     void EndFrame();
 
     bool ShouldTriggerScreenshot();
@@ -144,6 +146,19 @@ class CaptureManager
 
     bool GetIUnknownWrappingSetting() const { return iunknown_wrapping_; }
     auto GetForceCommandSerialization() const { return force_command_serialization_; }
+    auto GetQueueZeroOnly() const { return queue_zero_only_; }
+    auto GetAllowPipelineCompileRequired() const { return allow_pipeline_compile_required_; }
+
+    bool     IsAnnotated() const { return rv_annotation_info_.rv_annotation; }
+    uint16_t GetGPUVAMask() const { return rv_annotation_info_.gpuva_mask; }
+    uint16_t GetDescriptorMask() const { return rv_annotation_info_.descriptor_mask; }
+    uint64_t GetShaderIDMask() const { return rv_annotation_info_.shaderid_mask; }
+
+    uint64_t GetBlockIndex()
+    {
+        auto thread_data = GetThreadData();
+        return thread_data->block_index_ == 0 ? 0 : thread_data->block_index_ - 1;
+    }
 
   protected:
     enum CaptureModeFlags : uint32_t
@@ -181,6 +196,7 @@ class CaptureManager
         std::unique_ptr<ParameterEncoder>        parameter_encoder_;
         std::vector<uint8_t>                     compressed_buffer_;
         HandleUnwrapMemory                       handle_unwrap_memory_;
+        uint64_t                                 block_index_;
 
       private:
         static format::ThreadId GetThreadId();
@@ -259,7 +275,7 @@ class CaptureManager
     util::Keyboard                    keyboard_;
     std::string                       screenshot_prefix_;
     util::ScreenshotFormat            screenshot_format_;
-    uint32_t                          global_frame_count_;
+    static std::atomic<uint64_t>      block_index_;
 
     void WriteToFile(const void* data, size_t size);
 
@@ -319,6 +335,16 @@ class CaptureManager
     uint32_t                                accel_struct_padding_;
     bool                                    iunknown_wrapping_;
     bool                                    force_command_serialization_;
+    bool                                    queue_zero_only_;
+    bool                                    allow_pipeline_compile_required_;
+
+    struct
+    {
+        bool     rv_annotation{ false };
+        uint16_t gpuva_mask{ RvAnnotationUtil::kGPUVAMask };
+        uint16_t descriptor_mask{ RvAnnotationUtil::kDescriptorMask };
+        uint64_t shaderid_mask{ RvAnnotationUtil::kShaderIDMask };
+    } rv_annotation_info_;
 };
 
 GFXRECON_END_NAMESPACE(encode)

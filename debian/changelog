@@ -1,3 +1,137 @@
+gfxreconstruct (1.0.0+37~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ locke-lunarg ]
+  * Fix snprintf doesn't support
+
+  [ Andrew Cox ]
+  * Moved Containers out of OverrideQueuePresentKHR
+
+  [ locke-lunarg ]
+  * Add option GFXRECON_QUEUE_ZERO_ONLY
+
+  [ JerryAMD ]
+  * Annotate GPUVA (#1136)
+
+  [ Andrew Cox ]
+  * Fixed Build for Clang-14
+  * Explicit Types Used to Convert Structs to JSON
+
+  [ fei-amd ]
+  * Add AGS 6.0.1 support (#1137)
+
+  [ David Donaldson ]
+  * Disable AGS build if D3D12 build is off
+  * Check Windows SDK version for D3D12 build in CMake
+
+  [ Rodrigo Urra ]
+  * Restrict ID3D12Object name overriding to D3D12 create calls (#1152)
+
+  [ Locke Lin ]
+  * Add python version 3.7 check for tools
+
+  [ locke-lunarg ]
+  * Convert: Find .ext from end of filename
+
+  [ Panagiotis Apostolou ]
+  * Android capture trigger now appears in logcat
+
+  [ Andrew Cox ]
+  * Shortened Names of Nested Indexes in JSON
+  * Documented Vulkan JSON WriteApiCallToFile()
+
+  [ Brad Grantham ]
+  * update version to prepare for 1.0 release
+
+  [ bradgrantham-lunarg ]
+  * remove outdated README sections (#1154)
+
+  [ fei-amd ]
+  * Fix agsInitialize call capture (#1144)
+
+  [ bradgrantham-lunarg ]
+  * set assert, abort, and _CrtDebugReport to not open a dialog (#1174)
+  * Rebase and refactor fix for staging buffer memory types (#1173)
+
+  [ Brad Grantham ]
+  * fail GH Actions CI build if gen Vk src was not gen'd
+
+  [ Andrew Cox - LunarG ]
+  * Removed Stray "rec_command_index" (#1181)
+
+  [ Mark Young ]
+  * android: Update target/compiled SDK versions
+  * android: Update manifest fix for SDK 33
+  * Android: Add MANAGE_EXTERNAL_STORAGE to manifests
+  * Update Android docs with new permissions
+
+  [ Panagiotis Apostolou ]
+  * Hush Android compile warnings
+  * Expose GetBlockIndexGFXR() from capture layer
+
+  [ Jerry Li ]
+  * Add Dummy Heap
+
+  [ Marius Pélégrin - ARM ]
+  * Fix --log-file option for Android during replay (#1159)
+
+  [ locke-lunarg ]
+  * module can be VK_NULL_HANDLE
+  * Force to return VK_PIPELINE_COMPILE_REQUIRED
+
+  [ Andrew Cox ]
+  * Fixed Linking disable_popup_result for all Tools
+
+  [ locke-lunarg ]
+  * Update headers to 1.3.257
+
+  [ Locke Lin ]
+  * bugfix: flags check (#1201)
+
+  [ David Donaldson ]
+  * Unify frame count vars in capture manager
+  * Write frame markers to capture file
+  * Handle frame end markers in decoders & consumers
+  * Fix removing RV annotation from accel struct desc
+  * Use VR frame debug marker as frame delimiter
+  * Replay check for VR frame end queue submissions
+  * Switch noop functions to only log warning once
+  * Provide func ptrs for debug marker cmds in capture
+
+  [ Locke Lin ]
+  * Update headers to 1.3.258
+
+  [ locke-lunarg ]
+  * Update headers to 1.3.259
+
+  [ Jerry Li ]
+  * Fix ResizeBuffers() with buffer_count == 0
+
+  [ fei-amd ]
+  * Log error message if the user tries to capture AGS v5 (#1179)
+
+  [ igorbrsn ]
+  * discard-cached-psos renamed to use_cached_psos (#1207)
+
+  [ Jerry Li ]
+  * Track removed resource GPUVA
+
+  [ Andrew Cox ]
+  * Updated the DX12 BlockLists
+
+  [ fei-amd ]
+  * Add --gpu option to optimizer (#1218)
+
+  [ bradgrantham-lunarg ]
+  * fix spelling (#1219)
+
+  [ Rodrigo Urra ]
+  * Fix some call IDs missing in to-string generator (#1200)
+
+  [ Locke Lin ]
+  * Update headers to 1.3.261
+
+ -- john <john@odin>  Wed, 16 Aug 2023 10:07:42 -0600
+
 gfxreconstruct (0.9.19+35~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Fei Mao ]

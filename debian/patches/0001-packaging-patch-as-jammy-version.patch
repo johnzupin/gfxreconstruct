@@ -7,7 +7,7 @@ Subject: packaging: patch as jammy version
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/project_version.h.in b/project_version.h.in
-index 3dcd035..c4e7cc8 100644
+index 92b7d4c..b6611a3 100644
 --- a/project_version.h.in
 +++ b/project_version.h.in
 @@ -27,8 +27,8 @@

@@ -399,7 +399,10 @@ bool FileProcessor::ProcessBlocks()
                 else
                 {
                     // Unrecognized block type.
-                    GFXRECON_LOG_WARNING("Skipping unrecognized file block with type %u", block_header.type);
+                    GFXRECON_LOG_WARNING("Skipping unrecognized file block with type %u (frame %u block %" PRIu64 ")",
+                                         block_header.type,
+                                         current_frame_number_,
+                                         block_index_);
                     GFXRECON_CHECK_CONVERSION_DATA_LOSS(size_t, block_header.size);
                     success = SkipBytes(static_cast<size_t>(block_header.size));
                 }
@@ -413,7 +416,9 @@ bool FileProcessor::ProcessBlocks()
                     // end of file warning when the file is at EOF without an error. For this case (the normal EOF case)
                     // we print nothing at EOF, or print an error message and set the error code directly when not at
                     // EOF.
-                    GFXRECON_LOG_ERROR("Failed to read block header");
+                    GFXRECON_LOG_ERROR("Failed to read block header (frame %u block %" PRIu64 ")",
+                                       current_frame_number_,
+                                       block_index_);
                     error_state_ = kErrorReadingBlockHeader;
                 }
             }
@@ -507,7 +512,7 @@ void FileProcessor::HandleBlockReadError(Error error_code, const char* error_mes
     }
     else
     {
-        GFXRECON_LOG_ERROR("%s", error_message);
+        GFXRECON_LOG_ERROR("%s (frame %u block %" PRIu64 ")", error_message, current_frame_number_, block_index_);
         error_state_ = error_code;
     }
 }
@@ -516,9 +521,8 @@ bool FileProcessor::ProcessFunctionCall(const format::BlockHeader& block_header,
 {
     size_t      parameter_buffer_size = static_cast<size_t>(block_header.size) - sizeof(call_id);
     uint64_t    uncompressed_size     = 0;
-    ApiCallInfo call_info             = {};
-    call_info.index                   = block_index_;
-    bool success                      = ReadBytes(&call_info.thread_id, sizeof(call_info.thread_id));
+    ApiCallInfo call_info{ block_index_ };
+    bool        success = ReadBytes(&call_info.thread_id, sizeof(call_info.thread_id));
 
     if (success)
     {
@@ -590,7 +594,7 @@ bool FileProcessor::ProcessMethodCall(const format::BlockHeader& block_header, f
     size_t           parameter_buffer_size = static_cast<size_t>(block_header.size) - sizeof(call_id);
     uint64_t         uncompressed_size     = 0;
     format::HandleId object_id             = 0;
-    ApiCallInfo      call_info             = {};
+    ApiCallInfo      call_info{ block_index_ };
 
     bool success = ReadBytes(&object_id, sizeof(object_id));
     success      = success && ReadBytes(&call_info.thread_id, sizeof(call_info.thread_id));
@@ -1747,6 +1751,62 @@ bool FileProcessor::ProcessMetaData(const format::BlockHeader& block_header, for
             HandleBlockReadError(kErrorReadingBlockData, "Failed to read runtime info meta-data block");
         }
     }
+    else if (meta_data_type == format::MetaDataType::kParentToChildDependency)
+    {
+        // This command does not support compression.
+        assert(block_header.type != format::BlockType::kCompressedMetaDataBlock);
+
+        format::ParentToChildDependencyHeader header;
+        success = ReadBytes(&header.thread_id, sizeof(header.thread_id));
+        success = success && ReadBytes(&header.dependency_type, sizeof(header.dependency_type));
+        success = success && ReadBytes(&header.parent_id, sizeof(header.parent_id));
+        success = success && ReadBytes(&header.child_count, sizeof(header.child_count));
+
+        if (success)
+        {
+            switch (header.dependency_type)
+            {
+                case format::kAccelerationStructuresDependency:
+                {
+                    std::vector<format::HandleId> blases;
+                    blases.resize(header.child_count);
+
+                    for (uint32_t i = 0; i < header.child_count; ++i)
+                    {
+                        success = success && ReadBytes(&blases[i], sizeof(blases[i]));
+                    }
+
+                    if (success)
+                    {
+                        for (auto decoder : decoders_)
+                        {
+                            if (decoder->SupportsMetaDataId(meta_data_id))
+                            {
+                                decoder->DispatchSetTlasToBlasDependencyCommand(header.parent_id, blases);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        HandleBlockReadError(kErrorReadingBlockHeader,
+                                             "Failed to read TLAS to BLAS dependency meta-data block header");
+                    }
+                }
+                break;
+
+                default:
+                    success = false;
+                    HandleBlockReadError(kErrorReadingBlockHeader,
+                                         "Corrupted parent to child dependency meta-data block header");
+                    break;
+            }
+        }
+        else
+        {
+            HandleBlockReadError(kErrorReadingBlockHeader,
+                                 "Failed to read parent to child dependency meta-data block header");
+        }
+    }
     else
     {
         // Unrecognized metadata type.
@@ -1835,7 +1895,7 @@ bool FileProcessor::ProcessStateMarker(const format::BlockHeader& block_header, 
 
 bool FileProcessor::ProcessAnnotation(const format::BlockHeader& block_header, format::AnnotationType annotation_type)
 {
-    bool     success      = false;
+    bool                                             success      = false;
     decltype(format::AnnotationHeader::label_length) label_length = 0;
     decltype(format::AnnotationHeader::data_length)  data_length  = 0;
 
@@ -1900,6 +1960,7 @@ bool FileProcessor::IsFrameDelimiter(format::ApiCallId call_id) const
         // This code is deprecated and no new API calls should be added. Instead, end of frame markers are used to track
         // the file processor's frame count.
         return ((call_id == format::ApiCallId::ApiCall_vkQueuePresentKHR) ||
+                (call_id == format::ApiCallId::ApiCall_vkFrameBoundaryANDROID) ||
                 (call_id == format::ApiCallId::ApiCall_IDXGISwapChain_Present) ||
                 (call_id == format::ApiCallId::ApiCall_IDXGISwapChain1_Present1));
     }

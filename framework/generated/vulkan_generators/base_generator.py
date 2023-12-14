@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -i
 #
 # Copyright (c) 2018-2021 Valve Corporation
-# Copyright (c) 2018-2021 LunarG, Inc.
+# Copyright (c) 2018-2023 LunarG, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -63,21 +63,30 @@ _extensions = _features = []
 _emit_extensions = []
 
 # Exclude extensions from code generation.
+# Note this doesn't totally eliminate them. ToString and ToJson functions for enums
+# will always be generated but functions and structs can be screened out by editing
+# the blocklists files such as the vulkan default "vulkan_generators/blacklists.json".
 # Note, this doesn't hide them from the  application, but lets them bypass our
 # layer during capture, meaning we will not call any of their functions at
 # replay.
 # To screen an extension out from the list reported to the application it should
 # be added to the list kUnsupportedDeviceExtensions in trace_layer.cpp.
 _remove_extensions = [
-    "VK_FUCHSIA_buffer_collection",
-    "VK_NVX_binary_import", "VK_HUAWEI_subpass_shading",
-    "VK_EXT_pipeline_properties", "VK_EXT_metal_objects",
-    # @todo <https://github.com/LunarG/gfxreconstruct/issues/917>
+    "VK_AMDX_shader_enqueue",
+    ## @todo <https://github.com/LunarG/gfxreconstruct/issues/917>
     "VK_EXT_descriptor_buffer",
+    "VK_EXT_metal_objects",
+    "VK_EXT_pipeline_properties",
+    "VK_FUCHSIA_buffer_collection",
+    "VK_HUAWEI_subpass_shading", # Limited tile shader
+    "VK_NVX_binary_import",
     "VK_NV_copy_memory_indirect",
+    ## This extension was still baking despite being released to public in header
+    ## 1.3.262. It breaks codegen with its non-const pInfoXs.
+    ## @todo Check for pInfo ptrs changed to const in header updates.
+    "VK_NV_low_latency2",
     "VK_NV_memory_decompression",
     "VK_QNX_external_memory_screen_buffer",
-    "VK_AMDX_shader_enqueue"
 ]
 
 _supported_subsets = [
@@ -271,94 +280,6 @@ class BaseGenerator(OutputGenerator):
     Base class for Vulkan API parameter encoding and decoding generators.
     """
 
-    # These API calls should not be processed by the code generator.  They require special implementations.
-    APICALL_BLACKLIST = []
-
-    APICALL_ENCODER_BLACKLIST = []
-
-    APICALL_DECODER_BLACKLIST = []
-
-    # These method calls should not be processed by the code generator.  They require special implementations.
-    METHODCALL_BLACKLIST = []
-
-    # These structures should not be processed by the code generator.  They require special implementations.
-    STRUCT_BLACKLIST = []
-
-    # Platform specific basic types that have been defined extarnally to the Vulkan header.
-    PLATFORM_TYPES = {}
-
-    # Platform specific structure types that have been defined extarnally to the Vulkan header.
-    PLATFORM_STRUCTS = []
-
-    GENERIC_HANDLE_APICALLS = {
-        'vkDebugReportMessageEXT': {
-            'object': 'objectType'
-        },
-        'vkSetPrivateDataEXT': {
-            'objectHandle': 'objectType'
-        },
-        'vkGetPrivateDataEXT': {
-            'objectHandle': 'objectType'
-        },
-        'vkSetPrivateData': {
-            'objectHandle': 'objectType'
-        },
-        'vkGetPrivateData': {
-            'objectHandle': 'objectType'
-        }
-    }
-
-    GENERIC_HANDLE_STRUCTS = {
-        'VkDebugMarkerObjectNameInfoEXT': {
-            'object': 'objectType'
-        },
-        'VkDebugMarkerObjectTagInfoEXT': {
-            'object': 'objectType'
-        },
-        'VkDebugUtilsObjectNameInfoEXT': {
-            'objectHandle': 'objectType'
-        },
-        'VkDebugUtilsObjectTagInfoEXT': {
-            'objectHandle': 'objectType'
-        }
-    }
-
-    VULKAN_REPLACE_TYPE = {
-        "VkRemoteAddressNV": {
-            "baseType": "void",
-            "replaceWith": "void*"
-        }
-    }
-
-    # These types represent pointers to non-Vulkan or non-Dx12 objects that were written as 64-bit address IDs.
-    EXTERNAL_OBJECT_TYPES = ['void', 'Void']
-
-    MAP_STRUCT_TYPE = {
-        'D3D12_GPU_DESCRIPTOR_HANDLE': [
-            'MapGpuDescriptorHandle', 'MapGpuDescriptorHandles',
-            'descriptor_map'
-        ],
-        'D3D12_GPU_VIRTUAL_ADDRESS':
-        ['MapGpuVirtualAddress', 'MapGpuVirtualAddresses', 'gpu_va_map']
-    }
-
-    # Dispatchable handle types.
-    DISPATCHABLE_HANDLE_TYPES = [
-        'VkInstance', 'VkPhysicalDevice', 'VkDevice', 'VkQueue',
-        'VkCommandBuffer'
-    ]
-
-    DUPLICATE_HANDLE_TYPES = [
-        'VkDescriptorUpdateTemplateKHR', 'VkSamplerYcbcrConversionKHR', 'VkPrivateDataSlotEXT'
-    ]
-
-    # Default C++ code indentation size.
-    INDENT_SIZE = 4
-
-    VIDEO_TREE = None
-
-    generate_video = False
-
     def __init__(
         self,
         process_cmds,
@@ -369,6 +290,94 @@ class BaseGenerator(OutputGenerator):
         diag_file=sys.stdout
     ):
         OutputGenerator.__init__(self, err_file, warn_file, diag_file)
+
+        # These API calls should not be processed by the code generator.  They require special implementations.
+        self.APICALL_BLACKLIST = []
+
+        self.APICALL_ENCODER_BLACKLIST = []
+
+        self.APICALL_DECODER_BLACKLIST = []
+
+        # These method calls should not be processed by the code generator.  They require special implementations.
+        self.METHODCALL_BLACKLIST = []
+
+        # These structures should not be processed by the code generator.  They require special implementations.
+        self.STRUCT_BLACKLIST = []
+
+        # Platform specific basic types that have been defined extarnally to the Vulkan header.
+        self.PLATFORM_TYPES = {}
+
+        # Platform specific structure types that have been defined extarnally to the Vulkan header.
+        self.PLATFORM_STRUCTS = []
+
+        self.GENERIC_HANDLE_APICALLS = {
+            'vkDebugReportMessageEXT': {
+                'object': 'objectType'
+            },
+            'vkSetPrivateDataEXT': {
+                'objectHandle': 'objectType'
+            },
+            'vkGetPrivateDataEXT': {
+                'objectHandle': 'objectType'
+            },
+            'vkSetPrivateData': {
+                'objectHandle': 'objectType'
+            },
+            'vkGetPrivateData': {
+                'objectHandle': 'objectType'
+            }
+        }
+
+        self.GENERIC_HANDLE_STRUCTS = {
+            'VkDebugMarkerObjectNameInfoEXT': {
+                'object': 'objectType'
+            },
+            'VkDebugMarkerObjectTagInfoEXT': {
+                'object': 'objectType'
+            },
+            'VkDebugUtilsObjectNameInfoEXT': {
+                'objectHandle': 'objectType'
+            },
+            'VkDebugUtilsObjectTagInfoEXT': {
+                'objectHandle': 'objectType'
+            }
+        }
+
+        self.VULKAN_REPLACE_TYPE = {
+            "VkRemoteAddressNV": {
+                "baseType": "void",
+                "replaceWith": "void*"
+            }
+        }
+
+        # These types represent pointers to non-Vulkan or non-Dx12 objects that were written as 64-bit address IDs.
+        self.EXTERNAL_OBJECT_TYPES = ['void', 'Void']
+
+        self.MAP_STRUCT_TYPE = {
+            'D3D12_GPU_DESCRIPTOR_HANDLE': [
+                'MapGpuDescriptorHandle', 'MapGpuDescriptorHandles',
+                'descriptor_map'
+            ],
+            'D3D12_GPU_VIRTUAL_ADDRESS':
+            ['MapGpuVirtualAddress', 'MapGpuVirtualAddresses', 'gpu_va_map']
+        }
+
+        # Dispatchable handle types.
+        self.DISPATCHABLE_HANDLE_TYPES = [
+            'VkInstance', 'VkPhysicalDevice', 'VkDevice', 'VkQueue',
+            'VkCommandBuffer'
+        ]
+
+        self.DUPLICATE_HANDLE_TYPES = [
+            'VkDescriptorUpdateTemplateKHR', 'VkSamplerYcbcrConversionKHR', 'VkPrivateDataSlotEXT'
+        ]
+
+        # Default C++ code indentation size.
+        self.INDENT_SIZE = 4
+
+        self.VIDEO_TREE = None
+
+        self.generate_video = False
 
         # Typenames
         self.struct_names = set()  # Set of Vulkan struct typenames
@@ -883,6 +892,10 @@ class BaseGenerator(OutputGenerator):
             if not self.is_cmd_black_listed(key)
         ]
 
+    def clean_type_define(self, full_type):
+        """Default to identity function, base classes may override."""
+        return full_type
+
     def check_struct_pnext_handles(self, typename):
         """Determines if the specified struct type can reference pNext extension structs that contain handles."""
         found_handles = False
@@ -1338,7 +1351,7 @@ class BaseGenerator(OutputGenerator):
             return lengths
         else:
             # XML does not provide lengths for all dimensions, instantiate a specialization of ArraySize2D to fetch the sizes
-            type_list = ', '.join([v.full_type for v in values])
+            type_list = ', '.join([self.clean_type_define(v.full_type) for v in values])
             arg_list = ', '.join([v.name for v in values])
             return ['ArraySize2D<{}>({})'.format(type_list, arg_list)]
 
@@ -1497,3 +1510,13 @@ class BaseGenerator(OutputGenerator):
     def is_flags_enum_64bit(self, enum):
         flag_type = BitsEnumToFlagsTypedef(enum)
         return self.is_64bit_flags(flag_type)
+    
+    def is_has_specific_key_word_in_type(self, value, key_word):
+        if key_word in value.base_type:
+            return True
+        
+        values = self.feature_struct_members.get(value.base_type)
+        if values:
+            for value in values:
+                return self.is_has_specific_key_word_in_type(value, key_word)
+        return False  

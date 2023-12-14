@@ -1,6 +1,7 @@
 /*
 ** Copyright (c) 2018-2020 Valve Corporation
 ** Copyright (c) 2018-2023 LunarG, Inc.
+** Copyright (c) 2023 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -36,7 +37,6 @@
 #include "decode/vulkan_resource_tracking_consumer.h"
 #include "decode/vulkan_resource_initializer.h"
 #include "decode/vulkan_swapchain.h"
-#include "decode/window.h"
 #include "format/api_call_id.h"
 #include "format/platform_types.h"
 #include "generated/generated_vulkan_dispatch_table.h"
@@ -196,7 +196,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     const VkAllocationCallbacks*
     GetAllocationCallbacks(const StructPointerDecoder<Decoded_VkAllocationCallbacks>* original_callbacks);
 
-    void CheckResult(const char* func_name, VkResult original, VkResult replay);
+    void CheckResult(const char* func_name, VkResult original, VkResult replay, const decode::ApiCallInfo& call_info);
 
     template <typename T>
     typename T::HandleType MapHandle(format::HandleId id,
@@ -483,6 +483,16 @@ class VulkanReplayConsumerBase : public VulkanConsumer
         PointerDecoder<uint32_t>*                                     pToolCount,
         StructPointerDecoder<Decoded_VkPhysicalDeviceToolProperties>* pToolProperties);
 
+    void OverrideGetDeviceQueue(PFN_vkGetDeviceQueue           func,
+                                DeviceInfo*                    device_info,
+                                uint32_t                       queueFamilyIndex,
+                                uint32_t                       queueIndex,
+                                HandlePointerDecoder<VkQueue>* pQueue);
+    void OverrideGetDeviceQueue2(PFN_vkGetDeviceQueue2                             func,
+                                 DeviceInfo*                                       device_info,
+                                 StructPointerDecoder<Decoded_VkDeviceQueueInfo2>* pQueueInfo,
+                                 HandlePointerDecoder<VkQueue>*                    pQueue);
+
     VkResult OverrideWaitForFences(PFN_vkWaitForFences                  func,
                                    VkResult                             original_result,
                                    const DeviceInfo*                    device_info,
@@ -666,7 +676,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                        HandlePointerDecoder<VkRenderPass>*                          pRenderPass);
 
     void OverrideCmdPipelineBarrier(PFN_vkCmdPipelineBarrier                                   func,
-                                    const CommandBufferInfo*                                   command_buffer_info,
+                                    CommandBufferInfo*                                         command_buffer_info,
                                     VkPipelineStageFlags                                       srcStageMask,
                                     VkPipelineStageFlags                                       dstStageMask,
                                     VkDependencyFlags                                          dependencyFlags,
@@ -739,6 +749,15 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                         const StructPointerDecoder<Decoded_VkSwapchainCreateInfoKHR>* pCreateInfo,
                                         const StructPointerDecoder<Decoded_VkAllocationCallbacks>*    pAllocator,
                                         HandlePointerDecoder<VkSwapchainKHR>*                         pSwapchain);
+
+    VkResult
+    OverrideCreateSharedSwapchainsKHR(PFN_vkCreateSharedSwapchainsKHR                               func,
+                                      VkResult                                                      original_result,
+                                      DeviceInfo*                                                   device_info,
+                                      uint32_t                                                      swapchainCount,
+                                      const StructPointerDecoder<Decoded_VkSwapchainCreateInfoKHR>* pCreateInfos,
+                                      const StructPointerDecoder<Decoded_VkAllocationCallbacks>*    pAllocator,
+                                      HandlePointerDecoder<VkSwapchainKHR>*                         pSwapchains);
 
     void OverrideDestroySwapchainKHR(PFN_vkDestroySwapchainKHR                                  func,
                                      DeviceInfo*                                                device_info,
@@ -860,6 +879,22 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                     const StructPointerDecoder<Decoded_VkAllocationCallbacks>*         pAllocator,
                                     HandlePointerDecoder<VkSurfaceKHR>*                                pSurface);
 
+    VkResult
+    OverrideCreateDisplayPlaneSurfaceKHR(PFN_vkCreateDisplayPlaneSurfaceKHR func,
+                                         VkResult                           original_result,
+                                         InstanceInfo*                      instance_info,
+                                         const StructPointerDecoder<Decoded_VkDisplaySurfaceCreateInfoKHR>* pCreateInfo,
+                                         const StructPointerDecoder<Decoded_VkAllocationCallbacks>*         pAllocator,
+                                         HandlePointerDecoder<VkSurfaceKHR>*                                pSurface);
+
+    VkResult
+    OverrideCreateHeadlessSurfaceEXT(PFN_vkCreateHeadlessSurfaceEXT func,
+                                     VkResult                       original_result,
+                                     InstanceInfo*                  instance_info,
+                                     const StructPointerDecoder<Decoded_VkHeadlessSurfaceCreateInfoEXT>* pCreateInfo,
+                                     const StructPointerDecoder<Decoded_VkAllocationCallbacks>*          pAllocator,
+                                     HandlePointerDecoder<VkSurfaceKHR>*                                 pSurface);
+
     VkBool32
     OverrideGetPhysicalDeviceWaylandPresentationSupportKHR(PFN_vkGetPhysicalDeviceWaylandPresentationSupportKHR func,
                                                            const PhysicalDeviceInfo* physical_device_info,
@@ -932,9 +967,47 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                         CommandBufferInfo*        command_buffer_info,
                                         VkCommandBufferResetFlags flags);
 
-    void OverrideCmdDebugMarkerInsertEXT(PFN_vkCmdDebugMarkerInsertEXT                             func,
-                                         CommandBufferInfo*                                        command_buffer_info,
-                                         StructPointerDecoder<Decoded_VkDebugMarkerMarkerInfoEXT>* marker_info_decoder);
+    void     OverrideCmdDebugMarkerInsertEXT(PFN_vkCmdDebugMarkerInsertEXT                             func,
+                                             CommandBufferInfo*                                        command_buffer_info,
+                                             StructPointerDecoder<Decoded_VkDebugMarkerMarkerInfoEXT>* marker_info_decoder);
+    VkResult OverrideWaitSemaphores(PFN_vkWaitSemaphores                                     func,
+                                    VkResult                                                 original_result,
+                                    const DeviceInfo*                                        device_info,
+                                    const StructPointerDecoder<Decoded_VkSemaphoreWaitInfo>* pInfo,
+                                    uint64_t                                                 timeout);
+
+    VkResult OverrideAcquireProfilingLockKHR(PFN_vkAcquireProfilingLockKHR func,
+                                             VkResult                      original_result,
+                                             const DeviceInfo*             device_info,
+                                             const StructPointerDecoder<Decoded_VkAcquireProfilingLockInfoKHR>* pInfo);
+
+    VkResult OverrideWaitForPresentKHR(PFN_vkWaitForPresentKHR func,
+                                       VkResult                original_result,
+                                       const DeviceInfo*       device_info,
+                                       SwapchainKHRInfo*       swapchain_info,
+                                       uint64_t                presentid,
+                                       uint64_t                timeout);
+
+    void OverrideCmdBeginRenderPass(PFN_vkCmdBeginRenderPass                             func,
+                                    CommandBufferInfo*                                   command_buffer_info,
+                                    StructPointerDecoder<Decoded_VkRenderPassBeginInfo>* render_pass_begin_info_decoder,
+                                    VkSubpassContents                                    contents);
+
+    VkResult OverrideCreateImageView(PFN_vkCreateImageView                                func,
+                                     VkResult                                             original_result,
+                                     const DeviceInfo*                                    device_info,
+                                     StructPointerDecoder<Decoded_VkImageViewCreateInfo>* create_info_decoder,
+                                     StructPointerDecoder<Decoded_VkAllocationCallbacks>* allocator_decoder,
+                                     HandlePointerDecoder<VkImageView>*                   view_decoder);
+
+    VkResult OverrideCreateFramebuffer(PFN_vkCreateFramebuffer                                func,
+                                       VkResult                                               original_result,
+                                       const DeviceInfo*                                      device_info,
+                                       StructPointerDecoder<Decoded_VkFramebufferCreateInfo>* create_info_decoder,
+                                       StructPointerDecoder<Decoded_VkAllocationCallbacks>*   allocator_decoder,
+                                       HandlePointerDecoder<VkFramebuffer>*                   frame_buffer_decoder);
+
+    const VulkanReplayOptions options_;
 
   private:
     void RaiseFatalError(const char* message) const;
@@ -1003,11 +1076,6 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                      const std::vector<std::string>& enabled_device_extensions,
                                      VulkanResourceAllocator*        allocator);
 
-    VkResult CreateSurface(InstanceInfo*                       instance_info,
-                           const std::string&                  wsi_extension,
-                           VkFlags                             flags,
-                           HandlePointerDecoder<VkSurfaceKHR>* surface);
-
     void MapDescriptorUpdateTemplateHandles(const DescriptorUpdateTemplateInfo* update_template_info,
                                             DescriptorUpdateTemplateDecoder*    decoder);
 
@@ -1055,8 +1123,6 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     bool CheckCommandBufferInfoForFrameBoundary(const CommandBufferInfo* command_buffer_info);
 
   private:
-    typedef std::unordered_set<Window*> ActiveWindows;
-
     struct HardwareBufferInfo
     {
         format::HandleId memory_id;
@@ -1093,20 +1159,24 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     std::function<void(const char*)>                                 fatal_error_handler_;
     std::shared_ptr<application::Application>                        application_;
     VulkanObjectInfoTable                                            object_info_table_;
-    ActiveWindows                                                    active_windows_;
-    const VulkanReplayOptions                                        options_;
     bool                                                             loading_trim_state_;
-    bool                                                             have_imported_semaphores_;
+    bool                                                             replaying_trimmed_capture_;
     SwapchainImageTracker                                            swapchain_image_tracker_;
     HardwareBufferMap                                                hardware_buffers_;
     HardwareBufferMemoryMap                                          hardware_buffer_memory_info_;
     std::unique_ptr<ScreenshotHandler>                               screenshot_handler_;
     std::unique_ptr<VulkanSwapchain>                                 swapchain_;
     std::string                                                      screenshot_file_prefix_;
-    int32_t                                                          create_surface_count_;
     graphics::FpsInfo*                                               fps_info_;
 
-    // Used to track if any shadow sync objects are active to avoid checking if not needed
+    // Imported semaphores are semaphores that are used to track external memory.
+    // During replay, the external memory is not present (we have no Fds or handles to valid
+    // data), so we ignore those semaphores when they are encountered.
+    bool have_imported_semaphores_;
+
+    // Used to track if any shadow sync objects are active to avoid checking if not needed.
+    // SHadowed objects are ignored when they would have been unsignaled (waited on).
+    // [Currently set during a call to AcquireNextImage if the VkSurfaceKHR is VK_NULL_HANDLE.
     std::unordered_set<VkSemaphore> shadow_semaphores_;
     std::unordered_set<VkFence>     shadow_fences_;
 

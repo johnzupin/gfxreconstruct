@@ -14,6 +14,8 @@
     "vkGetPhysicalDeviceMemoryProperties2KHR": "OverrideGetPhysicalDeviceMemoryProperties2",
     "vkGetPhysicalDeviceSurfaceCapabilitiesKHR": "OverrideGetPhysicalDeviceSurfaceCapabilitiesKHR",
     "vkGetPhysicalDeviceSurfaceCapabilities2KHR": "OverrideGetPhysicalDeviceSurfaceCapabilities2KHR",
+    "vkGetDeviceQueue": "OverrideGetDeviceQueue",
+    "vkGetDeviceQueue2": "OverrideGetDeviceQueue2",
     "vkWaitForFences": "OverrideWaitForFences",
     "vkGetFenceStatus": "OverrideGetFenceStatus",
     "vkGetEventStatus": "OverrideGetEventStatus",
@@ -58,6 +60,7 @@
     "vkCreateDebugReportCallbackEXT": "OverrideCreateDebugReportCallbackEXT",
     "vkCreateDebugUtilsMessengerEXT": "OverrideCreateDebugUtilsMessengerEXT",
     "vkCreateSwapchainKHR": "OverrideCreateSwapchainKHR",
+    "vkCreateSharedSwapchainsKHR": "OverrideCreateSharedSwapchainsKHR",
     "vkDestroySwapchainKHR": "OverrideDestroySwapchainKHR",
     "vkGetSwapchainImagesKHR": "OverrideGetSwapchainImagesKHR",
     "vkAcquireNextImageKHR": "OverrideAcquireNextImageKHR",
@@ -75,6 +78,8 @@
     "vkCreateXlibSurfaceKHR": "OverrideCreateXlibSurfaceKHR",
     "vkGetPhysicalDeviceXlibPresentationSupportKHR": "OverrideGetPhysicalDeviceXlibPresentationSupportKHR",
     "vkCreateWaylandSurfaceKHR": "OverrideCreateWaylandSurfaceKHR",
+    "vkCreateDisplayPlaneSurfaceKHR": "OverrideCreateDisplayPlaneSurfaceKHR",
+    "vkCreateHeadlessSurfaceEXT": "OverrideCreateHeadlessSurfaceEXT",
     "vkGetPhysicalDeviceWaylandPresentationSupportKHR": "OverrideGetPhysicalDeviceWaylandPresentationSupportKHR",
     "vkDestroySurfaceKHR": "OverrideDestroySurfaceKHR",
     "vkCreateAccelerationStructureKHR": "OverrideCreateAccelerationStructureKHR",
@@ -90,6 +95,12 @@
     "vkGetPhysicalDeviceToolPropertiesEXT": "OverrideGetPhysicalDeviceToolProperties",
     "vkBeginCommandBuffer": "OverrideBeginCommandBuffer",
     "vkResetCommandBuffer": "OverrideResetCommandBuffer",
-    "vkCmdDebugMarkerInsertEXT": "OverrideCmdDebugMarkerInsertEXT"
+    "vkCmdDebugMarkerInsertEXT": "OverrideCmdDebugMarkerInsertEXT",
+    "vkCmdBeginRenderPass": "OverrideCmdBeginRenderPass",
+    "vkCreateImageView": "OverrideCreateImageView",
+    "vkCreateFramebuffer": "OverrideCreateFramebuffer",
+    "vkAcquireProfilingLockKHR": "OverrideAcquireProfilingLockKHR",
+    "vkWaitForPresentKHR": "OverrideWaitForPresentKHR",
+    "vkWaitSemaphores": "OverrideWaitSemaphores"
   }
 }

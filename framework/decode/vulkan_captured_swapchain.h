@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2021-2022 LunarG, Inc.
+** Copyright (c) 2021-2023 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -33,37 +33,29 @@ class VulkanCapturedSwapchain : public VulkanSwapchain
   public:
     virtual ~VulkanCapturedSwapchain() override {}
 
-    virtual VkResult CreateSwapchainKHR(PFN_vkCreateSwapchainKHR        func,
-                                        const DeviceInfo*               device_info,
-                                        const VkSwapchainCreateInfoKHR* create_info,
-                                        const VkAllocationCallbacks*    allocator,
-                                        VkSwapchainKHR*                 swapchain,
-                                        const VkPhysicalDevice          physical_device,
-                                        const encode::InstanceTable*    instance_table,
-                                        const encode::DeviceTable*      device_table) override;
+    virtual VkResult CreateSwapchainKHR(VkResult                              original_result,
+                                        PFN_vkCreateSwapchainKHR              func,
+                                        const DeviceInfo*                     device_info,
+                                        const VkSwapchainCreateInfoKHR*       create_info,
+                                        const VkAllocationCallbacks*          allocator,
+                                        HandlePointerDecoder<VkSwapchainKHR>* swapchain,
+                                        const encode::DeviceTable*            device_table) override;
 
     virtual void DestroySwapchainKHR(PFN_vkDestroySwapchainKHR    func,
                                      const DeviceInfo*            device_info,
                                      const SwapchainKHRInfo*      swapchain_info,
                                      const VkAllocationCallbacks* allocator) override;
 
-    virtual VkResult GetSwapchainImagesKHR(PFN_vkGetSwapchainImagesKHR func,
+    virtual VkResult GetSwapchainImagesKHR(VkResult                    original_result,
+                                           PFN_vkGetSwapchainImagesKHR func,
                                            const DeviceInfo*           device_info,
                                            SwapchainKHRInfo*           swapchain_info,
                                            uint32_t                    capture_image_count,
                                            uint32_t*                   image_count,
                                            VkImage*                    images) override;
 
-    virtual VkResult AcquireNextImageKHR(PFN_vkAcquireNextImageKHR func,
-                                         const DeviceInfo*         device_info,
-                                         SwapchainKHRInfo*         swapchain_info,
-                                         uint64_t                  timeout,
-                                         SemaphoreInfo*            semaphore_info,
-                                         FenceInfo*                fence_info,
-                                         uint32_t                  capture_image_index,
-                                         uint32_t*                 image_index) override;
-
-    virtual VkResult AcquireNextImageKHR(PFN_vkAcquireNextImageKHR func,
+    virtual VkResult AcquireNextImageKHR(VkResult                  original_result,
+                                         PFN_vkAcquireNextImageKHR func,
                                          const DeviceInfo*         device_info,
                                          SwapchainKHRInfo*         swapchain_info,
                                          uint64_t                  timeout,
@@ -72,26 +64,30 @@ class VulkanCapturedSwapchain : public VulkanSwapchain
                                          uint32_t                  capture_image_index,
                                          uint32_t*                 image_index) override;
 
-    virtual VkResult AcquireNextImage2KHR(PFN_vkAcquireNextImage2KHR       func,
+    virtual VkResult AcquireNextImage2KHR(VkResult                         original_result,
+                                          PFN_vkAcquireNextImage2KHR       func,
                                           const DeviceInfo*                device_info,
                                           SwapchainKHRInfo*                swapchain_info,
                                           const VkAcquireNextImageInfoKHR* acquire_info,
                                           uint32_t                         capture_image_index,
                                           uint32_t*                        image_index) override;
 
-    virtual VkResult QueuePresentKHR(PFN_vkQueuePresentKHR                 func,
+    virtual VkResult QueuePresentKHR(VkResult                              original_result,
+                                     PFN_vkQueuePresentKHR                 func,
                                      const std::vector<uint32_t>&          capture_image_indices,
                                      const std::vector<SwapchainKHRInfo*>& swapchain_infos,
                                      const QueueInfo*                      queue_info,
                                      const VkPresentInfoKHR*               present_info) override;
 
-    virtual VkResult CreateRenderPass(PFN_vkCreateRenderPass        func,
+    virtual VkResult CreateRenderPass(VkResult                      original_result,
+                                      PFN_vkCreateRenderPass        func,
                                       const DeviceInfo*             device_info,
                                       const VkRenderPassCreateInfo* create_info,
                                       const VkAllocationCallbacks*  allocator,
                                       VkRenderPass*                 render_pass) override;
 
-    virtual VkResult CreateRenderPass2(PFN_vkCreateRenderPass2        func,
+    virtual VkResult CreateRenderPass2(VkResult                       original_result,
+                                       PFN_vkCreateRenderPass2        func,
                                        const DeviceInfo*              device_info,
                                        const VkRenderPassCreateInfo2* create_info,
                                        const VkAllocationCallbacks*   allocator,

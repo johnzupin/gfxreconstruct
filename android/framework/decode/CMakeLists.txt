@@ -39,6 +39,8 @@ target_sources(gfxrecon_decode
                    ${GFXRECON_SOURCE_DIR}/framework/decode/struct_pointer_decoder.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/swapchain_image_tracker.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/value_decoder.h
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/metadata_consumer_base.h
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/marker_consumer_base.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_consumer_base.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_decoder_base.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_decoder_base.cpp
@@ -73,19 +75,20 @@ target_sources(gfxrecon_decode
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_resource_tracking_consumer.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_resource_tracking_consumer.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_swapchain.h
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_swapchain.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_tracked_object_info.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_tracked_object_info_table.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_tracked_object_info.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_tracked_object_info_table.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_virtual_swapchain.h
                    ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_virtual_swapchain.cpp
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_offscreen_swapchain.h
+                   ${GFXRECON_SOURCE_DIR}/framework/decode/vulkan_offscreen_swapchain.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/decode/window.h
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_consumer.h
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_decoder.h
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_decoder.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_feature_util.cpp
-                   ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_referenced_resource_consumer.h
-                   ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_referenced_resource_consumer.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_replay_consumer.h
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_replay_consumer.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_struct_decoders_forward.h

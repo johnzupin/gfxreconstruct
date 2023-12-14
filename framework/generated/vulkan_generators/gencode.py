@@ -58,8 +58,8 @@ from decode_pnext_struct_generator import DecodePNextStructGenerator, DecodePNex
 
 # Consumers
 from vulkan_consumer_header_generator import VulkanConsumerHeaderGenerator, VulkanConsumerHeaderGeneratorOptions
-from vulkan_export_json_consumer_header_generator import VulkanExportJsonConsumerHeaderGenerator, VulkanExportJsonConsumerHeaderGeneratorOptions
-from vulkan_export_json_consumer_body_generator import VulkanExportJsonConsumerBodyGenerator, VulkanExportJsonConsumerBodyGeneratorOptions
+from vulkan_json_consumer_header_generator import VulkanExportJsonConsumerHeaderGenerator, VulkanExportJsonConsumerHeaderGeneratorOptions
+from vulkan_json_consumer_body_generator import VulkanExportJsonConsumerBodyGenerator, VulkanExportJsonConsumerBodyGeneratorOptions
 from vulkan_replay_consumer_body_generator import VulkanReplayConsumerBodyGenerator, VulkanReplayConsumerBodyGeneratorOptions
 from vulkan_referenced_resource_consumer_header_generator import VulkanReferencedResourceHeaderGenerator, VulkanReferencedResourceHeaderGeneratorOptions
 from vulkan_referenced_resource_consumer_body_generator import VulkanReferencedResourceBodyGenerator, VulkanReferencedResourceBodyGeneratorOptions
@@ -93,6 +93,9 @@ from vulkan_enum_to_json_body_generator import VulkanEnumToJsonBodyGenerator, Vu
 from vulkan_enum_to_json_header_generator import VulkanEnumToJsonHeaderGenerator, VulkanEnumToJsonHeaderGeneratorOptions
 from vulkan_struct_to_json_header_generator import VulkanStructToJsonHeaderGenerator, VulkanStructToJsonHeaderGeneratorOptions
 from vulkan_struct_to_json_body_generator import VulkanStructToJsonBodyGenerator, VulkanStructToJsonBodyGeneratorOptions
+
+# Constants
+from vulkan_constant_maps_generator import VulkanConstantMapsGenerator, VulkanConstantMapsGeneratorOptions
 
 # Simple timer functions
 start_time = None
@@ -143,6 +146,24 @@ def getExtraVulkanHeaders(extraHeadersDir):
         os.path.relpath(header, extraHeadersDir)
         for header in _getExtraVulkanHeaders(extraHeadersDir)
     ]
+
+
+def extend_xml(dest_tree, src_xml, debug=False):
+    '''Extend the parsed vk.xml registry tree with content from another xml file'''
+    def merge(dest, src):
+        '''Perform a recursive merge of src into dest'''
+        leaf_tags = ('command', 'enums', 'extension', 'feature', 'format',
+                     'platform', 'spirvcapability', 'spirvextension', 'tag', 'type')
+        for src_child in src:
+            dest_child = dest.find(src_child.tag)
+            if (src_child.tag in leaf_tags) or (dest_child is not None):
+                # stop descent and copy if the heirarchy diverges or we reach a leaf tag
+                dest.append(src_child)
+            else:
+                merge(dest_child, src_child)
+    merge(dest_tree.getroot(), etree.parse(src_xml).getroot())
+    if debug:
+        dest_tree.write(os.path.splitext(src_xml)[0] + '_merged.xml')
 
 
 def make_gen_opts(args):
@@ -612,13 +633,13 @@ def make_gen_opts(args):
         )
     ]
 
-    gen_opts['generated_vulkan_export_json_consumer.h'] = [
+    gen_opts['generated_vulkan_json_consumer.h'] = [
         VulkanExportJsonConsumerHeaderGenerator,
         VulkanExportJsonConsumerHeaderGeneratorOptions(
             class_name='VulkanExportJsonConsumer',
-            base_class_header='vulkan_export_json_consumer_base.h',
+            base_class_header='vulkan_json_consumer_base.h',
             is_override=True,
-            filename='generated_vulkan_export_json_consumer.h',
+            filename='generated_vulkan_json_consumer.h',
             directory=directory,
             blacklists=blacklists,
             platform_types=platform_types,
@@ -629,10 +650,10 @@ def make_gen_opts(args):
         )
     ]
 
-    gen_opts['generated_vulkan_export_json_consumer.cpp'] = [
+    gen_opts['generated_vulkan_json_consumer.cpp'] = [
         VulkanExportJsonConsumerBodyGenerator,
         VulkanExportJsonConsumerBodyGeneratorOptions(
-            filename='generated_vulkan_export_json_consumer.cpp',
+            filename='generated_vulkan_json_consumer.cpp',
             directory=directory,
             blacklists=blacklists,
             platform_types=platform_types,
@@ -695,6 +716,20 @@ def make_gen_opts(args):
             prefixText=prefix_strings + vk_prefix_strings,
             protectFile=False,
             protectFeature=False,
+            extraVulkanHeaders=extraVulkanHeaders
+        )
+    ]
+
+    gen_opts['generated_vulkan_constant_maps.h'] = [
+        VulkanConstantMapsGenerator,
+        VulkanConstantMapsGeneratorOptions(
+            filename='generated_vulkan_constant_maps.h',
+            directory=directory,
+            blacklists=blacklists,
+            platform_types=platform_types,
+            prefix_text=prefix_strings + vk_prefix_strings,
+            protect_file=True,
+            protect_feature=False,
             extraVulkanHeaders=extraVulkanHeaders
         )
     ]
@@ -873,10 +908,29 @@ if __name__ == '__main__':
 
     reg = Registry(gen, options)
 
+    ## @note We parse vk.xml to an in-memory element tree and then extract the info we need
+    ## from that into the Registry object once per output file we generate rather than once
+    ## per run of the top-level generation script.
     start_timer(args.time)
     tree = etree.parse(args.registry)
     gen.VIDEO_TREE = etree.parse(args.video)
     end_timer(args.time, '* Time to make ElementTree =')
+
+    # Apply any temporary patches to the xml to allow correct code generation
+    # from it. These should be reviewed and removed when the xml is fixed upstream.
+    start_timer(args.time)
+    # There are no current patches needed, but here is an example of how to patch the XML
+    # after parsing to add a missing single attribute:
+    # Workaround 1.3.264 VkFrameBoundaryEXT.pTag lacking len field:
+    # <https://github.com/KhronosGroup/Vulkan-Docs/pull/2240>
+    # if ptag_member := tree.find('types/type[@name="VkFrameBoundaryEXT"]/member[name="pTag"]'):
+    #    ptag_member.set('len', 'tagSize')
+    end_timer(args.time, '* Time to patch ElementTree =')
+
+    # Extend the vk.xml tree with XML files from the config dir
+    for filename in os.listdir(args.configs):
+        if filename.endswith('.xml'):
+            extend_xml(tree, os.path.join(args.configs, filename))
 
     start_timer(args.time)
     reg.loadElementTree(tree)

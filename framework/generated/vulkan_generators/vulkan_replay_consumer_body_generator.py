@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -i
 #
 # Copyright (c) 2018-2020 Valve Corporation
-# Copyright (c) 2018-2020 LunarG, Inc.
+# Copyright (c) 2018-2023 LunarG, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -77,7 +77,11 @@ class VulkanReplayConsumerBodyGenerator(
         'VkDescriptorPool': 'VkDescriptorSet'
     }
 
-    SKIP_PNEXT_STRUCT_TYPES = [ 'VK_STRUCTURE_TYPE_BASE_IN_STRUCTURE', 'VK_STRUCTURE_TYPE_BASE_OUT_STRUCTURE' ]    
+    SKIP_PNEXT_STRUCT_TYPES = [ 'VK_STRUCTURE_TYPE_BASE_IN_STRUCTURE', 'VK_STRUCTURE_TYPE_BASE_OUT_STRUCTURE' ]
+
+    NOT_SKIP_FUNCTIONS_OFFSCREEN = ['Create', 'Destroy', 'GetSwapchainImages', 'AcquireNextImage', 'QueuePresent']
+    
+    SKIP_FUNCTIONS_OFFSCREEN = ['Surface', 'Swapchain', 'Present']
 
     def __init__(
         self, err_file=sys.stderr, warn_file=sys.stderr, diag_file=sys.stdout
@@ -139,7 +143,33 @@ class VulkanReplayConsumerBodyGenerator(
     def endFile(self):
         """Method override."""
         self.newline()
+        write('static void InitializeOutputStructPNextImpl(const VkBaseInStructure* in_pnext, VkBaseOutStructure* output_struct)', file=self.outFile)
+        write('{', file=self.outFile)
+        write('    while(in_pnext)', file=self.outFile)
+        write('    {', file=self.outFile)
+        write('        switch(in_pnext->sType)', file=self.outFile)
+        write('        {', file=self.outFile)
+        for struct in self.stype_values:
+            struct_type = self.stype_values[struct]
+            if not struct_type in self.SKIP_PNEXT_STRUCT_TYPES:
+                write('            case {}:'.format(struct_type), file=self.outFile)
+                write('            {', file=self.outFile)
+                write('                output_struct->pNext = reinterpret_cast<VkBaseOutStructure*>(DecodeAllocator::Allocate<{}>());'
+                    .format(struct),
+                    file=self.outFile
+                )
+                write('                break;', file=self.outFile)
+                write('            }', file=self.outFile)
+        write('            default:', file=self.outFile)
+        write('                break;', file=self.outFile)
+        write('        }', file=self.outFile)
+        write('        output_struct = output_struct->pNext;', file=self.outFile)
+        write('        output_struct->sType = in_pnext->sType;',file=self.outFile)
+        write('        in_pnext = in_pnext->pNext;', file=self.outFile)
+        write('    }', file=self.outFile)
+        write('}', file=self.outFile)
 
+        self.newline()
         write('template <typename T>', file=self.outFile)
         write('void InitializeOutputStructPNext(StructPointerDecoder<T> *decoder)', file=self.outFile)
         write('{', file=self.outFile)
@@ -152,29 +182,7 @@ class VulkanReplayConsumerBodyGenerator(
         write('        const auto* in_pnext = reinterpret_cast<const VkBaseInStructure*>(input[i].pNext);', file=self.outFile)
         write('        if( in_pnext == nullptr ) continue;', file=self.outFile)
         write('        auto* output_struct = reinterpret_cast<VkBaseOutStructure*>(&output[i]);', file=self.outFile)
-        self.newline()
-        write('        while(in_pnext)', file=self.outFile)
-        write('        {', file=self.outFile)
-        write('            switch(in_pnext->sType)', file=self.outFile)
-        write('            {', file=self.outFile)
-        for struct in self.stype_values:
-            struct_type = self.stype_values[struct]
-            if not struct_type in self.SKIP_PNEXT_STRUCT_TYPES:
-                write('                case {}:'.format(struct_type), file=self.outFile)
-                write('                {', file=self.outFile)
-                write('                    output_struct->pNext = reinterpret_cast<VkBaseOutStructure*>(DecodeAllocator::Allocate<{}>());'
-                    .format(struct),
-                    file=self.outFile
-                )
-                write('                    break;', file=self.outFile)
-                write('                }', file=self.outFile)
-        write('                default:', file=self.outFile)
-        write('                    break;', file=self.outFile)
-        write('            }', file=self.outFile)
-        write('            output_struct = output_struct->pNext;', file=self.outFile)
-        write('            output_struct->sType = in_pnext->sType;',file=self.outFile)        
-        write('            in_pnext = in_pnext->pNext;', file=self.outFile)
-        write('        }', file=self.outFile)
+        write('        InitializeOutputStructPNextImpl(in_pnext, output_struct);', file=self.outFile)
         write('    }', file=self.outFile)
         write('}', file=self.outFile)
        
@@ -239,6 +247,28 @@ class VulkanReplayConsumerBodyGenerator(
         body = ''
         is_override = name in self.REPLAY_OVERRIDES
 
+        is_skip_offscreen = True
+        
+        for key in self.NOT_SKIP_FUNCTIONS_OFFSCREEN:
+            if key in name:
+                is_skip_offscreen = False
+                break
+
+        if is_skip_offscreen:
+            is_print = False
+            for value in values:
+                for key in self.SKIP_FUNCTIONS_OFFSCREEN:
+                    if self.is_has_specific_key_word_in_type(value, key):
+                        body += '    if (options_.swapchain_option == util::SwapchainOption::kOffscreen)\n'
+                        body += '    {\n'
+                        body += '        GFXRECON_LOG_DEBUG("Skip ' + name + ' for offscreen.");\n'
+                        body += '        return;\n'
+                        body += '    }\n'
+                        is_print = True
+                        break
+                if is_print:
+                    break
+
         args, preexpr, postexpr = self.make_body_expressions(
             return_type, name, values, is_override
         )
@@ -287,7 +317,7 @@ class VulkanReplayConsumerBodyGenerator(
             body += '\n'
         if return_type == 'VkResult':
             body += '    VkResult replay_result = {};\n'.format(call_expr)
-            body += '    CheckResult("{}", returnValue, replay_result);\n'.format(
+            body += '    CheckResult("{}", returnValue, replay_result, call_info);\n'.format(
                 name
             )
         else:

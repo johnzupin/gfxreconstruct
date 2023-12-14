@@ -20,9 +20,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-import os, re, sys, inspect
+import sys
 from base_generator import *
-
+from reformat_code import format_cpp_code
 
 class VulkanEnumToJsonHeaderGeneratorOptions(BaseGeneratorOptions):
     """Options for generating C++ functions for Vulkan ToString() functions"""
@@ -85,34 +85,34 @@ class VulkanEnumToJsonHeaderGenerator(BaseGenerator):
     # yapf: disable
     def beginFile(self, genOpts):
         BaseGenerator.beginFile(self, genOpts)
-        includes = inspect.cleandoc(
-            '''
+        includes = format_cpp_code('''
             #include "format/platform_types.h"
-            #include "decode/vulkan_json_util.h"
+            #include "util/json_util.h"
 
             '''
         )
+
         write(includes, file=self.outFile)
         self.includeVulkanHeaders(genOpts)
-        namespace = inspect.cleandoc(
-            '''
+        write("", file=self.outFile)
+        namespace = format_cpp_code('''
             GFXRECON_BEGIN_NAMESPACE(gfxrecon)
             GFXRECON_BEGIN_NAMESPACE(decode)
-            '''
-        )
+            ''')
         write(namespace, file=self.outFile)
     # yapf: enable
 
     # Method override
     # yapf: disable
     def endFile(self):
-        write('\n', file=self.outFile)
+        self.newline()
         self.make_decls()
 
-        body = inspect.cleandoc('''
+        self.newline()
+        body = format_cpp_code('''
             GFXRECON_END_NAMESPACE(decode)
             GFXRECON_END_NAMESPACE(gfxrecon)
-            ''')
+        ''')
         write(body, file=self.outFile)
 
         # Finish processing in superclass
@@ -158,17 +158,17 @@ class VulkanEnumToJsonHeaderGenerator(BaseGenerator):
                     body = 'struct {0}_t {{ }};'
                     write(body.format(enum), file=self.outFile)
 
-        write('\n', file=self.outFile)
+        self.newline()
         for enum in sorted(self.enum_names):
             if not enum in self.processedEnums and not enum in self.SKIP_ENUM:
                 self.processedEnums.add(enum)
                 if not enum in self.enumAliases:
                     if enum in self.enumType and self.enumType[enum] == 'VkFlags64':
-                        body = 'void FieldToJson({0}_t, nlohmann::ordered_json& jdata, const {0}& value, const JsonOptions& options = JsonOptions());'
+                        body = 'void FieldToJson({0}_t, nlohmann::ordered_json& jdata, const {0}& value, const util::JsonOptions& options = util::JsonOptions());'
                     else:
-                        body = 'void FieldToJson(nlohmann::ordered_json& jdata, const {0}& value, const JsonOptions& options = JsonOptions());'
+                        body = 'void FieldToJson(nlohmann::ordered_json& jdata, const {0}& value, const util::JsonOptions& options = util::JsonOptions());'
                     write(body.format(enum), file=self.outFile)
 
         for flag in sorted(self.flagsType):
-            body = 'void FieldToJson({0}_t, nlohmann::ordered_json& jdata, const {1} flags, const JsonOptions& options = JsonOptions());'
+            body = 'void FieldToJson({0}_t, nlohmann::ordered_json& jdata, const {1} flags, const util::JsonOptions& options = util::JsonOptions());'
             write(body.format(flag, self.flagsType[flag]), file=self.outFile)

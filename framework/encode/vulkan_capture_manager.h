@@ -287,6 +287,12 @@ class VulkanCaptureManager : public CaptureManager
                                                     const VkAllocationCallbacks*                pAllocator,
                                                     VkAccelerationStructureKHR* pAccelerationStructureKHR);
 
+    void
+    OverrideCmdBuildAccelerationStructuresKHR(VkCommandBuffer                                        commandBuffer,
+                                              uint32_t                                               infoCount,
+                                              const VkAccelerationStructureBuildGeometryInfoKHR*     pInfos,
+                                              const VkAccelerationStructureBuildRangeInfoKHR* const* ppBuildRangeInfos);
+
     VkResult OverrideAllocateMemory(VkDevice                     device,
                                     const VkMemoryAllocateInfo*  pAllocateInfo,
                                     const VkAllocationCallbacks* pAllocator,
@@ -899,6 +905,8 @@ class VulkanCaptureManager : public CaptureManager
     void
     PostProcess_vkQueueSubmit(VkResult result, VkQueue, uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence)
     {
+        PostQueueSubmit();
+
         if (((GetCaptureMode() & kModeTrack) == kModeTrack) && (result == VK_SUCCESS))
         {
             assert((state_tracker_ != nullptr) && ((submitCount == 0) || (pSubmits != nullptr)));
@@ -931,6 +939,8 @@ class VulkanCaptureManager : public CaptureManager
     void PostProcess_vkQueueSubmit2(
         VkResult result, VkQueue queue, uint32_t submitCount, const VkSubmitInfo2* pSubmits, VkFence fence)
     {
+        PostQueueSubmit();
+
         if (((GetCaptureMode() & kModeTrack) == kModeTrack) && (result == VK_SUCCESS))
         {
             assert((state_tracker_ != nullptr) && ((submitCount == 0) || (pSubmits != nullptr)));
@@ -1219,6 +1229,11 @@ class VulkanCaptureManager : public CaptureManager
 
     void PostProcess_vkCmdDebugMarkerInsertEXT(VkCommandBuffer                   commandBuffer,
                                                const VkDebugMarkerMarkerInfoEXT* pMarkerInfo);
+
+    void PostProcess_vkFrameBoundaryANDROID(VkDevice device, VkSemaphore semaphore, VkImage image)
+    {
+        EndFrame();
+    }
 
 #if defined(__ANDROID__)
     void OverrideGetPhysicalDeviceSurfacePresentModesKHR(uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes);

@@ -80,6 +80,8 @@ class VulkanFeatureUtilBodyGenerator(BaseGenerator):
         self.newline()
         write('#include "util/logging.h"', file=self.outFile)
         self.newline()
+        write('#include "format/platform_types.h"', file=self.outFile)
+        self.newline()
         write('GFXRECON_BEGIN_NAMESPACE(gfxrecon)', file=self.outFile)
         write('GFXRECON_BEGIN_NAMESPACE(decode)', file=self.outFile)
         write('GFXRECON_BEGIN_NAMESPACE(feature_util)', file=self.outFile)
@@ -127,7 +129,12 @@ class VulkanFeatureUtilBodyGenerator(BaseGenerator):
 
     def make_feature_helper(self):
         """Generate help function for features on replaying at device creation time."""
-        result = 'void RemoveUnsupportedFeatures(VkPhysicalDevice physicalDevice, PFN_vkGetPhysicalDeviceFeatures GetPhysicalDeviceFeatures, PFN_vkGetPhysicalDeviceFeatures2 GetPhysicalDeviceFeatures2, const void* pNext, const VkPhysicalDeviceFeatures* pEnabledFeatures)\n'
+        result = 'void CheckUnsupportedFeatures(VkPhysicalDevice physicalDevice,\n'
+        result += '                             PFN_vkGetPhysicalDeviceFeatures  GetPhysicalDeviceFeatures,\n'
+        result += '                             PFN_vkGetPhysicalDeviceFeatures2 GetPhysicalDeviceFeatures2,\n'
+        result += '                             const void*                      pNext,\n'
+        result += '                             const VkPhysicalDeviceFeatures*  pEnabledFeatures,\n'
+        result += '                             bool                             remove_unsupported)\n'
         result += '{\n'
         result += '    // If the pNext chain includes a VkPhysicalDeviceFeatures2 structure, then pEnabledFeatures must be NULL\n'
         result += '    const VkPhysicalDeviceFeatures* physicalDeviceFeatures = nullptr;\n'
@@ -135,6 +142,11 @@ class VulkanFeatureUtilBodyGenerator(BaseGenerator):
         result += '    {\n'
         result += '        physicalDeviceFeatures = pEnabledFeatures;\n'
         result += '    }\n\n'
+
+        result += '    bool found_unsupported = false;\n'
+        result += '    const char* warn_message =\n'
+        result += '        remove_unsupported ? "requested at capture is not supported by the replay device and it will not be enabled."\n'
+        result += '                           : "requested at capture is not supported by the replay device.";\n\n'
 
         result += '    if (GetPhysicalDeviceFeatures2 != nullptr)\n'
         result += '    {\n'
@@ -166,15 +178,17 @@ class VulkanFeatureUtilBodyGenerator(BaseGenerator):
                     member, member
                 )
                 result += '                {\n'
-                result += '                    GFXRECON_LOG_WARNING("Feature {}, which is not supported by the replay device, will not be enabled");\n'.format(
+                result += '                    GFXRECON_LOG_WARNING("Feature {} %s", warn_message);\n'.format(
                     member
                 )
-                result += '                    const_cast<{}*>(currentNext)->{} = VK_FALSE;\n'.format(
+                result += '                    found_unsupported = true;\n'
+                result += '                    const_cast<{}*>(currentNext)->{} =\n'.format(
                     typename, member
                 )
+                result += '                        remove_unsupported ? VK_FALSE : VK_TRUE;\n'
                 result += '                }\n'
             result += '                break;\n'
-            result += '             }\n'
+            result += '            }\n'
 
         result += '             default:\n'
         result += '                break;\n'
@@ -192,13 +206,20 @@ class VulkanFeatureUtilBodyGenerator(BaseGenerator):
                 feature, feature
             )
             result += '        {\n'
-            result += '            GFXRECON_LOG_WARNING("Feature {}, which is not supported by the replay device, will not be enabled");\n'.format(
+            result += '            GFXRECON_LOG_WARNING("Feature {} %s", warn_message);\n'.format(
                 feature
             )
-            result += '            const_cast<VkPhysicalDeviceFeatures*>(physicalDeviceFeatures)->{} = VK_FALSE;\n'.format(
+            result += '            found_unsupported = true;\n'
+            result += '            const_cast<VkPhysicalDeviceFeatures*>(physicalDeviceFeatures)->{} =\n'.format(
                 feature
             )
+            result += '                remove_unsupported ? VK_FALSE : VK_TRUE;\n'
             result += '        }\n'
+        result += '    }\n\n'
+
+        result += '    if (!remove_unsupported && found_unsupported)\n'
+        result += '    {\n'
+        result += '        GFXRECON_LOG_WARNING("Unsupported features were requested. This might cause vkCreateDevice to fail. Try \\"--remove-unsupported\\" option to remove those features at replay.");\n'
         result += '    }\n'
         result += '}'
         return result

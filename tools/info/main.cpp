@@ -56,6 +56,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <nlohmann/json.hpp>
+
 const char kHelpShortOption[]   = "-h";
 const char kHelpLongOption[]    = "--help";
 const char kVersionOption[]     = "--version";
@@ -66,6 +68,39 @@ const char kEnumGpuIndices[]    = "--enum-gpu-indices";
 const char kOptions[] = "-h|--help,--version,--no-debug-popup,--exe-info-only,--enum-gpu-indices";
 
 const char kUnrecognizedFormatString[] = "<unrecognized-format>";
+
+const int kDefaultIndent = 12;
+
+struct AnnotationInfo
+{
+    std::string desc;
+    std::string data;
+};
+
+class AnnotationRecorder : public gfxrecon::decode::AnnotationHandler
+{
+  public:
+    virtual void ProcessAnnotation(uint64_t                         block_index,
+                                   gfxrecon::format::AnnotationType type,
+                                   const std::string&               label,
+                                   const std::string&               data) override
+    {
+        ++annotation_count_;
+        if (type == gfxrecon::format::AnnotationType::kJson &&
+            label.compare(gfxrecon::format::kAnnotationLabelOperation) == 0)
+        {
+            operation_annotation_datas_.push_back(data);
+        }
+    }
+
+    uint64_t GetAnnotationCount() const { return annotation_count_; }
+
+    const std::vector<std::string>& GetOperationAnnotationDatas() const { return operation_annotation_datas_; }
+
+  private:
+    std::vector<std::string> operation_annotation_datas_;
+    uint64_t                 annotation_count_{ 0 };
+};
 
 struct ApiAgnosticStats
 {
@@ -183,6 +218,84 @@ void GatherApiAgnosticStats(ApiAgnosticStats&                api_agnostic_stats,
     api_agnostic_stats.frame_count      = file_processor.GetCurrentFrameNumber();
 }
 
+std::string GetJsonValue(const nlohmann::json& json_obj, const std::string& key)
+{
+    std::string out                    = "";
+    auto        search_result_iterator = json_obj.find(key);
+    if (search_result_iterator != json_obj.end())
+    {
+        const nlohmann::json& value = *search_result_iterator;
+        if (value.is_object())
+        {
+            out += "\n\t" + value.dump(kDefaultIndent);
+            out.pop_back();
+            out += "\t}";
+        }
+        else
+        {
+            out = value;
+        }
+    }
+
+    return out;
+}
+
+void PrintAnnotations(uint32_t                          annotation_count,
+                      const std::vector<std::string>&   operation_annotation_datas,
+                      const std::vector<AnnotationInfo> target_annotations)
+{
+    std::vector<AnnotationInfo> all_annotation_infos;
+
+    // Loop through array of target annotations
+    for (const auto& target_annotation : target_annotations)
+    {
+        std::vector<std::string> annotations;
+
+        if (annotation_count > 0)
+        {
+            if (operation_annotation_datas.size() > 0)
+            {
+                // Inspect annotations spotted in the capture file
+                for (const auto& operation : operation_annotation_datas)
+                {
+                    nlohmann::json json_obj = nlohmann::json::parse(operation);
+
+                    if (json_obj.is_discarded())
+                    {
+                        GFXRECON_LOG_WARNING("Invalid JSON in annotation: \"%s\"", operation.c_str());
+                        continue;
+                    }
+
+                    // If a target annotation, cache it
+                    std::string annotation = GetJsonValue(json_obj, target_annotation.data);
+
+                    if (!annotation.empty())
+                    {
+                        annotations.push_back(annotation);
+                    }
+                }
+            }
+        }
+
+        // Accumulate all found target annotations
+        for (const auto& annotation : annotations)
+        {
+            all_annotation_infos.push_back({ target_annotation.desc.c_str(), annotation.c_str() });
+        }
+    }
+
+    // If the capture file had target annotations, display them in an info block
+    if (!all_annotation_infos.empty())
+    {
+        GFXRECON_WRITE_CONSOLE("Annotations:");
+
+        for (const auto& annotation_info : all_annotation_infos)
+        {
+            GFXRECON_WRITE_CONSOLE("\t%s: %s", annotation_info.desc.c_str(), annotation_info.data.c_str());
+        }
+    }
+}
+
 void PrintDriverInfo(const gfxrecon::decode::InfoConsumer& driver_info_consumer)
 {
     GFXRECON_WRITE_CONSOLE("");
@@ -215,10 +328,12 @@ void PrintExeInfo(const gfxrecon::decode::InfoConsumer& info_consumer)
 
 void PrintVulkanStats(const gfxrecon::decode::VulkanStatsConsumer& vulkan_stats_consumer,
                       const gfxrecon::decode::FileProcessor&       file_processor,
-                      const ApiAgnosticStats&                      api_agnostic_stats)
+                      const ApiAgnosticStats&                      api_agnostic_stats,
+                      const AnnotationRecorder&                    annotation_recoder)
 {
     if (api_agnostic_stats.error_state == gfxrecon::decode::FileProcessor::kErrorNone)
     {
+        GFXRECON_WRITE_CONSOLE("");
         GFXRECON_WRITE_CONSOLE("File info:");
         gfxrecon::format::CompressionType compression_type = gfxrecon::format::CompressionType::kNone;
 
@@ -311,22 +426,19 @@ void PrintVulkanStats(const gfxrecon::decode::VulkanStatsConsumer& vulkan_stats_
                                vulkan_stats_consumer.GetGraphicsPipelineCount());
         GFXRECON_WRITE_CONSOLE("\tTotal compute pipelines: %" PRIu64, vulkan_stats_consumer.GetComputePipelineCount());
 
-        const auto annotation_count = vulkan_stats_consumer.GetAnnotationCount();
-        if (annotation_count > 0)
-        {
-            GFXRECON_WRITE_CONSOLE("\nAnnotation info:");
-            GFXRECON_WRITE_CONSOLE("\tTotal annotations: %" PRIu64, annotation_count);
-            auto& operation_annotation_datas = vulkan_stats_consumer.GetOperationAnnotationDatas();
-            if (operation_annotation_datas.size() > 0)
-            {
-                GFXRECON_WRITE_CONSOLE("\tOperation annotations: %" PRIu64 "\n", operation_annotation_datas.size());
-                for (const auto& operation : operation_annotation_datas)
-                {
-                    auto tabbed = gfxrecon::util::strings::TabRight(operation);
-                    GFXRECON_WRITE_CONSOLE(tabbed.c_str());
-                }
-            }
-        }
+        // Print annotations relevant to Vulkan
+        std::vector<AnnotationInfo> target_annotations = {
+            { "GFXR version", gfxrecon::format::kOperationAnnotationGfxreconstructVersion },
+            { "Vulkan version", gfxrecon::format::kOperationAnnotationVulkanVersion },
+            { "Capture timestamp", gfxrecon::format::kOperationAnnotationTimestamp },
+            { "Default replay options", gfxrecon::format::kAnnotationLabelReplayOptions },
+            { "Non-default capture options", gfxrecon::format::kOperationAnnotationCaptureParameters }
+        };
+
+        GFXRECON_WRITE_CONSOLE("");
+        PrintAnnotations(annotation_recoder.GetAnnotationCount(),
+                         annotation_recoder.GetOperationAnnotationDatas(),
+                         target_annotations);
 
         // TODO: This is the number of recorded draw calls, which will not reflect the number of draw calls
         // executed when recorded once to a command buffer that is submitted/replayed more than once.
@@ -378,6 +490,9 @@ void GatherVulkanStats(const std::string& input_filename)
         vulkan_decoder.AddConsumer(&vulkan_stats_consumer);
         file_processor.AddDecoder(&vulkan_decoder);
 
+        AnnotationRecorder annotation_recorder;
+        file_processor.SetAnnotationProcessor(&annotation_recorder);
+
         file_processor.ProcessAllFrames();
         if (file_processor.GetErrorState() == gfxrecon::decode::FileProcessor::kErrorNone)
         {
@@ -386,7 +501,7 @@ void GatherVulkanStats(const std::string& input_filename)
             gfxrecon::decode::InfoConsumer info_consumer(true);
             GatherExeInfo(input_filename, info_consumer);
             PrintExeInfo(info_consumer);
-            PrintVulkanStats(vulkan_stats_consumer, file_processor, api_agnostic_stats);
+            PrintVulkanStats(vulkan_stats_consumer, file_processor, api_agnostic_stats, annotation_recorder);
         }
         else
         {
@@ -530,7 +645,8 @@ void PrintDxrEiInfo(gfxrecon::decode::Dx12StatsConsumer& dx12_consumer)
 
 void PrintD3D12Stats(gfxrecon::decode::Dx12StatsConsumer& dx12_consumer,
                      const ApiAgnosticStats&              api_agnostic_stats,
-                     gfxrecon::decode::InfoConsumer&      info_consumer)
+                     gfxrecon::decode::InfoConsumer&      info_consumer,
+                     const AnnotationRecorder&            annotation_recoder)
 {
     if (api_agnostic_stats.error_state == gfxrecon::decode::FileProcessor::kErrorNone)
     {
@@ -575,6 +691,16 @@ void PrintD3D12Stats(gfxrecon::decode::Dx12StatsConsumer& dx12_consumer,
         PrintDx12SwapchainInfo(dx12_consumer);
 
         PrintDxrEiInfo(dx12_consumer);
+
+        // Print annotations relevant to D3D12
+        std::vector<AnnotationInfo> target_annotations = {
+            { "GFXR version", gfxrecon::format::kOperationAnnotationGfxreconstructVersion },
+            { "Capture timestamp", gfxrecon::format::kOperationAnnotationTimestamp }
+        };
+
+        PrintAnnotations(annotation_recoder.GetAnnotationCount(),
+                         annotation_recoder.GetOperationAnnotationDatas(),
+                         target_annotations);
     }
     else if (api_agnostic_stats.error_state != gfxrecon::decode::FileProcessor::kErrorNone)
     {
@@ -653,6 +779,9 @@ void GatherD3D12Stats(const std::string& input_filename)
         dx12_decoder.AddConsumer(&dx12_consumer);
         file_processor.AddDecoder(&dx12_decoder);
 
+        AnnotationRecorder annotation_recorder;
+        file_processor.SetAnnotationProcessor(&annotation_recorder);
+
         file_processor.ProcessAllFrames();
         if (file_processor.GetErrorState() == gfxrecon::decode::FileProcessor::kErrorNone)
         {
@@ -660,7 +789,7 @@ void GatherD3D12Stats(const std::string& input_filename)
             GatherApiAgnosticStats(api_agnostic_stats, file_processor, stat_consumer);
 
             PrintExeInfo(info_consumer);
-            PrintD3D12Stats(dx12_consumer, api_agnostic_stats, info_consumer);
+            PrintD3D12Stats(dx12_consumer, api_agnostic_stats, info_consumer, annotation_recorder);
         }
         else
         {

@@ -94,21 +94,28 @@ const char kScreenshotRangeArgument[]            = "--screenshots";
 const char kScreenshotFormatArgument[]           = "--screenshot-format";
 const char kScreenshotDirArgument[]              = "--screenshot-dir";
 const char kScreenshotFilePrefixArgument[]       = "--screenshot-prefix";
+const char kScreenshotSizeArgument[]             = "--screenshot-size";
+const char kScreenshotScaleArgument[]            = "--screenshot-scale";
 const char kForceWindowedShortArgument[]         = "--fw";
 const char kForceWindowedLongArgument[]          = "--force-windowed";
 const char kOutput[]                             = "--output";
 const char kMeasurementRangeArgument[]           = "--measurement-frame-range";
+const char kMeasurementFileArgument[]            = "--measurement-file";
 const char kQuitAfterMeasurementRangeOption[]    = "--quit-after-measurement-range";
 const char kFlushMeasurementRangeOption[]        = "--flush-measurement-range";
-const char kEnableUseCapturedSwapchainIndices[]  = "--use-captured-swapchain-indices";
-const char kFormatArgument[]                     = "--format";
-const char kIncludeBinariesOption[]              = "--include-binaries";
-const char kExpandFlagsOption[]                  = "--expand-flags";
-const char kFilePerFrameOption[]                 = "--file-per-frame";
+const char kSwapchainOption[]                    = "--swapchain";
+const char kEnableUseCapturedSwapchainIndices[] =
+    "--use-captured-swapchain-indices"; // The same: util::SwapchainOption::kCaptured
+const char kColorspaceFallback[]    = "--use-colorspace-fallback";
+const char kFormatArgument[]        = "--format";
+const char kIncludeBinariesOption[] = "--include-binaries";
+const char kExpandFlagsOption[]     = "--expand-flags";
+const char kFilePerFrameOption[]    = "--file-per-frame";
 #if defined(WIN32)
-const char kApiFamilyOption[]       = "--api";
-const char kDxTwoPassReplay[]       = "--dx12-two-pass-replay";
-const char kDxOverrideObjectNames[] = "--dx12-override-object-names";
+const char kApiFamilyOption[]             = "--api";
+const char kDxTwoPassReplay[]             = "--dx12-two-pass-replay";
+const char kDxOverrideObjectNames[]       = "--dx12-override-object-names";
+const char kBatchingMemoryUsageArgument[] = "--batching-memory-usage";
 #endif
 
 enum class WsiPlatform
@@ -134,6 +141,10 @@ const char kMemoryTranslationNone[]    = "none";
 const char kMemoryTranslationRemap[]   = "remap";
 const char kMemoryTranslationRealign[] = "realign";
 const char kMemoryTranslationRebind[]  = "rebind";
+
+const char kSwapchainVirtual[]   = "virtual";
+const char kSwapchainCaptured[]  = "captured";
+const char kSwapchainOffscreen[] = "offscreen";
 
 #if defined(WIN32)
 const char kApiFamilyVulkan[] = "vulkan";
@@ -428,6 +439,19 @@ static void GetLogSettings(const gfxrecon::util::ArgumentParser& arg_parser,
     log_settings.output_to_os_debug_string = arg_parser.IsOptionSet(kLogDebugView);
 }
 
+static void GetMeasurementFilename(const gfxrecon::util::ArgumentParser& arg_parser, std::string& file_name)
+{
+    file_name = arg_parser.GetArgumentValue(kMeasurementFileArgument);
+    if (file_name.empty())
+    {
+#if defined(__ANDROID__)
+        file_name = "/sdcard/gfxrecon-measurements.json";
+#else
+        file_name = "./gfxrecon-measurements.json";
+#endif
+    }
+}
+
 static gfxrecon::util::ScreenshotFormat GetScreenshotFormat(const gfxrecon::util::ArgumentParser& arg_parser)
 {
     gfxrecon::util::ScreenshotFormat format = gfxrecon::util::ScreenshotFormat::kBmp;
@@ -464,6 +488,60 @@ static std::string GetScreenshotDir(const gfxrecon::util::ArgumentParser& arg_pa
     return kDefaultScreenshotDir;
 }
 
+static void GetScreenshotSize(const gfxrecon::util::ArgumentParser& arg_parser, uint32_t& width, uint32_t& height)
+{
+    const auto& value = arg_parser.GetArgumentValue(kScreenshotSizeArgument);
+
+    if (!value.empty())
+    {
+        std::size_t x = value.find("x");
+        if (x != std::string::npos)
+        {
+            try
+            {
+                width  = std::stoul(value.substr(0, x));
+                height = std::stoul(value.substr(x + 1));
+            }
+            catch (std::exception&)
+            {
+                GFXRECON_LOG_WARNING("Ignoring invalid screenshot width x height option. Expected format is "
+                                     "--screenshot-size [width]x[height]");
+                width = height = 0;
+            }
+        }
+        else
+        {
+            width = height = 0;
+        }
+    }
+    else
+    {
+        width = height = 0;
+    }
+}
+
+static float GetScreenshotScale(const gfxrecon::util::ArgumentParser& arg_parser)
+{
+    const auto& value = arg_parser.GetArgumentValue(kScreenshotScaleArgument);
+
+    float scale = 0.0f;
+
+    if (!value.empty())
+    {
+        try
+        {
+            scale = std::stof(value);
+        }
+        catch (std::exception&)
+        {
+            GFXRECON_LOG_WARNING(
+                "Ignoring invalid screenshot scale option. Expected format is --screenshot-scale [scale]");
+        }
+    }
+
+    return scale;
+}
+
 static std::vector<gfxrecon::decode::ScreenshotRange>
 GetScreenshotRanges(const gfxrecon::util::ArgumentParser& arg_parser)
 {
@@ -482,7 +560,8 @@ GetScreenshotRanges(const gfxrecon::util::ArgumentParser& arg_parser)
 
         if (!value.empty())
         {
-            std::vector<gfxrecon::util::FrameRange> frame_ranges = gfxrecon::util::GetFrameRanges(value);
+            std::vector<gfxrecon::util::UintRange> frame_ranges =
+                gfxrecon::util::GetUintRanges(value.c_str(), "screenshot frames");
 
             for (uint32_t i = 0; i < frame_ranges.size(); ++i)
             {
@@ -757,9 +836,41 @@ GetVulkanReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parse
         replay_options.omit_pipeline_cache_data = true;
     }
 
-    if (arg_parser.IsOptionSet(kEnableUseCapturedSwapchainIndices))
+    auto swapchain_option          = arg_parser.GetArgumentValue(kSwapchainOption);
+    auto enable_captured_swapchain = arg_parser.IsOptionSet(kEnableUseCapturedSwapchainIndices);
+    if (swapchain_option.empty())
     {
-        replay_options.enable_use_captured_swapchain_indices = true;
+        if (enable_captured_swapchain)
+        {
+            replay_options.swapchain_option = gfxrecon::util::SwapchainOption::kCaptured;
+        }
+    }
+    else
+    {
+        if (enable_captured_swapchain)
+        {
+            GFXRECON_LOG_WARNING("Ignoring option: \"%s\" because option: \"%s\" is added",
+                                 kEnableUseCapturedSwapchainIndices,
+                                 kSwapchainOption);
+        }
+
+        if (gfxrecon::util::platform::StringCompareNoCase(kSwapchainCaptured, swapchain_option.c_str()) == 0)
+        {
+            replay_options.swapchain_option = gfxrecon::util::SwapchainOption::kCaptured;
+        }
+        else if (gfxrecon::util::platform::StringCompareNoCase(kSwapchainOffscreen, swapchain_option.c_str()) == 0)
+        {
+            replay_options.swapchain_option = gfxrecon::util::SwapchainOption::kOffscreen;
+        }
+        else if (gfxrecon::util::platform::StringCompareNoCase(kSwapchainVirtual, swapchain_option.c_str()) != 0)
+        {
+            GFXRECON_LOG_WARNING("Ignoring unrecognized \"--swapchain\" option: %s", swapchain_option.c_str());
+        }
+    }
+
+    if (arg_parser.IsOptionSet(kColorspaceFallback))
+    {
+        replay_options.use_colorspace_fallback = true;
     }
 
     replay_options.replace_dir = arg_parser.GetArgumentValue(kShaderReplaceArgument);
@@ -770,6 +881,9 @@ GetVulkanReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parse
     replay_options.screenshot_format      = GetScreenshotFormat(arg_parser);
     replay_options.screenshot_dir         = GetScreenshotDir(arg_parser);
     replay_options.screenshot_file_prefix = arg_parser.GetArgumentValue(kScreenshotFilePrefixArgument);
+    GetScreenshotSize(arg_parser, replay_options.screenshot_width, replay_options.screenshot_height);
+    replay_options.screenshot_scale = GetScreenshotScale(arg_parser);
+
     if (arg_parser.IsOptionSet(kQuitAfterMeasurementRangeOption))
     {
         replay_options.quit_after_measurement_frame_range = true;
@@ -818,6 +932,21 @@ static gfxrecon::decode::DxReplayOptions GetDxReplayOptions(const gfxrecon::util
     if (arg_parser.IsOptionSet(kDxOverrideObjectNames))
     {
         replay_options.override_object_names = true;
+    }
+
+    const std::string& memory_usage = arg_parser.GetArgumentValue(kBatchingMemoryUsageArgument);
+    if (!memory_usage.empty())
+    {
+        int memory_usage_int = std::stoi(memory_usage);
+        if (memory_usage_int >= 0 && memory_usage_int <= 100)
+        {
+            replay_options.memory_usage = static_cast<uint32_t>(memory_usage_int);
+        }
+        else
+        {
+            GFXRECON_LOG_WARNING(
+                "The parameter to --batching-memory-usage is out of range [0, 100], will use 80 as default value.");
+        }
     }
 
     replay_options.screenshot_ranges      = GetScreenshotRanges(arg_parser);

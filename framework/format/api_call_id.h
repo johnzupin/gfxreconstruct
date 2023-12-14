@@ -1,6 +1,6 @@
 /*
-** Copyright (c) 2018-2021 Valve Corporation
-** Copyright (c) 2018-2021 LunarG, Inc.
+** Copyright (c) 2018-2023 Valve Corporation
+** Copyright (c) 2018-2023 LunarG, Inc.
 ** Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
@@ -699,6 +699,7 @@ enum ApiCallId : uint32_t
     ApiCall_vkGetRenderingAreaGranularityKHR                                                      = MakeApiCallId(ApiFamily_Vulkan, 0x12d9),
     ApiCall_vkGetDeviceImageSubresourceLayoutKHR                                                  = MakeApiCallId(ApiFamily_Vulkan, 0x12da),
     ApiCall_vkGetImageSubresourceLayout2KHR                                                       = MakeApiCallId(ApiFamily_Vulkan, 0x12db),
+    ApiCall_vkFrameBoundaryANDROID                                                                = MakeApiCallId(ApiFamily_Vulkan, 0x12dc),
 
     ApiCall_VulkanLast,
 
@@ -1210,6 +1211,13 @@ enum ApiCallId : uint32_t
     ApiCall_ID3D12DebugCommandQueue1_AssertTextureLayout                                          = MakeApiCallId(ApiFamily_D3D12, 0x1142),
     ApiCall_ID3D12DebugCommandList3_AssertResourceAccess                                          = MakeApiCallId(ApiFamily_D3D12, 0x1143),
     ApiCall_ID3D12DebugCommandList3_AssertTextureLayout                                           = MakeApiCallId(ApiFamily_D3D12, 0x1144),
+
+    // Agility SDK 1.610.5
+    ApiCall_ID3D12Device12_GetResourceAllocationInfo3                                             = MakeApiCallId(ApiFamily_D3D12, 0x1145),
+    ApiCall_ID3D12GraphicsCommandList9_RSSetDepthBias                                             = MakeApiCallId(ApiFamily_D3D12, 0x1146),
+    ApiCall_ID3D12GraphicsCommandList9_IASetIndexBufferStripCutValue                              = MakeApiCallId(ApiFamily_D3D12, 0x1147),
+    ApiCall_ID3D12DSRDeviceFactory_CreateDSRDevice                                                = MakeApiCallId(ApiFamily_D3D12, 0x1148),
+    ApiCall_ID3D12ManualWriteTrackingResource_TrackWrite                                          = MakeApiCallId(ApiFamily_D3D12, 0x1149),
 
     // AGS API
     // amd_ags.h

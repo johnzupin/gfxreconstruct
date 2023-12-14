@@ -62,6 +62,13 @@ bool VulkanCaptureManager::CreateInstance()
                                                  []() {
                                                      assert(instance_ == nullptr);
                                                      instance_ = new VulkanCaptureManager();
+                                                 },
+                                                 []() {
+                                                     if (instance_)
+                                                     {
+                                                         delete instance_;
+                                                         instance_ = nullptr;
+                                                     }
                                                  });
 
     GFXRECON_LOG_INFO("  Vulkan Header Version %u.%u.%u",
@@ -74,12 +81,7 @@ bool VulkanCaptureManager::CreateInstance()
 
 void VulkanCaptureManager::DestroyInstance()
 {
-    CaptureManager::DestroyInstance([]() -> const CaptureManager* { return instance_; },
-                                    []() {
-                                        assert(instance_ != nullptr);
-                                        delete instance_;
-                                        instance_ = nullptr;
-                                    });
+    CaptureManager::DestroyInstance([]() -> const CaptureManager* { return instance_; });
 }
 
 void VulkanCaptureManager::WriteTrackedState(util::FileOutputStream* file_stream, format::ThreadId thread_id)
@@ -172,9 +174,6 @@ void VulkanCaptureManager::WriteResizeWindowCmd2(format::HandleId              s
         }
 
         WriteToFile(&resize_cmd2, sizeof(resize_cmd2));
-
-        ++block_index_;
-        thread_data->block_index_ = block_index_;
     }
 }
 
@@ -236,9 +235,6 @@ void VulkanCaptureManager::WriteCreateHardwareBufferCmd(format::HandleId        
                 WriteToFile(&create_buffer_cmd, sizeof(create_buffer_cmd));
             }
         }
-
-        ++block_index_;
-        thread_data->block_index_ = block_index_;
 #else
         GFXRECON_UNREFERENCED_PARAMETER(memory_id);
         GFXRECON_UNREFERENCED_PARAMETER(buffer);
@@ -269,9 +265,6 @@ void VulkanCaptureManager::WriteDestroyHardwareBufferCmd(AHardwareBuffer* buffer
         destroy_buffer_cmd.buffer_id = reinterpret_cast<uint64_t>(buffer);
 
         WriteToFile(&destroy_buffer_cmd, sizeof(destroy_buffer_cmd));
-
-        ++block_index_;
-        thread_data->block_index_ = block_index_;
 #else
         GFXRECON_LOG_ERROR("Skipping destroy AHardwareBuffer command write for unsupported platform");
 #endif
@@ -308,9 +301,6 @@ void VulkanCaptureManager::WriteSetDevicePropertiesCommand(format::HandleId     
 
         CombineAndWriteToFile(
             { { &properties_cmd, sizeof(properties_cmd) }, { properties.deviceName, properties_cmd.device_name_len } });
-
-        ++block_index_;
-        thread_data->block_index_ = block_index_;
     }
 }
 
@@ -367,9 +357,6 @@ void VulkanCaptureManager::WriteSetDeviceMemoryPropertiesCommand(
         }
 
         WriteToFile(scratch_buffer.data(), scratch_buffer.size());
-
-        ++block_index_;
-        thread_data->block_index_ = block_index_;
     }
 }
 
@@ -394,9 +381,6 @@ void VulkanCaptureManager::WriteSetOpaqueAddressCommand(format::HandleId device_
         opaque_address_cmd.address   = address;
 
         WriteToFile(&opaque_address_cmd, sizeof(opaque_address_cmd));
-
-        ++block_index_;
-        thread_data->block_index_ = block_index_;
     }
 }
 
@@ -422,9 +406,6 @@ void VulkanCaptureManager::WriteSetRayTracingShaderGroupHandlesCommand(format::H
         set_handles_cmd.data_size   = data_size;
 
         CombineAndWriteToFile({ { &set_handles_cmd, sizeof(set_handles_cmd) }, { data, data_size } });
-
-        ++block_index_;
-        thread_data->block_index_ = block_index_;
     }
 }
 
@@ -943,6 +924,21 @@ VulkanCaptureManager::OverrideCreateAccelerationStructureKHR(VkDevice           
     }
 
     return result;
+}
+
+void VulkanCaptureManager::OverrideCmdBuildAccelerationStructuresKHR(
+    VkCommandBuffer                                        commandBuffer,
+    uint32_t                                               infoCount,
+    const VkAccelerationStructureBuildGeometryInfoKHR*     pInfos,
+    const VkAccelerationStructureBuildRangeInfoKHR* const* ppBuildRangeInfos)
+{
+    if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+    {
+        state_tracker_->TrackTLASBuildCommand(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
+    }
+
+    const DeviceTable* device_table = GetDeviceTable(commandBuffer);
+    device_table->CmdBuildAccelerationStructuresKHR(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
 }
 
 VkResult VulkanCaptureManager::OverrideAllocateMemory(VkDevice                     device,
@@ -2186,6 +2182,20 @@ void VulkanCaptureManager::PreProcess_vkQueueSubmit(VkQueue             queue,
     GFXRECON_UNREFERENCED_PARAMETER(fence);
 
     QueueSubmitWriteFillMemoryCmd();
+
+    PreQueueSubmit();
+
+    if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+    {
+        if (pSubmits)
+        {
+            for (uint32_t s = 0; s < submitCount; ++s)
+            {
+                state_tracker_->TrackTlasToBlasDependencies(pSubmits[s].commandBufferCount,
+                                                            pSubmits[s].pCommandBuffers);
+            }
+        }
+    }
 }
 
 void VulkanCaptureManager::PreProcess_vkQueueSubmit2(VkQueue              queue,
@@ -2199,6 +2209,28 @@ void VulkanCaptureManager::PreProcess_vkQueueSubmit2(VkQueue              queue,
     GFXRECON_UNREFERENCED_PARAMETER(fence);
 
     QueueSubmitWriteFillMemoryCmd();
+
+    PreQueueSubmit();
+
+    if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+    {
+        std::vector<VkCommandBuffer> command_buffs;
+        if (pSubmits)
+        {
+            for (uint32_t s = 0; s < submitCount; ++s)
+            {
+                if (pSubmits[s].pCommandBufferInfos)
+                {
+                    for (uint32_t c = 0; c < pSubmits[s].commandBufferInfoCount; ++c)
+                    {
+                        command_buffs.push_back(pSubmits[s].pCommandBufferInfos[c].commandBuffer);
+                    }
+                }
+            }
+
+            state_tracker_->TrackTlasToBlasDependencies(command_buffs.size(), command_buffs.data());
+        }
+    }
 }
 
 void VulkanCaptureManager::QueueSubmitWriteFillMemoryCmd()

@@ -20,9 +20,10 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-import os, re, sys, inspect, textwrap
+import sys, textwrap
 from pickle import NONE
 from base_generator import *
+from reformat_code import format_cpp_code
 
 
 class VulkanEnumToJsonBodyGeneratorOptions(BaseGeneratorOptions):
@@ -85,11 +86,15 @@ class VulkanEnumToJsonBodyGenerator(BaseGenerator):
     # yapf: disable
     def beginFile(self, genOpts):
         BaseGenerator.beginFile(self, genOpts)
-        body = inspect.cleandoc('''
+        body = format_cpp_code('''
             #include "generated_vulkan_enum_to_json.h"
+            #include "util/to_string.h"
 
             GFXRECON_BEGIN_NAMESPACE(gfxrecon)
             GFXRECON_BEGIN_NAMESPACE(decode)
+
+            using util::JsonOptions;
+            using util::to_hex_fixed_width;
 
             template<typename TFlags, typename ToStringFunctionType>
             std::string ExpandFlags(TFlags flags, ToStringFunctionType toString)
@@ -114,8 +119,7 @@ class VulkanEnumToJsonBodyGenerator(BaseGenerator):
                 }
                 return ostr.str();
             }
-
-            ''')
+        ''')
         write(body, file=self.outFile)
     # yapf: enable
 
@@ -124,10 +128,10 @@ class VulkanEnumToJsonBodyGenerator(BaseGenerator):
     def endFile(self):
         write('\n', file=self.outFile)
         self.make_decls()
-        body = inspect.cleandoc('''
+        body = format_cpp_code('''
             GFXRECON_END_NAMESPACE(decode)
             GFXRECON_END_NAMESPACE(gfxrecon)
-            ''')
+        ''')
         write(body, file=self.outFile)
 
         # Finish processing in superclass
@@ -190,7 +194,8 @@ class VulkanEnumToJsonBodyGenerator(BaseGenerator):
                     body += '    jdata = to_hex_fixed_width(value);\n'
 
                 body += '}}\n'
-                write(body.format(enum, bitwidth), file=self.outFile)
+                body = body.format(enum, bitwidth)
+                write(body, file=self.outFile)
 
         for enum in sorted(self.flagsType):
             bittype = None

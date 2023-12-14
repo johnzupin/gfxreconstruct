@@ -7,7 +7,7 @@ Subject: packaging: patch as focal version
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/project_version.h.in b/project_version.h.in
-index 3dcd035..7bdbcd2 100644
+index 92b7d4c..a1c3143 100644
 --- a/project_version.h.in
 +++ b/project_version.h.in
 @@ -27,8 +27,8 @@

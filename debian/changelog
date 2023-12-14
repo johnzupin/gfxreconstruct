@@ -1,3 +1,293 @@
+gfxreconstruct (1.0.1+28~rc1-1lunarg20.04-1) focal; urgency=medium
+
+  [ Panagiotis Apostolou ]
+  * Terminate process once all trim ranges have been captured
+
+  [ bartosz-muszarski-arm ]
+  * Fix missing setprop in android docs (#1188)
+
+  [ David Pinedo ]
+  * gfxrecon_replay: Use infinite timeout in vkAcquireNextImageKHR
+
+  [ Panagiotis Apostolou ]
+  * Trimmed captures documentation
+
+  [ David Donaldson ]
+  * Take screenshots of FB attachments for VR frames
+  * Track image layouts to facilitate FB screenshots
+
+  [ davidd-lunarg ]
+  * Refactor parsing of integer ranges for options
+  * Use `UintRange` for trim range, remove `TrimRange`
+  * Enable trimming to queue submission range
+
+  [ Mark Young ]
+  * Cleanup Android Howto doc
+
+  [ bradgrantham-lunarg ]
+  * Update HOWTO_android.md
+  * Update HOWTO_android.md
+  * Update HOWTO_android.md
+  * Update HOWTO_android.md
+
+  [ Mark Young ]
+  * Update dependency comment
+
+  [ David Pinedo ]
+  * gfxrecon_replay: Add call to XInitThreads on startup
+
+  [ Panagiotis Apostolou ]
+  * Use system_properties.h api instead of getprop
+  * Print differences in supported features
+
+  [ bradgrantham-lunarg ]
+  * Remove extra "the"
+
+  [ Panagiotis Apostolou ]
+  * Screenshot size during replay is now configurable
+
+  [ davidd-lunarg ]
+  * Fix error in parsing trim settings on Android
+
+  [ David Pinedo ]
+  * gfxrecon-replay: Use infinite timeout for 3 Vulkan api calls
+
+  [ Mark Young ]
+  * Modify virtual swapchain behavior
+
+  [ Igor Brusentsev ]
+  * copy gfxrecon_interceptor.dll to bin
+
+  [ bradgrantham-lunarg ]
+  * cast a float result back to uint32_t (#1241)
+
+  [ David Pinedo ]
+  * gfxrecon-replay: Add missing braces
+
+  [ Mark Young ]
+  * Modify virtual swapchain behavior
+
+  [ Igor Brusentsev ]
+  * copy gfxrecon_interceptor.dll to bin
+
+  [ bradgrantham-lunarg ]
+  * cast a float result back to uint32_t (#1241)
+
+  [ Panagiotis Apostolou ]
+  * Additional documentation for screenshot dimension options
+
+  [ David Pinedo ]
+  * gfxrecon_replay: Define VMA_ASSERT to avoid assert crashes
+  * gfxrecon-replay: VMA_ASSERT generates error
+
+  [ Andrew Cox ]
+  * Changed Static Class Variables to Instance Members
+  * Noted Non-Idiomatic: METHODCALL_BLACKLIST.append
+
+  [ Panagiotis Apostolou ]
+  * Fix for capture block index count
+
+  [ Rodrigo Urra ]
+  * Add GFXR version to binary File Properties
+  * Add copyright years
+  * Replace tabs with spaces
+  * Adjust marked binaries
+  * Limit addition of .rc file to Windows build
+
+  [ Andrew Cox ]
+  * Enabled Existing Operation Annotations in Info
+
+  [ davidd-lunarg ]
+  * Save attachment img layout for vkCreateRenderPass2
+
+  [ Bartosz Muszarski ]
+  * Display call index and thread on failing calls
+
+  [ bartosz-muszarski-arm ]
+  * Remove double space from error message
+
+  [ Andrew Cox ]
+  * Added k-constants for ToString Default Params
+  * Simplified Enum and Struct ToStrings
+
+  [ Warren Paul ]
+  * Fix Android incremental builds
+
+  [ David Pinedo ]
+  * gfxrecon-replay - handle wrap around of xcb events sequence numbers
+
+  [ Rodrigo Urra ]
+  * Enable info tool to display annotations (#1252)
+
+  [ Panagiotis Apostolou ]
+  * Two small fixes for quite once all trim ranges have been captured
+
+  [ Andrew Cox - LunarG ]
+  * Documented ApiCallInfo.index (#1277)
+  * Set the Block Index for Method Calls (#1278)
+
+  [ JerryAMD ]
+  * Set CPU&GPU memory usage by command line option (#1248)
+
+  [ Charles Giessen ]
+  * Use Vulkan-Headers to find current Vulkan Version (#1272)
+
+  [ Marius Pelegrin ]
+  * Write Replay Measurements Into a JSON File
+
+  [ Andrew Cox ]
+  * Moved kJsonIndentWidth to its Long-term Home
+
+  [ Andrew Cox - LunarG ]
+  * Removed std:remove For Measurements File (#1281)
+
+  [ Andrew Cox ]
+  * Updated Copyright Date on DX12 Generated Files
+
+  [ bradgrantham-lunarg ]
+  * use new SDK tagging scheme (#1285)
+
+  [ locke-lunarg ]
+  * Add --offscreen and VulkanOffscreenSwapchain
+  * Not Create Surface and Swapchain for offscreen
+
+  [ Locke Lin ]
+  * Skip functions for offscreen
+
+  [ locke-lunarg ]
+  * Remove outputing images features for offscreen
+
+  [ Locke Lin ]
+  * Replace option --offscreen to --swapchain
+  * Return original_result for offscreen
+
+  [ Andrew Cox - LunarG ]
+  * Update to Vulkan-Headers v1.3.265 (#1286)
+
+  [ Andrew Cox ]
+  * Updated Android Project Version to Match Desktop
+  * Typo Fix in VkFrameBoundaryEXT::pTag Workaround
+  * Update to Vulkan-Headers v1.3.266
+  * Removed Dead Copied Code
+
+  [ Brad Grantham ]
+  * temporarily set Vulkan API version for SDK build
+
+  [ bradgrantham-lunarg ]
+  * Revert "Use Vulkan-Headers to find current Vulkan Version (#1272)" (#1299)
+
+  [ Mike Schuchardt ]
+  * Fix null function pointers for layer extensions
+  * Add capture support for VK_ANDROID_frame_boundary
+
+  [ Andrew Cox ]
+  * Updated Vulkan-Headers to v1.3.267
+
+  [ locke-lunarg ]
+  * Skip creating CopyCmdData for offscreen
+
+  [ Andrew Cox ]
+  * Disabled Patching VkFrameBoundaryEXT.pTag XML
+  * Updated Vulkan-Headers to v1.3.268
+
+  [ Rodrigo Urra ]
+  * Permit annotations to be written when trimming is activated
+  * Fix formatting
+  * Address review comments
+  * Spaces instead of tabs
+
+  [ Andrew Cox - LunarG ]
+  * C++ Code Indenter for Codegen (#1310)
+
+  [ Panos Apostolou ]
+  * Fix in ProcessInitImageCommand
+
+  [ Evan Tang ]
+  * Move massive switch statement out of template function
+
+  [ David Pinedo ]
+  * genscript: Address python warning introduced by Python 3.12
+
+  [ Charles Giessen ]
+  * Remove redundant calls to VulkanCaptureManager::Get() (#1279)
+
+  [ igorbrsn ]
+  * Fix rename playback hang (#1316)
+
+  [ davidd-lunarg ]
+  * If SetPrivateData data is null, clear tracked data
+
+  [ Brad Grantham ]
+  * increment version number for next release
+
+  [ Panos Apostolou ]
+  * Remove unnecessary files from Android compilation
+
+  [ Andrew Cox ]
+  * Renamed Field of Decoded_D3D12_STATE_SUBOBJECT
+
+  [ davidd-lunarg ]
+  * Upgrade to Agility SDK 1.610.5 (#1324)
+
+  [ Andrew Cox - LunarG ]
+  * Removed Empty Default Cases (#1328)
+
+  [ Bob Ellison ]
+  * build: remove requirement on distutils (#1332)
+
+  [ Panos Apostolou ]
+  * Enable zstd for Android
+
+  [ Panagiotis Apostolou ]
+  * Fix optimize tool's exit code on error (#1339)
+
+  [ Ming Zheng ]
+  * Fix trim trace replay memory requirement mismatch error
+
+  [ davidd-lunarg ]
+  * Don't batch resource data reads for trim capture
+
+  [ Mark Young ]
+  * Improve decode block error logging
+
+  [ Andrew Cox ]
+  * Factored out MetadataConsumerBase
+  * Factored out MarkerConsumerBase
+
+  [ Panos Apostolou ]
+  * Abstracting out vulkan resource reader class
+  * Calculating sizes with Vulkan Utility Library
+  * Added WriteToImageResourceStaging
+  * Fix formatting error
+  * Better handle for RT trimmed captures from optimize tool
+
+  [ laurentiu-erhan-arm ]
+  * Add support for staging buffer/image for the Rebind Allocator. (#1275)
+
+  [ Andrew Cox ]
+  * Methond to Method
+
+  [ Andrew Cox - LunarG ]
+  * Marked Consumer Process Funcs as Override (#1370)
+  * Better D3D12 Convert to JSON (#1362)
+  * Removed Lambda Indirection For MetaCommand to JSON (#1383)
+  * Reordered Integer Compare Before String (#1384)
+
+  [ Ihor Zvieriev ]
+  * Added handling missing VK_EXT_swapchain_colorspace (#1287)
+  * Adding the capture options to annotation for display with info tool (#1265)
+
+  [ Marius Pélégrin - ARM ]
+  * Fix CommandHandleType::NumHandleTypes not last of enum (#1390)
+
+  [ Charles Giessen ]
+  * Fix missing parens in to_binary_fixed_width (#1386)
+
+  [ John Zupin ]
+  * packaging: debian: update patches
+
+ -- john <john@odin>  Thu, 14 Dec 2023 10:37:53 -0700
+
 gfxreconstruct (1.0.0+37~rc1-1lunarg20.04-1) focal; urgency=medium
 
   [ locke-lunarg ]

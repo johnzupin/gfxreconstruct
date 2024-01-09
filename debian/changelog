@@ -1,3 +1,38 @@
+gfxreconstruct (1.0.1+41~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ bradgrantham-lunarg ]
+  * exit with 0 if capture wasn't optimizable (#1389)
+
+  [ Marius Pélégrin - ARM ]
+  * Fix forgotten handles in VulkanStateWriter (#1391)
+  * Fix typos (#1352)
+
+  [ locke-lunarg ]
+  * Update headers to 1.3.273
+
+  [ Ooi ]
+  * Fix memory exception during memcpy in ApplyBatchedResourceInitInfo
+
+  [ Ming Zheng ]
+  * Fix deferred operation handling error
+  * Fix an error when target app provide null handle for deferred operation
+  * Fix replay issue on some hardware
+  * Address code review comment
+
+  [ Mark Young ]
+  * Update Android_HowTo
+
+  [ bradgrantham-lunarg ]
+  * return EX_DATAERR for now (#1397)
+
+  [ Mark Young ]
+  * android: Fix build warning
+
+  [ Locke Lin ]
+  * Update headers to 1.3.275
+
+ -- john <john@odin>  Tue, 09 Jan 2024 14:07:52 -0700
+
 gfxreconstruct (1.0.1+28~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Panagiotis Apostolou ]

@@ -1,5 +1,6 @@
 /*
 ** Copyright (c) 2019-2020 LunarG, Inc.
+** Copyright (c) 2023 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -566,6 +567,7 @@ void VulkanStateWriter::WritePipelineState(const VulkanStateTable& state_table)
     std::unordered_map<format::HandleId, const util::MemoryOutputStream*> temp_layouts;
     std::unordered_map<format::HandleId, const util::MemoryOutputStream*> temp_ds_layouts;
     std::unordered_map<format::HandleId, const util::MemoryOutputStream*> temp_deferred_operations;
+    std::unordered_map<format::HandleId, format::HandleId>                temp_deferred_operation_join_command;
 
     // First pass over pipeline table to sort pipelines by type and determine which dependencies need to be created
     // temporarily.
@@ -644,6 +646,12 @@ void VulkanStateWriter::WritePipelineState(const VulkanStateTable& state_table)
                 if (inserted.second)
                 {
                     WriteFunctionCall(wrapper->deferred_operation.create_call_id, create_parameters);
+
+                    // If a raytracing pipeline was created with a deferred operation object, we also need to generate a
+                    // deferred operation join command, so the deferred command can finish. These join commands must be
+                    // after calling vkCreateRayTracingPipelinesKHR. Here we record these deferred operations and their
+                    // related device id to generate the join command later.
+                    temp_deferred_operation_join_command[wrapper->deferred_operation.handle_id] = wrapper->device_id;
                 }
                 // TODO: It shouldn't destroy VkDeferredOperation after vkCreateRayTracingPipelinesKHR because it will
                 // run vkDeferredOperationJoinKHR and vkGetDeferredOperationResultKHR after
@@ -727,6 +735,11 @@ void VulkanStateWriter::WritePipelineState(const VulkanStateTable& state_table)
     for (const auto& entry : ray_tracing_pipelines_khr)
     {
         WriteFunctionCall(format::ApiCall_vkCreateRayTracingPipelinesKHR, entry);
+    }
+
+    for (const auto& entry : temp_deferred_operation_join_command)
+    {
+        WriteDeferredOperationJoinCommand(entry.second, entry.first);
     }
 
     // Temporary object destruction.
@@ -1120,6 +1133,19 @@ void VulkanStateWriter::WriteAccelerationStructureKHRState(const VulkanStateTabl
 
         WriteFunctionCall(wrapper->create_call_id, wrapper->create_parameters.get());
     });
+}
+
+void VulkanStateWriter::WriteDeferredOperationJoinCommand(format::HandleId device_id,
+                                                          format::HandleId deferred_operation_id)
+{
+    const VkResult result = VK_SUCCESS;
+
+    encoder_.EncodeHandleIdValue(device_id);
+    encoder_.EncodeHandleIdValue(deferred_operation_id);
+    encoder_.EncodeEnumValue(result);
+
+    WriteFunctionCall(format::ApiCallId::ApiCall_vkDeferredOperationJoinKHR, &parameter_stream_);
+    parameter_stream_.Reset();
 }
 
 void VulkanStateWriter::ProcessHardwareBuffer(format::HandleId memory_id,
@@ -2917,6 +2943,8 @@ bool VulkanStateWriter::CheckCommandHandle(CommandHandleType       handle_type,
     {
         case CommandHandleType::BufferHandle:
             return IsBufferValid(handle_id, state_table);
+        case CommandHandleType::BufferViewHandle:
+            return IsBufferViewValid(handle_id, state_table);
         case CommandHandleType::CommandBufferHandle:
             return (state_table.GetCommandBufferWrapper(handle_id) != nullptr);
         case CommandHandleType::DescriptorSetHandle:
@@ -2937,6 +2965,8 @@ bool VulkanStateWriter::CheckCommandHandle(CommandHandleType       handle_type,
             return (state_table.GetQueryPoolWrapper(handle_id) != nullptr);
         case CommandHandleType::RenderPassHandle:
             return (state_table.GetRenderPassWrapper(handle_id) != nullptr);
+        case CommandHandleType::SamplerHandle:
+            return (state_table.GetSamplerWrapper(handle_id) != nullptr);
         case CommandHandleType::AccelerationStructureNVHandle:
             return (state_table.GetAccelerationStructureNVWrapper(handle_id) != nullptr);
         case CommandHandleType::AccelerationStructureKHRHandle:
@@ -2945,6 +2975,16 @@ bool VulkanStateWriter::CheckCommandHandle(CommandHandleType       handle_type,
             return (state_table.GetIndirectCommandsLayoutNVWrapper(handle_id) != nullptr);
         case CommandHandleType::DeferredOperationKHRHandle:
             return (state_table.GetDeferredOperationKHRWrapper(handle_id) != nullptr);
+        case CommandHandleType::MicromapEXTHandle:
+            return (state_table.GetMicromapEXTWrapper(handle_id) != nullptr);
+        case CommandHandleType::OpticalFlowSessionNVHandle:
+            return (state_table.GetOpticalFlowSessionNVWrapper(handle_id) != nullptr);
+        case CommandHandleType::VideoSessionKHRHandle:
+            return (state_table.GetVideoSessionKHRWrapper(handle_id) != nullptr);
+        case CommandHandleType::VideoSessionParametersKHRHandle:
+            return (state_table.GetVideoSessionParametersKHRWrapper(handle_id) != nullptr);
+        case CommandHandleType::ShaderEXTHandle:
+            return (state_table.GetShaderEXTWrapper(handle_id) != nullptr);
         default:
             GFXRECON_LOG_ERROR("State write is skipping unrecognized handle type when checking handles "
                                "referenced by command buffers");

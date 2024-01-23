@@ -62,8 +62,9 @@ jobs:
         mv ${{ matrix.config.build_dir }}/linux/x64/output/bin gfxreconstruct-dev
         mv ${{ matrix.config.build_dir }}/linux/x64/output/lib*/*.so gfxreconstruct-dev/
         mv ${{ matrix.config.build_dir }}/linux/x64/output/share/vulkan/explicit_layer.d/*.json gfxreconstruct-dev/
+        tar cvf gfxreconstruct-dev.tar gfxreconstruct-dev
     - name: Upload artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.config.artifact }}
         path: ./gfxreconstruct-dev
@@ -106,7 +107,7 @@ jobs:
         copy layer\vk_layer_settings.txt ${{ matrix.config.build_dir }}\windows\x64\output\bin\
         move ${{ matrix.config.build_dir }}\windows\x64\output\bin gfxreconstruct-dev
     - name: Upload artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.config.artifact }}
         path: .\gfxreconstruct-dev
@@ -146,8 +147,9 @@ jobs:
         cp -r android/layer/build/intermediates/cmake/release/obj/armeabi-v7a gfxreconstruct-dev/layer/
         cp android/tools/replay/build/outputs/apk/debug/replay-debug.apk gfxreconstruct-dev/tools/
         cp android/scripts/gfxrecon.py gfxreconstruct-dev/tools/
+        tar cvf gfxreconstruct-dev.tar gfxreconstruct-dev
     - name: Upload artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.config.artifact }}
         path: ./gfxreconstruct-dev

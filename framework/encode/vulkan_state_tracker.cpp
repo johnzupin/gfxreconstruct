@@ -25,6 +25,7 @@
 #include "encode/vulkan_state_info.h"
 #include "encode/custom_vulkan_struct_handle_wrappers.h"
 #include "encode/vulkan_handle_wrapper_util.h"
+#include "generated/generated_vulkan_struct_trackers.h"
 #include "graphics/vulkan_util.h"
 
 #include <algorithm>
@@ -216,7 +217,7 @@ void VulkanStateTracker::TrackPhysicalDeviceSurfaceCapabilities2(VkPhysicalDevic
 
     if (surface_info.pNext != nullptr)
     {
-        entry.surface_info.pNext = TrackPNextStruct(surface_info.pNext, &entry.surface_info_pnext_memory);
+        entry.surface_info.pNext = TrackStruct(surface_info.pNext, &entry.surface_info_pnext_memory);
     }
 
     entry.surface_capabilities_pnext_memory.Reset();
@@ -227,7 +228,7 @@ void VulkanStateTracker::TrackPhysicalDeviceSurfaceCapabilities2(VkPhysicalDevic
     if (surface_capabilities->pNext != nullptr)
     {
         entry.surface_capabilities.pNext =
-            const_cast<void*>(TrackPNextStruct(surface_capabilities->pNext, &entry.surface_capabilities_pnext_memory));
+            const_cast<void*>(TrackStruct(surface_capabilities->pNext, &entry.surface_capabilities_pnext_memory));
     }
 }
 
@@ -279,7 +280,7 @@ void VulkanStateTracker::TrackPhysicalDeviceSurfaceFormats2(VkPhysicalDevice    
 
         if (surface_info.pNext != nullptr)
         {
-            entry.surface_info.pNext = TrackPNextStruct(surface_info.pNext, &entry.surface_info_pnext_memory);
+            entry.surface_info.pNext = TrackStruct(surface_info.pNext, &entry.surface_info_pnext_memory);
         }
 
         entry.surface_formats.resize(surface_format_count);
@@ -293,8 +294,8 @@ void VulkanStateTracker::TrackPhysicalDeviceSurfaceFormats2(VkPhysicalDevice    
 
             if (surface_formats[i].pNext != nullptr)
             {
-                entry.surface_formats[i].pNext = const_cast<void*>(
-                    TrackPNextStruct(surface_formats[i].pNext, &entry.surface_formats_pnext_memory[i]));
+                entry.surface_formats[i].pNext =
+                    const_cast<void*>(TrackStruct(surface_formats[i].pNext, &entry.surface_formats_pnext_memory[i]));
             }
         }
     }
@@ -316,7 +317,7 @@ void VulkanStateTracker::TrackPhysicalDeviceSurfacePresentModes(VkPhysicalDevice
     entry.surface_info_pnext_memory.Reset();
     if (surface_info_pnext != nullptr)
     {
-        entry.surface_info_pnext = TrackPNextStruct(surface_info_pnext, &entry.surface_info_pnext_memory);
+        entry.surface_info_pnext = TrackStruct(surface_info_pnext, &entry.surface_info_pnext_memory);
     }
 }
 
@@ -335,7 +336,7 @@ void VulkanStateTracker::TrackDeviceGroupSurfacePresentModes(VkDevice           
     entry.surface_info_pnext_memory.Reset();
     if (surface_info_pnext != nullptr)
     {
-        entry.surface_info_pnext = TrackPNextStruct(surface_info_pnext, &entry.surface_info_pnext_memory);
+        entry.surface_info_pnext = TrackStruct(surface_info_pnext, &entry.surface_info_pnext_memory);
     }
 }
 
@@ -362,7 +363,7 @@ void VulkanStateTracker::TrackBufferMemoryBinding(
 
     if (bind_info_pnext != nullptr)
     {
-        wrapper->bind_pnext = TrackPNextStruct(bind_info_pnext, &wrapper->bind_pnext_memory);
+        wrapper->bind_pnext = TrackStruct(bind_info_pnext, &wrapper->bind_pnext_memory);
     }
 }
 
@@ -391,12 +392,18 @@ void VulkanStateTracker::TrackTLASBuildCommand(
                     if (infos[i].pGeometries[g].geometryType == VK_GEOMETRY_TYPE_INSTANCES_KHR)
                     {
                         const VkDeviceAddress address = infos[i].pGeometries[g].geometry.instances.data.deviceAddress;
-                        const CommandBufferWrapper::tlas_build_info tlas_info = {
-                            address, pp_buildRange_infos[i]->primitiveCount, pp_buildRange_infos[i]->primitiveOffset
-                        };
+                        const uint32_t        primitive_count = pp_buildRange_infos[i]->primitiveCount;
+                        // According to spec both address and primitiveCount can be 0.
+                        // Nothing to handle in these cases.
+                        if (address && primitive_count)
+                        {
+                            const CommandBufferWrapper::tlas_build_info tlas_info = {
+                                address, primitive_count, pp_buildRange_infos[i]->primitiveOffset
+                            };
 
-                        buf_wrapper->tlas_build_info_map.emplace_back(
-                            std::make_pair(tlas_wrapper, std::move(tlas_info)));
+                            buf_wrapper->tlas_build_info_map.emplace_back(
+                                std::make_pair(tlas_wrapper, std::move(tlas_info)));
+                        }
                     }
                 }
             }
@@ -419,7 +426,7 @@ void VulkanStateTracker::TrackImageMemoryBinding(
 
     if (bind_info_pnext != nullptr)
     {
-        wrapper->bind_pnext = TrackPNextStruct(bind_info_pnext, &wrapper->bind_pnext_memory);
+        wrapper->bind_pnext = TrackStruct(bind_info_pnext, &wrapper->bind_pnext_memory);
     }
 }
 
@@ -653,7 +660,7 @@ void VulkanStateTracker::TrackUpdateDescriptorSets(uint32_t                    w
                 binding.write_pnext_memory.Reset();
                 if (write->pNext != nullptr)
                 {
-                    binding.write_pnext = TrackPNextStruct(write->pNext, &binding.write_pnext_memory);
+                    binding.write_pnext = TrackStruct(write->pNext, &binding.write_pnext_memory);
                     auto* pnext         = reinterpret_cast<const VkBaseInStructure*>(binding.write_pnext);
                     switch (pnext->sType)
                     {
@@ -1119,12 +1126,23 @@ void VulkanStateTracker::TrackUpdateDescriptorSetWithTemplate(VkDescriptorSet   
 
                 for (uint32_t i = 0; i < current_writes; ++i)
                 {
-                    auto accel_struct = reinterpret_cast<const VkAccelerationStructureKHR*>(src_address);
-                    dst_view_ids[i]   = GetWrappedId<AccelerationStructureKHRWrapper>(*accel_struct);
-                    dst_info[i]       = *accel_struct;
+                    const auto* accel_struct = reinterpret_cast<const VkAccelerationStructureKHR*>(src_address);
+                    dst_view_ids[i]          = GetWrappedId<AccelerationStructureKHRWrapper>(*accel_struct);
+                    dst_info[i]              = *accel_struct;
 
                     src_address += entry.stride;
                 }
+                // Because UpdateWithTemplate does not require pNext to update acceleration structures
+                // but state recreation uses UpdateDescriptorSets which does require pNext to update acceleration
+                // structures we create a relevant pNext
+                const VkWriteDescriptorSetAccelerationStructureKHR p_next{
+                    VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
+                    nullptr,
+                    current_writes,
+                    binding.acceleration_structures.get()
+                };
+
+                binding.write_pnext = TrackStruct(&p_next, &binding.write_pnext_memory);
 
                 // Check for consecutive update.
                 if (current_count == current_writes)
@@ -1507,6 +1525,10 @@ void VulkanStateTracker::TrackTlasToBlasDependencies(uint32_t               comm
 
         for (const auto& tlas_build_info : cmd_buf_wrapper->tlas_build_info_map)
         {
+            // Sanity checks. Build infos with one of these 0 should not be inserted in the map
+            assert(tlas_build_info.second.address);
+            assert(tlas_build_info.second.blas_count);
+
             // Find to which device memory this address belongs
             const VkDeviceAddress      address         = tlas_build_info.second.address;
             const DeviceMemoryWrapper* dev_mem_wrapper = nullptr;
@@ -1543,6 +1565,8 @@ void VulkanStateTracker::TrackTlasToBlasDependencies(uint32_t               comm
             const VkAccelerationStructureInstanceKHR* instances = nullptr;
             const util::PageGuardManager*             manager   = util::PageGuardManager::Get();
 
+            // Check with page guard manager first. The memory might be already and the
+            // PageGuardManager can provide the pointer
             if (manager)
             {
                 const void* mapped_memory = manager->GetMappedMemory(dev_mem_wrapper->handle_id);
@@ -1554,8 +1578,6 @@ void VulkanStateTracker::TrackTlasToBlasDependencies(uint32_t               comm
             }
 
             const uint32_t blas_count = tlas_build_info.second.blas_count;
-            assert(blas_count);
-
             bool needs_unmapping = false;
             if (!instances)
             {

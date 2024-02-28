@@ -90,6 +90,8 @@ target_sources(gfxrecon_encode
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_capture_manager.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_capture_manager.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_handle_wrappers.h
+                    ${CMAKE_CURRENT_LIST_DIR}/vulkan_scoped_destroy_lock.h
+                    ${CMAKE_CURRENT_LIST_DIR}/vulkan_scoped_destroy_lock.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_handle_wrapper_util.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_handle_wrapper_util.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_state_info.h
@@ -123,6 +125,8 @@ target_sources(gfxrecon_encode
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_struct_encoders.cpp
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_struct_handle_wrappers.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_struct_handle_wrappers.cpp
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_struct_trackers.h
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_struct_trackers.cpp
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_state_table.h
 
 )

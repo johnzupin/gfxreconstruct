@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2022-2023 LunarG, Inc.
+** Copyright (c) 2022-2024 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -245,8 +245,11 @@ void FieldToJson(nlohmann::ordered_json& jdata, const Decoded_VkWriteDescriptorS
             case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
                 HandleToJson(jdata["pTexelBufferView"], &meta_struct.pTexelBufferView, options);
                 break;
-            case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
             case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+                // Nothing to do here for acceleration structures as the rest of the data is stored
+                // in the pNext chain
+                break;
+            case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
             case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
             case VK_DESCRIPTOR_TYPE_MUTABLE_EXT:
                 GFXRECON_LOG_WARNING("Descriptor type not supported at " __FILE__ ", line: %d.", __LINE__);
@@ -355,21 +358,34 @@ void FieldToJson(nlohmann::ordered_json&                      jdata,
 {
     if (pData)
     {
-        if (pData->GetImageInfoCount())
+        const size_t                        image_info_count = pData->GetImageInfoCount();
+        std::vector<nlohmann::ordered_json> image_infos(image_info_count);
+
+        for (size_t image_info_index = 0; image_info_index < image_info_count; ++image_info_index)
         {
-            FieldToJson(jdata["imageInfos"], pData->GetImageInfoMetaStructPointer(), options);
+            FieldToJson(
+                image_infos[image_info_index], pData->GetImageInfoMetaStructPointer() + image_info_index, options);
         }
-        if (pData->GetBufferInfoCount())
+        jdata["imageInfos"] = image_infos;
+
+        const size_t                        buffer_info_count = pData->GetBufferInfoCount();
+        std::vector<nlohmann::ordered_json> buffer_infos(buffer_info_count);
+
+        for (size_t buffer_info_index = 0; buffer_info_index < buffer_info_count; ++buffer_info_index)
         {
-            FieldToJson(jdata["bufferInfos"], pData->GetBufferInfoMetaStructPointer(), options);
+            FieldToJson(
+                buffer_infos[buffer_info_index], pData->GetBufferInfoMetaStructPointer() + buffer_info_index, options);
         }
-        const auto texel_buffer_view_count = pData->GetTexelBufferViewCount();
+        jdata["bufferInfos"] = buffer_infos;
+
+        const size_t texel_buffer_view_count = pData->GetTexelBufferViewCount();
         if (texel_buffer_view_count > 0)
         {
             HandleToJson(
                 jdata["bufferViews"], pData->GetTexelBufferViewHandleIdsPointer(), texel_buffer_view_count, options);
         }
-        const auto acceleration_structure_count = pData->GetAccelerationStructureKHRCount();
+
+        const size_t acceleration_structure_count = pData->GetAccelerationStructureKHRCount();
         if (acceleration_structure_count > 0)
         {
             HandleToJson(jdata["accelStructViews"],

@@ -1,3 +1,79 @@
+gfxreconstruct (1.0.1+42~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ Charles Giessen ]
+  * Fix missing s typo in JSON output (#1401)
+
+  [ Ming Zheng ]
+  * Fix multi-threading issue with using real Vulkan handle
+  * Update copyright info
+  * Address review comments
+  * Address code review comments
+  * Address code review comments
+  * Address code review comments
+
+  [ feimao12 ]
+  * Fix the null pointer issue for State Object for trim capture.
+
+  [ Brad Grantham ]
+  * increment release version number in anticipation of 1.0.3
+
+  [ Evan Tang ]
+  * Add macOS support (#1317)
+
+  [ Charles Giessen ]
+  * Check return value of GetRayTracingCaptureReplayShaderGroupHandlesKHR (#1403)
+
+  [ Mark Young ]
+  * Remove execute permissions
+
+  [ Marius Pelegrin ]
+  * Fix pNext chains unproperly copied in VulkanStateTracker
+
+  [ Mark Young ]
+  * Update generated source for new header
+
+  [ davidd-lunarg ]
+  * Add capture handling for new resource create funcs
+  * Add replay handling for new resource create funcs
+  * Fix trimming for some resources created for UAV
+
+  [ Ihor Zvieriev ]
+  * Fix a crash when using acceleration structures with DescriptorUpdateTemplate
+  * Fixing convert not displaying all image/buffer info
+
+  [ Mark Young ]
+  * Changes to support future desc templates
+
+  [ Ihor Zvieriev ]
+  * Fixes a crash on replaying a fastforwarded trace
+
+  [ Marius Pelegrin ]
+  * Fix `OverrideAllocateMemory` for trimmed traces
+
+  [ Panagiotis Apostolou ]
+  * Fix for acceleration structure tracking in the state tracker (#1418)
+
+  [ nickdriscoll-lunarg ]
+  * gfxrecon-convert: Emit index field when writing metadata JSON blocks (#1423)
+
+  [ Marius Pelegrin ]
+  * Add --flush-inside-measurement-range option
+
+  [ Mark Young ]
+  * vulkan: Update Usage and replay script
+
+  [ ziga-lunarg ]
+  * Fix swapchain image wrappers lifetime (#1424)
+
+  [ yaman-lunarg ]
+  * fixes #1422:gfxrecon-replay to create --screenshot-dir if it doesn't exist (#1425)
+
+  [ davidd-lunarg ]
+  * Refactor methods in Dx12ResourceDataUtil
+  * Screenshot improvements
+
+ -- john <john@odin>  Wed, 28 Feb 2024 11:18:48 -0700
+
 gfxreconstruct (1.0.1+41~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ bradgrantham-lunarg ]

@@ -103,6 +103,7 @@ const char kMeasurementRangeArgument[]           = "--measurement-frame-range";
 const char kMeasurementFileArgument[]            = "--measurement-file";
 const char kQuitAfterMeasurementRangeOption[]    = "--quit-after-measurement-range";
 const char kFlushMeasurementRangeOption[]        = "--flush-measurement-range";
+const char kFlushInsideMeasurementRangeOption[]  = "--flush-inside-measurement-range";
 const char kSwapchainOption[]                    = "--swapchain";
 const char kEnableUseCapturedSwapchainIndices[] =
     "--use-captured-swapchain-indices"; // The same: util::SwapchainOption::kCaptured
@@ -125,6 +126,7 @@ enum class WsiPlatform
     kXlib,
     kXcb,
     kWayland,
+    kMetal,
     kDisplay,
     kHeadless
 };
@@ -134,6 +136,7 @@ const char kWsiPlatformWin32[]    = "win32";
 const char kWsiPlatformXlib[]     = "xlib";
 const char kWsiPlatformXcb[]      = "xcb";
 const char kWsiPlatformWayland[]  = "wayland";
+const char kWsiPlatformMetal[]    = "metal";
 const char kWsiPlatformDisplay[]  = "display";
 const char kWsiPlatformHeadless[] = "headless";
 
@@ -321,6 +324,14 @@ static WsiPlatform GetWsiPlatform(const gfxrecon::util::ArgumentParser& arg_pars
             GFXRECON_LOG_WARNING("Ignoring wsi option \"%s\", which is not enabled on this system", value.c_str());
 #endif
         }
+        else if (gfxrecon::util::platform::StringCompareNoCase(kWsiPlatformMetal, value.c_str()) == 0)
+        {
+#if defined(VK_USE_PLATFORM_METAL_EXT)
+            wsi_platform = WsiPlatform::kMetal;
+#else
+            GFXRECON_LOG_WARNING("Ignoring wsi option \"%s\", which is not enabled on this system", value.c_str());
+#endif
+        }
         else if (gfxrecon::util::platform::StringCompareNoCase(kWsiPlatformDisplay, value.c_str()) == 0)
         {
 #if defined(VK_USE_PLATFORM_DISPLAY_KHR)
@@ -374,6 +385,12 @@ static std::string GetWsiExtensionName(WsiPlatform wsi_platform)
             return VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
         }
 #endif
+#if defined(VK_USE_PLATFORM_METAL_EXT)
+        case WsiPlatform::kMetal:
+        {
+            return VK_EXT_METAL_SURFACE_EXTENSION_NAME;
+        }
+#endif
 #if defined(VK_USE_PLATFORM_HEADLESS)
         case WsiPlatform::kHeadless:
         {
@@ -405,6 +422,10 @@ static std::string GetWsiArgString()
 #if defined(VK_USE_PLATFORM_WAYLAND_KHR)
     wsi_args += ',';
     wsi_args += kWsiPlatformWayland;
+#endif
+#if defined(VK_USE_PLATFORM_METAL_EXT)
+    wsi_args += ',';
+    wsi_args += kWsiPlatformMetal;
 #endif
 #if defined(VK_USE_PLATFORM_DISPLAY_KHR)
     wsi_args += ',';
@@ -788,6 +809,11 @@ static void GetReplayOptions(gfxrecon::decode::ReplayOptions& options, const gfx
     if (arg_parser.IsOptionSet(kFlushMeasurementRangeOption))
     {
         options.flush_measurement_frame_range = true;
+    }
+
+    if (arg_parser.IsOptionSet(kFlushInsideMeasurementRangeOption))
+    {
+        options.flush_inside_measurement_range = true;
     }
 
     const auto& override_gpu = arg_parser.GetArgumentValue(kOverrideGpuArgument);

@@ -63,7 +63,8 @@ const char kValidationLayerName[] = "VK_LAYER_KHRONOS_validation";
 const std::unordered_set<std::string> kSurfaceExtensions = {
     VK_KHR_ANDROID_SURFACE_EXTENSION_NAME, VK_MVK_IOS_SURFACE_EXTENSION_NAME, VK_MVK_MACOS_SURFACE_EXTENSION_NAME,
     VK_KHR_MIR_SURFACE_EXTENSION_NAME,     VK_NN_VI_SURFACE_EXTENSION_NAME,   VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME,
-    VK_KHR_WIN32_SURFACE_EXTENSION_NAME,   VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_KHR_XLIB_SURFACE_EXTENSION_NAME
+    VK_KHR_WIN32_SURFACE_EXTENSION_NAME,   VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_KHR_XLIB_SURFACE_EXTENSION_NAME,
+    VK_EXT_METAL_SURFACE_EXTENSION_NAME,
 };
 
 // Device extensions to enable for trimming state setup, when available.
@@ -2055,6 +2056,25 @@ void VulkanReplayConsumerBase::InitializeScreenshotHandler()
 
     if (!options_.screenshot_dir.empty())
     {
+        if (util::filepath::Exists(options_.screenshot_dir))
+        {
+            if (!util::filepath::IsDirectory(options_.screenshot_dir))
+            {
+                GFXRECON_WRITE_CONSOLE("Error while creating directory %s: Already exists as file",
+                                       options_.screenshot_dir.c_str());
+                exit(-1);
+            }
+        }
+        else
+        {
+            int32_t result = gfxrecon::util::platform::MakeDirectory(options_.screenshot_dir.c_str());
+            if (result < 0)
+            {
+                GFXRECON_WRITE_CONSOLE("Error while creating directory %s: Could not open",
+                                       options_.screenshot_dir.c_str());
+                exit(-1);
+            }
+        }
         screenshot_file_prefix_ = util::filepath::Join(options_.screenshot_dir, screenshot_file_prefix_);
     }
 
@@ -2280,7 +2300,12 @@ VulkanReplayConsumerBase::OverrideCreateInstance(VkResult original_result,
                 const auto current_extension = replay_create_info->ppEnabledExtensionNames[i];
                 const bool is_surface_extension =
                     kSurfaceExtensions.find(current_extension) != kSurfaceExtensions.end();
-                if (is_surface_extension)
+                if (!util::platform::StringCompare(current_extension, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME))
+                {
+                    // Will always be added
+                    continue;
+                }
+                else if (is_surface_extension)
                 {
                     if (!override_wsi_extensions)
                     {
@@ -2319,6 +2344,17 @@ VulkanReplayConsumerBase::OverrideCreateInstance(VkResult original_result,
             {
                 GFXRECON_LOG_WARNING("Failed to get instance extensions. Cannot perform sanity checks or filters for "
                                      "extension availability.");
+            }
+        }
+
+        // Always enable portability enumeration
+        modified_create_info.flags &= ~VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        for (const VkExtensionProperties& extension : available_extensions)
+        {
+            if (!util::platform::StringCompare(extension.extensionName, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME))
+            {
+                filtered_extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+                modified_create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
             }
         }
 
@@ -3836,9 +3872,10 @@ VkResult VulkanReplayConsumerBase::OverrideAllocateMemory(
         auto                                capture_id           = (*pMemory->GetPointer());
 
         // Check if this allocation was captured with an opaque address
-        bool                uses_address       = false;
-        bool                uses_import_memory = false;
-        uint64_t            opaque_address     = 0;
+        bool                uses_address           = false;
+        bool                address_override_found = false;
+        bool                uses_import_memory     = false;
+        uint64_t            opaque_address         = 0;
         VkBaseOutStructure* current_struct = reinterpret_cast<const VkBaseOutStructure*>(replay_allocate_info)->pNext;
 
         size_t                                            host_pointer_size = 0;
@@ -3866,8 +3903,7 @@ VkResult VulkanReplayConsumerBase::OverrideAllocateMemory(
                 }
                 break;
             }
-
-            if (current_struct->sType == VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT)
+            else if (current_struct->sType == VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT)
             {
                 auto import_info = reinterpret_cast<VkImportMemoryHostPointerInfoEXT*>(current_struct);
 
@@ -3893,11 +3929,15 @@ VkResult VulkanReplayConsumerBase::OverrideAllocateMemory(
 
                 uses_import_memory = true;
             }
+            else if (current_struct->sType == VK_STRUCTURE_TYPE_MEMORY_OPAQUE_CAPTURE_ADDRESS_ALLOCATE_INFO)
+            {
+                address_override_found = true;
+            }
 
             current_struct = current_struct->pNext;
         }
 
-        if (uses_address)
+        if (uses_address && !address_override_found)
         {
             // Insert VkMemoryOpaqueCaptureAddressAllocateInfo into front of pNext chain before allocating
 
@@ -6312,6 +6352,34 @@ VkBool32 VulkanReplayConsumerBase::OverrideGetPhysicalDeviceWaylandPresentationS
     return window_factory ? window_factory->GetPhysicalDevicePresentationSupport(
                                 GetInstanceTable(physical_device), physical_device, queueFamilyIndex)
                           : false;
+}
+
+VkResult VulkanReplayConsumerBase::OverrideCreateMetalSurfaceEXT(
+    PFN_vkCreateMetalSurfaceEXT                                      func,
+    VkResult                                                         original_result,
+    InstanceInfo*                                                    instance_info,
+    const StructPointerDecoder<Decoded_VkMetalSurfaceCreateInfoEXT>* pCreateInfo,
+    const StructPointerDecoder<Decoded_VkAllocationCallbacks>*       pAllocator,
+    HandlePointerDecoder<VkSurfaceKHR>*                              pSurface)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(func);
+    GFXRECON_UNREFERENCED_PARAMETER(original_result);
+    GFXRECON_UNREFERENCED_PARAMETER(pAllocator);
+
+    assert((instance_info != nullptr) && (pCreateInfo != nullptr));
+
+    auto replay_create_info = pCreateInfo->GetPointer();
+
+    assert((replay_create_info != nullptr) && (pSurface != nullptr) && (pSurface->GetHandlePointer() != nullptr));
+
+    return swapchain_->CreateSurface(original_result,
+                                     instance_info,
+                                     VK_EXT_METAL_SURFACE_EXTENSION_NAME,
+                                     replay_create_info->flags,
+                                     pSurface,
+                                     GetInstanceTable(instance_info->handle),
+                                     application_.get(),
+                                     options_.surface_index);
 }
 
 void VulkanReplayConsumerBase::OverrideDestroySurfaceKHR(

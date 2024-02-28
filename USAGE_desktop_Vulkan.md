@@ -438,6 +438,7 @@ Optional arguments:
                         Image file format to use for screenshot generation.
                         Available formats are:
                             bmp         Bitmap file format.  This is the default format.
+                            png         Portable Network Graphics file format.
   --screenshot-dir <dir>
                         Directory to write screenshots.  Default is the current
                         working directory.
@@ -532,6 +533,10 @@ Optional arguments:
               If this is specified the replayer will flush
               and wait for all current GPU work to finish at the
               start and end of the measurement range.
+  --flush-inside-measurement-range
+              If this is specified the replayer will flush and wait
+              for all current GPU work to finish at the end of each
+              frame inside the measurement range.
   --use-colorspace-fallback
               Swap the swapchain color space if unsupported by replay device.
               Check if color space is not supported by replay device and

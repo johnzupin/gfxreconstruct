@@ -1,3 +1,41 @@
+gfxreconstruct (1.0.2+35~rc1-1lunarg20.04-1) focal; urgency=medium
+
+  [ bradgrantham-lunarg ]
+  * remove accidentally merged files (#1429)
+
+  [ Ming Zheng ]
+  * Fix trim raytracing invalid device issue (#1417)
+
+  [ Marius Pelegrin ]
+  * Propagate virtual swapchain image compression
+
+  [ Mark Young ]
+  * Fix VkImageCompressionControlEXT usage in swapchain
+  * Update CONTRIBUTING.md
+
+  [ David Pinedo ]
+  * Update Vulkan headers to 1.3.278
+
+  [ Charles Giessen ]
+  * Remove duplicate line in .clang-format (#1435)
+
+  [ nickdriscoll-lunarg ]
+  * Make PAGE_GUARD_ALIGN_BUFFER_SIZES true by default (#1431)
+
+  [ Marius Pélégrin - ARM ]
+  * Support for `VK_EXT_frame_boundary` and usage in offscreen swapchain (#1354)
+
+  [ bradgrantham-lunarg ]
+  * remove two unused variables to quiet warning (#1409)
+
+  [ Marius Pélégrin - ARM ]
+  * Support for XDG Shell on Wayland (#1190)
+
+  [ David Pinedo ]
+  * Update headers to 1.3.280
+
+ -- john <john@odin>  Tue, 12 Mar 2024 12:42:25 -0600
+
 gfxreconstruct (1.0.1+42~rc1-1lunarg20.04-1) focal; urgency=medium
 
   [ Charles Giessen ]

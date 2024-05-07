@@ -22,6 +22,7 @@
 
 #include "decode/vulkan_offscreen_swapchain.h"
 #include "encode/vulkan_handle_wrapper_util.h"
+#include "decode/decoder_util.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
@@ -31,20 +32,23 @@ VkResult VulkanOffscreenSwapchain::CreateSurface(VkResult                       
                                                  const std::string&                  wsi_extension,
                                                  VkFlags                             flags,
                                                  HandlePointerDecoder<VkSurfaceKHR>* surface,
-                                                 const encode::InstanceTable*        instance_table,
+                                                 const encode::VulkanInstanceTable*  instance_table,
                                                  application::Application*           application,
-                                                 const VulkanReplayOptions&          replay_options)
+                                                 const int32_t                       xpos,
+                                                 const int32_t                       ypos,
+                                                 const uint32_t                      width,
+                                                 const uint32_t                      height,
+                                                 bool                                force_windowed)
 {
     GFXRECON_ASSERT(surface);
 
-    instance_table_        = instance_table;
-    application_           = application;
-    options_surface_index_ = replay_options.surface_index;
-    insert_frame_boundary_ = replay_options.offscreen_swapchain_frame_boundary;
+    instance_table_ = instance_table;
+    application_    = application;
 
     // For multi-surface captures, when replay is restricted to a specific surface, only create a surface for
     // the specified index.
-    if ((options_surface_index_ == -1) || (options_surface_index_ == create_surface_count_))
+    if ((swapchain_options_.select_surface_index == -1) ||
+        (swapchain_options_.select_surface_index == create_surface_count_))
     {
 
         const format::HandleId* id             = surface->GetPointer();
@@ -82,13 +86,14 @@ VkResult VulkanOffscreenSwapchain::CreateSwapchainKHR(VkResult                  
                                                       const VkSwapchainCreateInfoKHR*       create_info,
                                                       const VkAllocationCallbacks*          allocator,
                                                       HandlePointerDecoder<VkSwapchainKHR>* swapchain,
-                                                      const encode::DeviceTable*            device_table)
+                                                      const encode::VulkanDeviceTable*      device_table)
 {
     GFXRECON_ASSERT(device_info);
     device_table_ = device_table;
 
     const format::HandleId* id               = swapchain->GetPointer();
     VkSwapchainKHR*         replay_swapchain = swapchain->GetHandlePointer();
+    VkDevice                device           = device_info->handle;
 
     // Give swapchain a fake handle. It's handle id.
     *replay_swapchain = UINT64_TO_VK_HANDLE(VkSwapchainKHR, *id);
@@ -97,8 +102,7 @@ VkResult VulkanOffscreenSwapchain::CreateSwapchainKHR(VkResult                  
         return VK_ERROR_OUT_OF_HOST_MEMORY;
     }
 
-    VkDevice device = device_info->handle;
-    device_table_->GetDeviceQueue(device, default_queue_family_index_, 0, &default_queue_);
+    default_queue_ = GetDeviceQueue(device_table_, device_info, default_queue_family_index_, 0);
 
     // If this option is set, a command buffer submission with a `VkFrameBoundaryEXT` must be called each time
     // `vkQueuePresentKHR` should have been called by the offscreen swapchain. So a maximum of work must be done at

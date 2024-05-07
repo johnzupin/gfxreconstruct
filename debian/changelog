@@ -1,3 +1,179 @@
+gfxreconstruct (1.0.3+48~rc1-1lunarg20.04-1) focal; urgency=medium
+
+  [ Jerry Li ]
+  * Tracking correct CopyAS dest resource size
+
+  [ igorbrsn ]
+  * support AGS 6.2.0
+  * AGS capture error msg
+
+  [ David Pinedo ]
+  * Fix warning in python script
+
+  [ feimao12 ]
+  * Add missed "is_fullscreen" value in DxgiSwapchainInfo
+
+  [ Ming Zheng ]
+  * Fix pipeline cache data handling issue (#1414)
+
+  [ Locke Lin ]
+  * Integrate cpp code to latest (#1441)
+
+  [ bradgrantham-lunarg ]
+  * ignore lack of ANDROID_frame_boundary (#1451)
+  * update required C++ to 17 (#1456)
+
+  [ David Pinedo ]
+  * Add support for VK_NV_low_latency and VK_NV_low_latency2
+
+  [ Mike Schuchardt ]
+  * Fix replay assert with imageless framebuffers
+  * Add utility for walking decoded pNext chains
+
+  [ Charles Giessen ]
+  * Rerun codegen to get missing sTypes (#1457)
+  * Update BUILD.md to remove useless CMake arguments (#1437)
+
+  [ Panagiotis Apostolou ]
+  * Using userfaultfd in page guard manager (#1161)
+
+  [ Panos Apostolou ]
+  * Minor userfaultfd fixes
+
+  [ David Pinedo ]
+  * Increment release version number in anticipation of 1.0.4
+
+  [ bradgrantham-lunarg ]
+  * clean up tocpp platform (#1453)
+  * add missing doc on PNG and --replace-shaders (#1466)
+
+  [ Mark Young ]
+  * Clarify Vulkan-specific items (#1443)
+
+  [ nickdriscoll-lunarg ]
+  * Update gfxrecon-convert's README.md (#1458)
+
+  [ Melih Y. Yalcin ]
+  * Add application exe name for Android and Linux (#1469)
+
+  [ bradgrantham-lunarg ]
+  * resolve an overridden function with different signature (#1410)
+  * fix compilation error (#1473)
+
+  [ Mark Young ]
+  * vulkan: Add more clarification on vulkan-specific items
+
+  [ Marius Pélégrin - ARM ]
+  * Add option to skip blit of virtual swapchain (#1156)
+
+  [ user.email ]
+  * Fix debug layer errors when writing/loading trim state
+
+  [ laurentiu-erhan-arm ]
+  * Added -j/--parallel option to build script (#1302)
+
+  [ Evan Tang ]
+  * Add --parallel option to macOS CI builds (#1477)
+
+  [ Marius Pélégrin - ARM ]
+  * Add options to pass through fence status queries (#1176)
+
+  [ user.email ]
+  * Update log msg for empty accel struct vert data
+
+  [ yaman-lunarg ]
+  * Fixing the typo under Disable The GFXReconstruct layer (#1485)
+
+  [ Panagiotis Apostolou ]
+  * Track AHB buffers with userfaultfd
+
+  [ yaman-lunarg ]
+  * Alpha channel is discarded in screenshots before writing to disk #1455 (#1491)
+
+  [ fabian-lunarg ]
+  * Fix compilation for Apple clang version 15.0.0 (#1493)
+
+  [ feimao12 ]
+  * Resolving user message conflict between Optimizer and Replay
+
+  [ shabei ]
+  * Fix the extra frame count when flags is DXGI_PRESENT_TEST in Present (#1487)
+
+  [ user.email ]
+  * Warn if screenshot indexing change is detected
+
+  [ Evan Tang ]
+  * Fix exiting on vkDestroySwapchainKHR on macOS (#1496)
+
+  [ Ming Zheng ]
+  * Add replay option with user specified window location (#1348)
+
+  [ ziga-lunarg ]
+  * Dont call vkWaitForFences with count 0 (#1486)
+
+  [ Panagiotis Apostolou ]
+  * Add .cache in .gitignore
+  * Remove .clang-tidy file
+  * PreProcessExternalObject now should print the correct func name
+
+  [ John Zupin ]
+  * packaging: debian: disable tocpp
+
+  [ Panagiotis Apostolou ]
+  * Some small changes in uffd
+
+  [ Brad Grantham ]
+  * Update Vulkan registry and headers to 1.3.283 (#1507)
+
+  [ Panagiotis Apostolou ]
+  * Write CreateHardwareBufferCmd even without AHB data
+  * Dump zeros when actual AHB content cannot be retrieved
+
+  [ fabian-lunarg ]
+  * Use static liblz4 on Apple-platforms (#1510)
+  * Make lz4-compression mandatory with opt-out (#1511)
+
+  [ feimao12 ]
+  * remove unnecessary resource info update
+
+  [ fabian-lunarg ]
+  * Do not track raw pnext-data in DescriptorInfo (#1502)
+
+  [ nickdriscoll-lunarg ]
+  * Removed all mention of unused --api flag (#1512)
+
+  [ fabian-lunarg ]
+  * Add support for VK_EXT_inline_uniform_block (#1504)
+
+  [ bartosz-muszarski-arm ]
+  * Fix measurement options for android (#1433)
+  * Add wait before present option (#1146)
+
+  [ user.email ]
+  * Refactor code for gathering info from capture file
+  * Scan full capture for API use in info tool
+
+  [ Ihor Zvieriev ]
+  * Added a build type to the version string. (#1264)
+
+  [ Charles Giessen ]
+  * Revert "Added a build type to the version string. (#1264)" (#1531)
+  * Added a build type to the version string (#1532)
+
+  [ bradgrantham-lunarg ]
+  * make message about usually normal operation be only DEBUG (#1527)
+
+  [ Locke Lin ]
+  * Use GetDeviceQueue2 for the queue that has flags. (#1521)
+
+  [ Panagiotis Apostolou ]
+  * Fix block index counter when capturing trimmed
+
+  [ John Zupin ]
+  * debian: patch: update packaging version patch
+
+ -- john <john@odin>  Tue, 07 May 2024 10:04:03 -0600
+
 gfxreconstruct (1.0.2+35~rc1-1lunarg20.04-1) focal; urgency=medium
 
   [ bradgrantham-lunarg ]

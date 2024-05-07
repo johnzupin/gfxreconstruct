@@ -3,21 +3,23 @@ Date: Thu, 4 Jun 2020 20:22:43 -0600
 Subject: packaging: patch as focal version
 
 ---
- project_version.h.in | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ project_version.h.in | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/project_version.h.in b/project_version.h.in
-index 92b7d4c..a1c3143 100644
+index 7c7b4a6..e64e43b 100644
 --- a/project_version.h.in
 +++ b/project_version.h.in
-@@ -27,8 +27,8 @@
+@@ -27,9 +27,9 @@
  #define GFXRECON_PROJECT_VERSION_MINOR @GFXRECONSTRUCT_PROJECT_VERSION_MINOR@
  #define GFXRECON_PROJECT_VERSION_PATCH @GFXRECONSTRUCT_PROJECT_VERSION_PATCH@
  
 -#define GFXRECON_PROJECT_VERSION_DESIGNATION  "@GFXRECON_PROJECT_VERSION_DESIGNATION@"
 -#define GFXRECON_PROJECT_VERSION_SHA1         "@GFXRECON_PROJECT_VERSION_SHA1@"
+-#define GFXRECON_PROJECT_BUILD_TYPE           "$<CONFIG>"
 +#define GFXRECON_PROJECT_VERSION_DESIGNATION  ""
 +#define GFXRECON_PROJECT_VERSION_SHA1         "focal"
++#define GFXRECON_PROJECT_BUILD_TYPE           ""
  
  #define GFXRECON_VERSION_STR_EXPAND(x) #x
  #define GFXRECON_VERSION_STR(x) GFXRECON_VERSION_STR_EXPAND(x)

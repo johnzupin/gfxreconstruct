@@ -1,3 +1,600 @@
+gfxreconstruct (1.0.4+345~rc1-1lunarg24.04-1) noble; urgency=medium
+
+  [ locke-lunarg ]
+  * Add --dump-resources option for DX12
+  * Dump vertex for not renderpass for DX12
+  * Dump more for not renderpass for DX12
+  * Dump for renderpass for DX12
+
+  [ Locke Lin ]
+  * dx12 dump more supported
+
+  [ locke-lunarg ]
+  * Change dx12 dump resources option
+
+  [ Locke Lin ]
+  * dx12: Add offset and size for CopyResousrce
+  * bugfix for change resource state for dump dx12
+
+  [ locke-lunarg ]
+  * Add test flags for dx12 dump
+
+  [ Locke Lin ]
+  * Support RTsSingleHandleToDescriptorRange
+  * Do not add  D3D12_RESOURCE_STATE_COPY_SOURCE
+
+  [ davidd-lunarg ]
+  * Improve resource state tracking for dump resources
+  * Improve descriptor tracking for dump resources
+  * Verify resource bytes per pixel before writing BMP
+
+  [ Locke Lin ]
+  * dx12 dump: Modified DATA_STATIC to none
+  * dx12 dump: Duplicated command list
+  * dx12 dump: Split command lists
+  * dx12 dump: Use ReadFromResource to copy resources
+  * Use swapchain's Queue on Dx12ResourceDataUtil
+  * dx12 dump: RenderPass support
+  * dx12 dump: Dump all subresources
+  * dx12 dump: Dump target subresources
+  * dx12 dump: More supports
+  * dx12 dump: Modified DATA_STATIC to none
+  * Update resource states for trimming
+  * Bugfix: Wrong byte offset
+
+  [ davidd-lunarg ]
+  * dx12 dump: Handle synchronization for reading data
+  * dx12 dump: Fix descriptor subresource for Tex3D
+
+  [ Locke Lin ]
+  * dx12 dump: Add TEST_AVAILABLE_ARGS
+  * dx12 dump: Bugfix
+  * dx12 dump: Rename meta and code_index
+  * dx12 dump: Support CreatePlacedResource
+  * dx12 dump: Bugfix Query
+
+  [ user.email ]
+  * Skip dump resources for unoptimized DXR/EI captures
+
+  [ Locke Lin ]
+  * dx12 dump: Support ExecuteBundle
+  * dx12 dump: Write data to disk when a copy is done
+  * dx12 dump: Use a single dx object to copy
+  * dx12 dump: Set array_size as all array if it's -1
+  * dx12 dump: Find available args for render
+  * dx12 dump: Use shared_ptr
+
+  [ davidd-lunarg ]
+  * Keep objects in scope during async dump resources
+
+  [ Fabian Schmidt ]
+  * Add prebuilt compression-libs for macOS (arm64/x86_64) (#1523)
+
+  [ Locke Lin ]
+  * dx12 dump: Bugfix: Move CreateFence
+
+  [ Fabian Schmidt ]
+  * Add missing state-write for ShaderEXTWrapper (#1538)
+
+  [ Locke Lin ]
+  * dx12 dump: simplify bundle copy code
+  * dx12 dump: Check target EndRenderPass
+
+  [ David Pinedo ]
+  * Command list resource tracking - first pass
+
+  [ Panos Apostolou ]
+  * Dump resoruces initial commit
+
+  [ David Pinedo ]
+  * Command line interface: reworked args including adding json file arg
+
+  [ Panos Apostolou ]
+  * Moved jsoncpp lib to appropriate folders
+
+  [ David Pinedo ]
+  * Update spirv-reflect header file
+  * Rework cli to allow for multiple subpasses
+  * Fix an error check
+
+  [ Panos Apostolou ]
+  * Dispatch/TraceRays dump resources initial commit
+  * Some fixes for the scaling path in VulkanResourcesUtil
+  * An attempt for better handling of errors during submissions
+  * Renamed function
+  * Do some more elaborate sanity checks on dump resource indices
+  * Random small fixes in dump resources
+  * Added support for R16G16B16A16_SFLOAT in the image writter
+
+  [ Panagiotis Apostolou ]
+  * Buffer writer was leaking file descriptors
+  * Narrow down dumped resources
+  * Some clean up in the dumped filenames
+  * Removed stale timing logic
+  * Removed render pass info printfs
+  * Filename generation moved to separate functions
+  * Change class and file names for consistency
+  * Stricter indices checks in the cli json parser
+  * Don't assert when resource dumping is disabled
+  * Handle empty render passes
+  * Allow for equal consequtive indices in the QueueSubmit index list
+  * Another fix for multiple render passes
+  * Small fix for VulkanReplayConsumerBodyGenerator
+  * Renamed the resourcer dumper variable with a more meaningful name
+  * Removed most of debug printfs from the dump resources class
+  * Temporarily disabling mutable resources backup/restoring
+  * Fixes in VulkanResourcesUtil
+  * Abstract out blit logic in VulkanResourcesUtil
+  * Fixes in the dumping context destructors
+  * Fix hangs when dumping from multiple command buffers
+
+  [ David Pinedo ]
+  * Change cli help text
+
+  [ Panos Apostolou ]
+  * Fix Android compilation after merging json output patches
+
+  [ David Pinedo ]
+  * Implement json output for TraceRays and Dispatch
+  * Improved --dump-resources arg error messsages
+
+  [ Panos Apostolou ]
+  * Add jsoncpp precompiles binaries for x86 and x86_64 for Android builds
+  * Recompiled SPIRV-Reflect android binaries for x86 and x86_64
+  * Temporarily disable png format for dump resources
+
+  [ David Pinedo ]
+  * Added win32 jsoncpp.lib and spirv-reflect-static.lib to external/precompiled
+
+  [ Panos Apostolou ]
+  * Moved variable members at end of class declaration
+
+  [ David Pinedo ]
+  * Use static jsoncpp library on Windows
+  * Add more block indices to dump resources json output
+
+  [ Panos Apostolou ]
+  * Fix linux build
+  * Dumping resources boolean vulkan option had stopped working
+  * Fix some leftover conflicts after merging with dev
+  * Dump resources detailed documentation
+
+  [ David Pinedo ]
+  * Dump resources documentation tweaks
+
+  [ Panos Apostolou ]
+  * Split dump resources code into several files
+
+  [ Panagiotis Apostolou ]
+  * Support dynamic offsets for dynamic uniform and storage buffers
+  * Basic dumping for inline uniform block descriptors
+  * Handle dynamic rendering
+  * Dynamic offsets for descriptors do not work correctly
+  * Some fixes in WriteAstcImage's error checking logic
+  * Better handling for descriptor binding sizes and allocations
+  * Release resources instead of terminating process
+  * Enrich error messages
+  * Handle missing dir separator when deleting old dumped files
+  * Add missing file extensions in output json
+  * Small changes in VulkanReplayDumpResourcesJson
+  * Do not delete old dump files
+  * Fixing conflicts that escaped last rebase with dev
+  * Added missing params from documentation
+  * Relax checks for sorted indices
+  * Queue submit indices do not need to be sorted
+  * Fixed a copy/paste mistake
+  * Add missing index from depth attachments in output json
+  * Fixed a copy/paste type
+  * FinalizeCommandBuffer needs to be called twice when dumping before
+  * Remove redundant _ from filenames
+  * Simplify attribute name used for the scale factor
+  * Renamed replay options variable
+  * Enhance dump resources json output
+  * Fixed DrawCall entries to be an array in json output
+  * GenerateOutputJsonDrawCallInfo makes more sense like this
+  * Enhance dump resources json output for dispatch/traceRays
+  * Write dump resources options in json output
+  * Help function to get shader stage name
+  * Simplify calls to GetFormatAspects()
+  * Avoid some crashes from VulkanReplayDumpResourcesJson
+  * Write dispatch and trace rays params in output json
+  * Small refactoring in dispatch/traceRays resources
+  * Include qs and bcb index in all dumped filenames
+  * Small fixes in the json output generation
+  * CopyBufferResource() implementation was missing
+  * Add support for vkCmdTraceRaysIndirectKHR
+  * CopyBufferResource should handle VK_WHOLE_SIZE
+  * Begin new json block for each QueueSubmit
+  * Amend last rebase with dev
+  * Should be ok to reuse a command buffer for dumping
+  * Remove QueueSubmit object from output json
+  * Dump vertex and index buffers per render pass
+  * WritePngImage*() now checks return value from stbi_write_png
+  * DestroyCommandPool should release any relevant dumping resources
+  * Some logic for fetching TraceRaysIndirect was missing
+
+  [ Panos Apostolou ]
+  * Fix project version header include
+
+  [ Panagiotis Apostolou ]
+  * Don't scale images below 1 pixel in any dimension
+  * Fix windows build
+  * Handle VK_ATTACHMENT_UNUSED when creating render passes
+  * Vertex/Index buffers are now dumped per draw call
+  * Reset first_block_ each time the file is closed
+  * Remove redundant json library
+
+  [ beau-lunarg ]
+  * Add missing properties to Decoded_D3D12_UNORDERED_ACCESS_VIEW_DESC (#1546)
+
+  [ JerryAMD ]
+  * Tracking SO for EI (#1461)
+
+  [ Fabian Schmidt ]
+  * Add missing code-path for VK_EXT_inline_uniform_block (#1525)
+
+  [ John Zulauf ]
+  * Support multiple simulataneous API capture managers (#1536)
+
+  [ Mark Young ]
+  * Continue identifying vulkan-specific items
+  * vulkan: Move more encode items into a namespace
+  * vulkan: Rename vulkan files with prefix
+  * More vulkan-specific identifier modifications
+  * Remove Vulkan-specific encodes/decodes
+  * vulkan: Code review adjustments
+
+  [ Mike Schuchardt ]
+  * Android doc cleanup
+
+  [ David Pinedo ]
+  * cli changes for dx12 and Vulkan dump-resources arg
+
+  [ Fabian Schmidt ]
+  * Add build-instructions for macOS (#1543)
+
+  [ bradgrantham-lunarg ]
+  * update generated files and expand note on generation in CONTRIBUTING (#1554)
+
+  [ Panagiotis Apostolou ]
+  * Fix image writer functions to handle screenshots
+
+  [ David Pinedo ]
+  * dx12 dump resources json file name and header changes
+
+  [ beau-lunarg ]
+  * Add missing Dred_1_2 union member to D3D12_VERSIONED_DEVICE_REMOVED_E… (#1551)
+  * Add missing Desc2 union member to decoded D3D12_VERSIONED_ROOT_SIGNAT… (#1552)
+  * Complete ExeFileInfo json consumer path for Vulkan and D3D12 (#1550)
+
+  [ Nick Driscoll ]
+  * Increment release version number in anticipation of 1.0.5
+
+  [ JerryAMD ]
+  * Do second round API detect for optimizer if needed (#1557)
+
+  [ Fabian Schmidt ]
+  * Fix for 32/64-bit portability when encoding inline-uniform-blocks (#1560)
+
+  [ David Pinedo ]
+  * Remove extranous dx12 warning when parsing --dump-resources param
+
+  [ bradgrantham-lunarg ]
+  * Add DX12 code generation out-of-date check to the GitHub CI build (#1556)
+
+  [ davidd-lunarg ]
+  * Only warn once if reserved block types are skipped
+
+  [ David Pinedo ]
+  * Include capture file name in output file names
+
+  [ Panagiotis Apostolou ]
+  * Add VK_EXT_frame_boundary in the list of ignorable extensions (#1569)
+  * Insert dummy annotations in place of optimized out resources (#1540)
+
+  [ David Pinedo ]
+  * Add <index> to --dump-resources-dump-color-attachment-index help text
+
+  [ bartosz-muszarski-arm ]
+  * Reserve MetaDataType values 28-31 in preparation for vulkan portable raytracing changes (#1571)
+
+  [ David Pinedo ]
+  * Changes to command line help text
+  * Tweeks to dump-resources documenation
+
+  [ Marius Pélégrin - ARM ]
+  * Make vkFrameBoundaryANDROID trigger screenshots (#1498)
+
+  [ davidd-lunarg ]
+  * Reserve values in the ApiFamilyId enum
+
+  [ David Pinedo ]
+  * Vulkan dump resources : moved before/after filenames to one json output item
+  * Fix spelling in error mesages
+  * Changes to cli help text and doc files
+
+  [ Panagiotis Apostolou ]
+  * DumpImmutableResources should dump the previous rp's resources
+  * Omit "vertexBuffers" entry in json when there aren't any
+  * Removed some forgotten printfs
+  * Should be == instead of != VK_VERTEX_INPUT_RATE_VERTEX
+  * Giving 2 variables a better name
+
+  [ Daniel Friederich ]
+  * Fix in GFXRECON_zlib_compress2
+
+  [ Panagiotis Apostolou ]
+  * Cast to uint32_t before passing down to GFXRECON_LOG_ERROR_ONCE
+  * WritePngImage should not print errno value
+  * Terminate process on error
+  * --dump-resources-json-output-per-command should be fixed now
+  * Demote inability to scale errors into warnings
+  * Some updates in dump resources documentation
+  * Add support for vkCmdTraceRaysIndirect2KHR
+  * Mark in output json images that failed scaling
+  * Try to detect proper image tiling when scaling images
+
+  [ Brad Grantham ]
+  * count is greatest + 1
+
+  [ Locke Lin ]
+  * dx12 dump refactor
+
+  [ David Pinedo ]
+  * Command list resource tracking - first pass
+
+  [ Panos Apostolou ]
+  * Dump resoruces initial commit
+
+  [ David Pinedo ]
+  * Command line interface: reworked args including adding json file arg
+
+  [ Panos Apostolou ]
+  * Moved jsoncpp lib to appropriate folders
+
+  [ David Pinedo ]
+  * Update spirv-reflect header file
+  * Rework cli to allow for multiple subpasses
+  * Fix an error check
+
+  [ Panos Apostolou ]
+  * Dispatch/TraceRays dump resources initial commit
+  * Some fixes for the scaling path in VulkanResourcesUtil
+  * An attempt for better handling of errors during submissions
+  * Renamed function
+  * Do some more elaborate sanity checks on dump resource indices
+  * Random small fixes in dump resources
+  * Added support for R16G16B16A16_SFLOAT in the image writter
+
+  [ Panagiotis Apostolou ]
+  * Buffer writer was leaking file descriptors
+  * Narrow down dumped resources
+  * Some clean up in the dumped filenames
+  * Removed stale timing logic
+  * Removed render pass info printfs
+  * Filename generation moved to separate functions
+  * Change class and file names for consistency
+  * Stricter indices checks in the cli json parser
+  * Don't assert when resource dumping is disabled
+  * Handle empty render passes
+  * Allow for equal consequtive indices in the QueueSubmit index list
+  * Another fix for multiple render passes
+  * Small fix for VulkanReplayConsumerBodyGenerator
+  * Renamed the resourcer dumper variable with a more meaningful name
+  * Removed most of debug printfs from the dump resources class
+  * Temporarily disabling mutable resources backup/restoring
+  * Fixes in VulkanResourcesUtil
+  * Abstract out blit logic in VulkanResourcesUtil
+  * Fixes in the dumping context destructors
+  * Fix hangs when dumping from multiple command buffers
+
+  [ David Pinedo ]
+  * Change cli help text
+
+  [ Panos Apostolou ]
+  * Fix Android compilation after merging json output patches
+
+  [ David Pinedo ]
+  * Implement json output for TraceRays and Dispatch
+  * Improved --dump-resources arg error messsages
+
+  [ Panos Apostolou ]
+  * Add jsoncpp precompiles binaries for x86 and x86_64 for Android builds
+  * Recompiled SPIRV-Reflect android binaries for x86 and x86_64
+  * Temporarily disable png format for dump resources
+
+  [ David Pinedo ]
+  * Added win32 jsoncpp.lib and spirv-reflect-static.lib to external/precompiled
+
+  [ Panos Apostolou ]
+  * Moved variable members at end of class declaration
+
+  [ David Pinedo ]
+  * Use static jsoncpp library on Windows
+  * Add more block indices to dump resources json output
+
+  [ Panos Apostolou ]
+  * Fix linux build
+  * Dumping resources boolean vulkan option had stopped working
+  * Fix some leftover conflicts after merging with dev
+  * Dump resources detailed documentation
+
+  [ David Pinedo ]
+  * Dump resources documentation tweaks
+
+  [ Panos Apostolou ]
+  * Split dump resources code into several files
+
+  [ Panagiotis Apostolou ]
+  * Support dynamic offsets for dynamic uniform and storage buffers
+  * Basic dumping for inline uniform block descriptors
+  * Handle dynamic rendering
+  * Dynamic offsets for descriptors do not work correctly
+  * Some fixes in WriteAstcImage's error checking logic
+  * Better handling for descriptor binding sizes and allocations
+  * Release resources instead of terminating process
+  * Enrich error messages
+  * Handle missing dir separator when deleting old dumped files
+  * Add missing file extensions in output json
+  * Small changes in VulkanReplayDumpResourcesJson
+  * Do not delete old dump files
+  * Fixing conflicts that escaped last rebase with dev
+  * Added missing params from documentation
+  * Relax checks for sorted indices
+  * Queue submit indices do not need to be sorted
+  * Fixed a copy/paste mistake
+  * Add missing index from depth attachments in output json
+  * Fixed a copy/paste type
+  * FinalizeCommandBuffer needs to be called twice when dumping before
+  * Remove redundant _ from filenames
+  * Simplify attribute name used for the scale factor
+  * Renamed replay options variable
+  * Enhance dump resources json output
+  * Fixed DrawCall entries to be an array in json output
+  * GenerateOutputJsonDrawCallInfo makes more sense like this
+  * Enhance dump resources json output for dispatch/traceRays
+  * Write dump resources options in json output
+  * Help function to get shader stage name
+  * Simplify calls to GetFormatAspects()
+  * Avoid some crashes from VulkanReplayDumpResourcesJson
+  * Write dispatch and trace rays params in output json
+  * Small refactoring in dispatch/traceRays resources
+  * Include qs and bcb index in all dumped filenames
+  * Small fixes in the json output generation
+  * CopyBufferResource() implementation was missing
+  * Add support for vkCmdTraceRaysIndirectKHR
+  * CopyBufferResource should handle VK_WHOLE_SIZE
+  * Begin new json block for each QueueSubmit
+  * Amend last rebase with dev
+  * Should be ok to reuse a command buffer for dumping
+  * Remove QueueSubmit object from output json
+  * Dump vertex and index buffers per render pass
+  * WritePngImage*() now checks return value from stbi_write_png
+  * DestroyCommandPool should release any relevant dumping resources
+  * Some logic for fetching TraceRaysIndirect was missing
+
+  [ Panos Apostolou ]
+  * Fix project version header include
+
+  [ Panagiotis Apostolou ]
+  * Don't scale images below 1 pixel in any dimension
+  * Fix windows build
+  * Handle VK_ATTACHMENT_UNUSED when creating render passes
+  * Vertex/Index buffers are now dumped per draw call
+  * Reset first_block_ each time the file is closed
+  * Remove redundant json library
+  * clang format parse_dump_resources_cli.cpp
+  * Fix image writer functions to handle screenshots
+  * DumpImmutableResources should dump the previous rp's resources
+  * Omit "vertexBuffers" entry in json when there aren't any
+  * Removed some forgotten printfs
+  * Should be == instead of != VK_VERTEX_INPUT_RATE_VERTEX
+  * Giving 2 variables a better name
+
+  [ Daniel Friederich ]
+  * Fix in GFXRECON_zlib_compress2
+
+  [ Panagiotis Apostolou ]
+  * Cast to uint32_t before passing down to GFXRECON_LOG_ERROR_ONCE
+  * WritePngImage should not print errno value
+  * Terminate process on error
+  * --dump-resources-json-output-per-command should be fixed now
+  * Demote inability to scale errors into warnings
+  * Some updates in dump resources documentation
+  * Add support for vkCmdTraceRaysIndirect2KHR
+  * Mark in output json images that failed scaling
+  * Try to detect proper image tiling when scaling images
+
+  [ David Pinedo ]
+  * Fix code gen error in previous merge
+  * Fix Android build
+
+  [ Bartosz Muszarski ]
+  * Fix decoder completion condition
+
+  [ Ihor Zvieriev ]
+  * Fix of infinite loop when looping over pNext chain (#1582)
+
+  [ bradgrantham-lunarg ]
+  * use NDK 26 (#1589)
+
+  [ Fabian Schmidt ]
+  * Add paragraph for MacOS/codesigning to build instructions (#1587)
+
+  [ nickdriscoll-lunarg ]
+  * Support CmdPushDescriptorSetWithTemplate2KHR (#1594)
+
+  [ Panagiotis Apostolou ]
+  * vkUpdateDescriptorSets should be overridden
+  * Remove rebase/merge leftover line
+
+  [ David Pinedo ]
+  * Change DX12 dump resource json output header so it is consistant with VUlkan
+  * Fix bin file names use for dx12 output
+
+  [ Panagiotis Apostolou ]
+  * uffd: Do pthread_cond_timedwait instead (#1604)
+
+  [ davidd-lunarg ]
+  * dx dump: fix some res files not being written
+
+  [ Panagiotis Apostolou ]
+  * Convert AHB related errors into warnings (#1603)
+
+  [ Marius Pelegrin ]
+  * Add vkCmdInsertDebugUtilsLabelEXT as a frame delimiter
+
+  [ davidd-lunarg ]
+  * Apply formatting
+
+  [ Panagiotis Apostolou ]
+  * Dump resources merged feature branch Vulkan fixes (#1609)
+
+  [ Brad Grantham ]
+  * add precompiled library for spirv-reflect for MacOS
+  * fix formatting
+
+  [ JerryAMD ]
+  * Set size of Dx12 swapchain to associated windows (#1563)
+
+  [ Locke Lin ]
+  * Update VulkanMemoryAllocator to v3.1.0
+
+  [ ziga-lunarg ]
+  * Add missing shadow fences from VkSwapchainPresentFenceInfoEXT (#1600)
+
+  [ Fabian Schmidt ]
+  * Add SpirV-reflection to detect usage of buffer-references (#1577)
+
+  [ Locke Lin ]
+  * options "--pbi-all" and "--pbis"
+
+  [ beau-lunarg ]
+  * Add pipeline creation attempt annotation (#1559)
+
+  [ Fabian Schmidt ]
+  * MacOS: Correct window-size during replay (#1612)
+
+  [ Marius Pélégrin - ARM ]
+  * Fix OverrideCreateInstance and OverrideCreateDevice (#1478)
+
+  [ ziga-lunarg ]
+  * Fix shadow semaphores used in VkSubmitInfo (#1537)
+
+  [ Panagiotis Apostolou ]
+  * Vulkan dump resources vertex input rate instance (#1618)
+
+  [ Marius Pélégrin - ARM ]
+  * Fix handle mapping/unwrapping for acceleration structure building (#1590)
+
+  [ Fabian Schmidt ]
+  * Update SPIRV-Reflect submodule (#1622)
+
+  [ Nick Driscoll ]
+  * Update Vulkan headers to 1.3.290 (#1624)
+
+ -- john <john@odin>  Tue, 16 Jul 2024 13:33:30 -0600
+
 gfxreconstruct (1.0.3+48~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Jerry Li ]

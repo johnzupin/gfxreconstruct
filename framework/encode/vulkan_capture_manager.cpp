@@ -37,6 +37,7 @@
 #include "util/logging.h"
 #include "util/page_guard_manager.h"
 #include "util/platform.h"
+#include "util/spirv_parsing_util.h"
 
 #include <cassert>
 #include <unordered_set>
@@ -54,23 +55,14 @@
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
 
-VulkanCaptureManager* VulkanCaptureManager::instance_ = nullptr;
+VulkanCaptureManager* VulkanCaptureManager::singleton_ = nullptr;
 VulkanLayerTable      VulkanCaptureManager::vulkan_layer_table_;
 
 bool VulkanCaptureManager::CreateInstance()
 {
-    bool result = CaptureManager::CreateInstance([]() -> CaptureManager* { return instance_; },
-                                                 []() {
-                                                     assert(instance_ == nullptr);
-                                                     instance_ = new VulkanCaptureManager();
-                                                 },
-                                                 []() {
-                                                     if (instance_)
-                                                     {
-                                                         delete instance_;
-                                                         instance_ = nullptr;
-                                                     }
-                                                 });
+
+    bool result = CommonCaptureManager::CreateInstance<VulkanCaptureManager>();
+    GFXRECON_ASSERT(singleton_);
 
     GFXRECON_LOG_INFO("  Vulkan Header Version %u.%u.%u",
                       VK_VERSION_MAJOR(VK_HEADER_VERSION_COMPLETE),
@@ -80,19 +72,35 @@ bool VulkanCaptureManager::CreateInstance()
     return result;
 }
 
+VulkanCaptureManager* VulkanCaptureManager::InitSingleton()
+{
+    if (!singleton_)
+    {
+        singleton_ = new VulkanCaptureManager();
+    }
+    return singleton_;
+}
+
+void VulkanCaptureManager::DestroySingleton()
+{
+    if (singleton_)
+    {
+        delete singleton_;
+        singleton_ = nullptr;
+    }
+}
+
 void VulkanCaptureManager::DestroyInstance()
 {
-    CaptureManager::DestroyInstance([]() -> const CaptureManager* { return instance_; });
+    GFXRECON_ASSERT(singleton_ && singleton_->common_manager_);
+    singleton_->common_manager_->DestroyInstance(singleton_);
 }
 
 void VulkanCaptureManager::WriteTrackedState(util::FileOutputStream* file_stream, format::ThreadId thread_id)
 {
-    VulkanStateWriter state_writer(file_stream, compressor_.get(), thread_id);
+    VulkanStateWriter state_writer(file_stream, GetCompressor(), thread_id);
     uint64_t          n_blocks = state_tracker_->WriteState(&state_writer, GetCurrentFrame());
-    block_index_ += n_blocks;
-
-    auto thread_data          = GetThreadData();
-    thread_data->block_index_ = block_index_;
+    common_manager_->IncrementBlockIndex(n_blocks);
 }
 
 void VulkanCaptureManager::SetLayerFuncs(PFN_vkCreateInstance create_instance, PFN_vkCreateDevice create_device)
@@ -114,10 +122,15 @@ void VulkanCaptureManager::InitVkInstance(VkInstance* instance, PFN_vkGetInstanc
 {
     assert(instance != nullptr);
 
-    CreateWrappedVulkanHandle<VulkanNoParentWrapper, VulkanNoParentWrapper, vulkan_wrappers::InstanceWrapper>(
-        VulkanNoParentWrapper::kHandleValue, VulkanNoParentWrapper::kHandleValue, instance, GetUniqueId);
+    vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::NoParentWrapper,
+                                         vulkan_wrappers::NoParentWrapper,
+                                         vulkan_wrappers::InstanceWrapper>(
+        vulkan_wrappers::NoParentWrapper::kHandleValue,
+        vulkan_wrappers::NoParentWrapper::kHandleValue,
+        instance,
+        GetUniqueId);
 
-    auto wrapper = GetVulkanWrapper<vulkan_wrappers::InstanceWrapper>(*instance);
+    auto wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::InstanceWrapper>(*instance);
     LoadVulkanInstanceTable(gpa, wrapper->handle, &wrapper->layer_table);
 }
 
@@ -125,12 +138,12 @@ void VulkanCaptureManager::InitVkDevice(VkDevice* device, PFN_vkGetDeviceProcAdd
 {
     assert((device != nullptr) && ((*device) != VK_NULL_HANDLE));
 
-    CreateWrappedVulkanHandle<vulkan_wrappers::PhysicalDeviceWrapper,
-                              VulkanNoParentWrapper,
-                              vulkan_wrappers::DeviceWrapper>(
-        VK_NULL_HANDLE, VulkanNoParentWrapper::kHandleValue, device, GetUniqueId);
+    vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::PhysicalDeviceWrapper,
+                                         vulkan_wrappers::NoParentWrapper,
+                                         vulkan_wrappers::DeviceWrapper>(
+        VK_NULL_HANDLE, vulkan_wrappers::NoParentWrapper::kHandleValue, device, GetUniqueId);
 
-    auto wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(*device);
+    auto wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(*device);
     LoadVulkanDeviceTable(gpa, wrapper->handle, &wrapper->layer_table);
 }
 
@@ -139,7 +152,7 @@ void VulkanCaptureManager::WriteResizeWindowCmd2(format::HandleId              s
                                                  uint32_t                      height,
                                                  VkSurfaceTransformFlagBitsKHR pre_transform)
 {
-    if ((GetCaptureMode() & kModeWrite) == kModeWrite)
+    if (IsCaptureModeWrite())
     {
         auto thread_data = GetThreadData();
 
@@ -184,7 +197,7 @@ void VulkanCaptureManager::WriteCreateHardwareBufferCmd(format::HandleId        
                                                         AHardwareBuffer*                                    buffer,
                                                         const std::vector<format::HardwareBufferPlaneInfo>& plane_info)
 {
-    if ((GetCaptureMode() & kModeWrite) == kModeWrite)
+    if (IsCaptureModeWrite())
     {
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
         assert(buffer != nullptr);
@@ -250,7 +263,7 @@ void VulkanCaptureManager::WriteCreateHardwareBufferCmd(format::HandleId        
 
 void VulkanCaptureManager::WriteDestroyHardwareBufferCmd(AHardwareBuffer* buffer)
 {
-    if ((GetCaptureMode() & kModeWrite) == kModeWrite)
+    if (IsCaptureModeWrite())
     {
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
         assert(buffer != nullptr);
@@ -277,7 +290,7 @@ void VulkanCaptureManager::WriteDestroyHardwareBufferCmd(AHardwareBuffer* buffer
 void VulkanCaptureManager::WriteSetDevicePropertiesCommand(format::HandleId                  physical_device_id,
                                                            const VkPhysicalDeviceProperties& properties)
 {
-    if ((GetCaptureMode() & kModeWrite) == kModeWrite)
+    if (IsCaptureModeWrite())
     {
         format::SetDevicePropertiesCommand properties_cmd;
 
@@ -310,7 +323,7 @@ void VulkanCaptureManager::WriteSetDevicePropertiesCommand(format::HandleId     
 void VulkanCaptureManager::WriteSetDeviceMemoryPropertiesCommand(
     format::HandleId physical_device_id, const VkPhysicalDeviceMemoryProperties& memory_properties)
 {
-    if ((GetCaptureMode() & kModeWrite) == kModeWrite)
+    if (IsCaptureModeWrite())
     {
         format::SetDeviceMemoryPropertiesCommand memory_properties_cmd;
 
@@ -367,7 +380,7 @@ void VulkanCaptureManager::WriteSetOpaqueAddressCommand(format::HandleId device_
                                                         format::HandleId object_id,
                                                         uint64_t         address)
 {
-    if ((GetCaptureMode() & kModeWrite) == kModeWrite)
+    if (IsCaptureModeWrite())
     {
         format::SetOpaqueAddressCommand opaque_address_cmd;
 
@@ -392,7 +405,7 @@ void VulkanCaptureManager::WriteSetRayTracingShaderGroupHandlesCommand(format::H
                                                                        size_t           data_size,
                                                                        const void*      data)
 {
-    if ((GetCaptureMode() & kModeWrite) == kModeWrite)
+    if (IsCaptureModeWrite())
     {
         format::SetRayTracingShaderGroupHandlesCommandHeader set_handles_cmd;
 
@@ -420,7 +433,7 @@ void VulkanCaptureManager::SetDescriptorUpdateTemplateInfo(VkDescriptorUpdateTem
 
     if (create_info->descriptorUpdateEntryCount > 0)
     {
-        auto wrapper             = GetVulkanWrapper<vulkan_wrappers::DescriptorUpdateTemplateWrapper>(update_template);
+        auto wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DescriptorUpdateTemplateWrapper>(update_template);
         UpdateTemplateInfo* info = &wrapper->info;
 
         for (size_t i = 0; i < create_info->descriptorUpdateEntryCount; ++i)
@@ -497,6 +510,26 @@ void VulkanCaptureManager::SetDescriptorUpdateTemplateInfo(VkDescriptorUpdateTem
 
                 entry_size = sizeof(VkAccelerationStructureKHR);
             }
+            else if (type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK)
+            {
+                constexpr size_t byte_stride = 1;
+                GFXRECON_ASSERT(entry->stride == byte_stride);
+
+                UpdateTemplateEntryInfo inline_uniform_info;
+                inline_uniform_info.binding       = entry->dstBinding;
+                inline_uniform_info.array_element = entry->dstArrayElement;
+
+                // count is interpreted as number of bytes here
+                inline_uniform_info.count  = entry->descriptorCount;
+                inline_uniform_info.offset = entry->offset;
+                inline_uniform_info.stride = entry->stride;
+                inline_uniform_info.type   = type;
+
+                info->inline_uniform_block_count += entry->descriptorCount;
+                info->inline_uniform_block.emplace_back(inline_uniform_info);
+
+                entry_size = byte_stride;
+            }
             else
             {
                 GFXRECON_LOG_ERROR("Unrecognized/unsupported descriptor type in descriptor update template.");
@@ -524,7 +557,7 @@ bool VulkanCaptureManager::GetDescriptorUpdateTemplateInfo(VkDescriptorUpdateTem
 
     if (update_template != VK_NULL_HANDLE)
     {
-        auto wrapper = GetVulkanWrapper<vulkan_wrappers::DescriptorUpdateTemplateWrapper>(update_template);
+        auto wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DescriptorUpdateTemplateWrapper>(update_template);
         (*info)      = &wrapper->info;
         found        = true;
     }
@@ -552,7 +585,7 @@ VkResult VulkanCaptureManager::OverrideCreateInstance(const VkInstanceCreateInfo
 
     if (CreateInstance())
     {
-        if (instance_->GetPageGuardMemoryMode() == kMemoryModeExternal)
+        if (singleton_->IsPageGuardMemoryModeExternal())
         {
             assert(pCreateInfo != nullptr);
 
@@ -607,7 +640,7 @@ VkResult VulkanCaptureManager::OverrideCreateInstance(const VkInstanceCreateInfo
     if ((result == VK_SUCCESS) && (pCreateInfo->pApplicationInfo != nullptr))
     {
         auto api_version              = pCreateInfo->pApplicationInfo->apiVersion;
-        auto instance_wrapper         = GetVulkanWrapper<vulkan_wrappers::InstanceWrapper>(*pInstance);
+        auto instance_wrapper         = vulkan_wrappers::GetWrapper<vulkan_wrappers::InstanceWrapper>(*pInstance);
         instance_wrapper->api_version = api_version;
 
         // Warn when enabled API version is newer than the supported API version.
@@ -633,12 +666,12 @@ VkResult VulkanCaptureManager::OverrideCreateDevice(VkPhysicalDevice            
 {
     auto                handle_unwrap_memory = VulkanCaptureManager::Get()->GetHandleUnwrapMemory();
     VkDeviceCreateInfo* pCreateInfo_unwrapped =
-        const_cast<VkDeviceCreateInfo*>(UnwrapStructPtrHandles(pCreateInfo, handle_unwrap_memory));
+        const_cast<VkDeviceCreateInfo*>(vulkan_wrappers::UnwrapStructPtrHandles(pCreateInfo, handle_unwrap_memory));
 
     assert(pCreateInfo_unwrapped != nullptr);
 
-    const VulkanInstanceTable* instance_table = GetVulkanInstanceTable(physicalDevice);
-    auto physical_device_wrapper = GetVulkanWrapper<vulkan_wrappers::PhysicalDeviceWrapper>(physicalDevice);
+    const VulkanInstanceTable* instance_table = vulkan_wrappers::GetInstanceTable(physicalDevice);
+    auto physical_device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::PhysicalDeviceWrapper>(physicalDevice);
 
     graphics::VulkanDeviceUtil                device_util;
     graphics::VulkanDevicePropertyFeatureInfo property_feature_info = device_util.EnableRequiredPhysicalDeviceFeatures(
@@ -658,7 +691,7 @@ VkResult VulkanCaptureManager::OverrideCreateDevice(VkPhysicalDevice            
 
         modified_extensions.push_back(entry);
 
-        if (GetPageGuardMemoryMode() == kMemoryModeExternal)
+        if (IsPageGuardMemoryModeExternal())
         {
             if (util::platform::StringCompare(entry, VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME) == 0)
             {
@@ -671,7 +704,7 @@ VkResult VulkanCaptureManager::OverrideCreateDevice(VkPhysicalDevice            
         }
     }
 
-    if (GetPageGuardMemoryMode() == kMemoryModeExternal)
+    if (IsPageGuardMemoryModeExternal())
     {
         if (!has_ext_mem)
         {
@@ -728,12 +761,12 @@ VkResult VulkanCaptureManager::OverrideCreateDevice(VkPhysicalDevice            
     {
         assert((pDevice != nullptr) && (*pDevice != VK_NULL_HANDLE));
 
-        auto wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(*pDevice);
+        auto wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(*pDevice);
 
         // Track state of physical device properties and features at device creation
         wrapper->property_feature_info = property_feature_info;
 
-        if ((GetCaptureMode() & kModeTrack) != kModeTrack)
+        if (!IsCaptureModeTrack())
         {
             // The state tracker will set this value when it is enabled. When state tracking is disabled it is set here
             // to ensure it is available.
@@ -761,9 +794,9 @@ VkResult VulkanCaptureManager::OverrideCreateBuffer(VkDevice                    
                                                     VkBuffer*                    pBuffer)
 {
     VkResult result               = VK_SUCCESS;
-    auto     device_wrapper       = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto     device_wrapper       = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     VkDevice device_unwrapped     = device_wrapper->handle;
-    auto     device_table         = GetVulkanDeviceTable(device);
+    auto     device_table         = vulkan_wrappers::GetDeviceTable(device);
     auto     handle_unwrap_memory = VulkanCaptureManager::Get()->GetHandleUnwrapMemory();
 
     VkBufferCreateInfo modified_create_info = (*pCreateInfo);
@@ -812,21 +845,21 @@ VkResult VulkanCaptureManager::OverrideCreateBuffer(VkDevice                    
 
     if ((result == VK_SUCCESS) && (pBuffer != nullptr))
     {
-        CreateWrappedVulkanHandle<vulkan_wrappers::DeviceWrapper,
-                                  VulkanNoParentWrapper,
-                                  vulkan_wrappers::BufferWrapper>(
-            device, VulkanNoParentWrapper::kHandleValue, pBuffer, GetUniqueId);
+        vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::DeviceWrapper,
+                                             vulkan_wrappers::NoParentWrapper,
+                                             vulkan_wrappers::BufferWrapper>(
+            device, vulkan_wrappers::NoParentWrapper::kHandleValue, pBuffer, GetUniqueId);
 
         if (uses_address)
         {
             // If the buffer has a device address, write the 'set buffer address' command before writing the API call to
             // create the buffer.  The address will need to be passed to vkCreateBuffer through the pCreateInfo pNext
             // list.
-            auto                      buffer_wrapper = GetVulkanWrapper<vulkan_wrappers::BufferWrapper>(*pBuffer);
-            VkBufferDeviceAddressInfo info           = { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
-            info.pNext                               = nullptr;
-            info.buffer                              = buffer_wrapper->handle;
-            uint64_t address                         = 0;
+            auto buffer_wrapper            = vulkan_wrappers::GetWrapper<vulkan_wrappers::BufferWrapper>(*pBuffer);
+            VkBufferDeviceAddressInfo info = { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+            info.pNext                     = nullptr;
+            info.buffer                    = buffer_wrapper->handle;
+            uint64_t address               = 0;
 
             if (device_wrapper->physical_device->instance_api_version >= VK_MAKE_VERSION(1, 2, 0))
             {
@@ -839,7 +872,7 @@ VkResult VulkanCaptureManager::OverrideCreateBuffer(VkDevice                    
 
             WriteSetOpaqueAddressCommand(device_wrapper->handle_id, buffer_wrapper->handle_id, address);
 
-            if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+            if (IsCaptureModeTrack())
             {
                 state_tracker_->TrackBufferDeviceAddress(device, *pBuffer, address);
             }
@@ -854,8 +887,9 @@ VkResult VulkanCaptureManager::OverrideCreateImage(VkDevice                     
                                                    const VkAllocationCallbacks* pAllocator,
                                                    VkImage*                     pImage)
 {
-    auto                     handle_unwrap_memory  = VulkanCaptureManager::Get()->GetHandleUnwrapMemory();
-    const VkImageCreateInfo* pCreateInfo_unwrapped = UnwrapStructPtrHandles(pCreateInfo, handle_unwrap_memory);
+    auto                     handle_unwrap_memory = VulkanCaptureManager::Get()->GetHandleUnwrapMemory();
+    const VkImageCreateInfo* pCreateInfo_unwrapped =
+        vulkan_wrappers::UnwrapStructPtrHandles(pCreateInfo, handle_unwrap_memory);
 
     VkImageCreateInfo modified_create_info = (*pCreateInfo_unwrapped);
 
@@ -864,12 +898,15 @@ VkResult VulkanCaptureManager::OverrideCreateImage(VkDevice                     
         modified_create_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     }
 
-    VkResult result = GetVulkanDeviceTable(device)->CreateImage(device, &modified_create_info, pAllocator, pImage);
+    VkResult result =
+        vulkan_wrappers::GetDeviceTable(device)->CreateImage(device, &modified_create_info, pAllocator, pImage);
 
     if (result >= 0)
     {
-        CreateWrappedVulkanHandle<vulkan_wrappers::DeviceWrapper, VulkanNoParentWrapper, vulkan_wrappers::ImageWrapper>(
-            device, VulkanNoParentWrapper::kHandleValue, pImage, VulkanCaptureManager::GetUniqueId);
+        vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::DeviceWrapper,
+                                             vulkan_wrappers::NoParentWrapper,
+                                             vulkan_wrappers::ImageWrapper>(
+            device, vulkan_wrappers::NoParentWrapper::kHandleValue, pImage, VulkanCaptureManager::GetUniqueId);
     }
     return result;
 }
@@ -881,11 +918,11 @@ VulkanCaptureManager::OverrideCreateAccelerationStructureKHR(VkDevice           
                                                              VkAccelerationStructureKHR* pAccelerationStructureKHR)
 {
     auto                     handle_unwrap_memory = VulkanCaptureManager::Get()->GetHandleUnwrapMemory();
-    auto                     device_wrapper       = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto                     device_wrapper       = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     VkDevice                 device_unwrapped     = device_wrapper->handle;
-    const VulkanDeviceTable* device_table         = GetVulkanDeviceTable(device);
+    const VulkanDeviceTable* device_table         = vulkan_wrappers::GetDeviceTable(device);
     const VkAccelerationStructureCreateInfoKHR* pCreateInfo_unwrapped =
-        UnwrapStructPtrHandles(pCreateInfo, handle_unwrap_memory);
+        vulkan_wrappers::UnwrapStructPtrHandles(pCreateInfo, handle_unwrap_memory);
 
     VkResult result;
     if (device_wrapper->property_feature_info.feature_accelerationStructureCaptureReplay)
@@ -904,15 +941,15 @@ VulkanCaptureManager::OverrideCreateAccelerationStructureKHR(VkDevice           
 
     if ((result == VK_SUCCESS) && (pAccelerationStructureKHR != nullptr))
     {
-        CreateWrappedVulkanHandle<vulkan_wrappers::DeviceWrapper,
-                                  VulkanNoParentWrapper,
-                                  vulkan_wrappers::AccelerationStructureKHRWrapper>(
-            device, VulkanNoParentWrapper::kHandleValue, pAccelerationStructureKHR, GetUniqueId);
+        vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::DeviceWrapper,
+                                             vulkan_wrappers::NoParentWrapper,
+                                             vulkan_wrappers::AccelerationStructureKHRWrapper>(
+            device, vulkan_wrappers::NoParentWrapper::kHandleValue, pAccelerationStructureKHR, GetUniqueId);
 
         if (device_wrapper->property_feature_info.feature_accelerationStructureCaptureReplay)
         {
-            auto accel_struct_wrapper =
-                GetVulkanWrapper<vulkan_wrappers::AccelerationStructureKHRWrapper>(*pAccelerationStructureKHR);
+            auto accel_struct_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::AccelerationStructureKHRWrapper>(
+                *pAccelerationStructureKHR);
 
             VkAccelerationStructureDeviceAddressInfoKHR address_info{
                 VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR, nullptr, accel_struct_wrapper->handle
@@ -924,7 +961,7 @@ VulkanCaptureManager::OverrideCreateAccelerationStructureKHR(VkDevice           
 
             WriteSetOpaqueAddressCommand(device_wrapper->handle_id, accel_struct_wrapper->handle_id, address);
 
-            if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+            if (IsCaptureModeTrack())
             {
                 state_tracker_->TrackAccelerationStructureKHRDeviceAddress(device, *pAccelerationStructureKHR, address);
             }
@@ -940,12 +977,12 @@ void VulkanCaptureManager::OverrideCmdBuildAccelerationStructuresKHR(
     const VkAccelerationStructureBuildGeometryInfoKHR*     pInfos,
     const VkAccelerationStructureBuildRangeInfoKHR* const* ppBuildRangeInfos)
 {
-    if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+    if (IsCaptureModeTrack())
     {
         state_tracker_->TrackTLASBuildCommand(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
     }
 
-    const VulkanDeviceTable* device_table = GetVulkanDeviceTable(commandBuffer);
+    const VulkanDeviceTable* device_table = vulkan_wrappers::GetDeviceTable(commandBuffer);
     device_table->CmdBuildAccelerationStructuresKHR(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
 }
 
@@ -958,11 +995,11 @@ VkResult VulkanCaptureManager::OverrideAllocateMemory(VkDevice                  
     void*                            external_memory = nullptr;
     VkImportMemoryHostPointerInfoEXT import_info;
 
-    auto                  device_wrapper       = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto                  device_wrapper       = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     VkDevice              device_unwrapped     = device_wrapper->handle;
     auto                  handle_unwrap_memory = VulkanCaptureManager::Get()->GetHandleUnwrapMemory();
     VkMemoryAllocateInfo* pAllocateInfo_unwrapped =
-        const_cast<VkMemoryAllocateInfo*>(UnwrapStructPtrHandles(pAllocateInfo, handle_unwrap_memory));
+        const_cast<VkMemoryAllocateInfo*>(vulkan_wrappers::UnwrapStructPtrHandles(pAllocateInfo, handle_unwrap_memory));
 
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
     const VkImportAndroidHardwareBufferInfoANDROID* import_ahb_info =
@@ -994,7 +1031,7 @@ VkResult VulkanCaptureManager::OverrideAllocateMemory(VkDevice                  
         }
     }
 
-    if (GetPageGuardMemoryMode() == kMemoryModeExternal)
+    if (IsPageGuardMemoryModeExternal())
     {
         VkMemoryPropertyFlags properties = GetMemoryProperties(device_wrapper, pAllocateInfo->memoryTypeIndex);
 
@@ -1037,18 +1074,18 @@ VkResult VulkanCaptureManager::OverrideAllocateMemory(VkDevice                  
         }
     }
 
-    result =
-        GetVulkanDeviceTable(device)->AllocateMemory(device_unwrapped, pAllocateInfo_unwrapped, pAllocator, pMemory);
+    result = vulkan_wrappers::GetDeviceTable(device)->AllocateMemory(
+        device_unwrapped, pAllocateInfo_unwrapped, pAllocator, pMemory);
 
     if (result == VK_SUCCESS)
     {
-        CreateWrappedVulkanHandle<vulkan_wrappers::DeviceWrapper,
-                                  VulkanNoParentWrapper,
-                                  vulkan_wrappers::DeviceMemoryWrapper>(
-            device, VulkanNoParentWrapper::kHandleValue, pMemory, GetUniqueId);
+        vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::DeviceWrapper,
+                                             vulkan_wrappers::NoParentWrapper,
+                                             vulkan_wrappers::DeviceMemoryWrapper>(
+            device, vulkan_wrappers::NoParentWrapper::kHandleValue, pMemory, GetUniqueId);
 
         assert(pMemory != nullptr);
-        auto memory_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceMemoryWrapper>(*pMemory);
+        auto memory_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceMemoryWrapper>(*pMemory);
 
         if (uses_address)
         {
@@ -1063,16 +1100,18 @@ VkResult VulkanCaptureManager::OverrideAllocateMemory(VkDevice                  
             uint64_t address = 0;
             if (device_wrapper->physical_device->instance_api_version >= VK_MAKE_VERSION(1, 2, 0))
             {
-                address = GetVulkanDeviceTable(device)->GetDeviceMemoryOpaqueCaptureAddress(device_unwrapped, &info);
+                address = vulkan_wrappers::GetDeviceTable(device)->GetDeviceMemoryOpaqueCaptureAddress(device_unwrapped,
+                                                                                                       &info);
             }
             else
             {
-                address = GetVulkanDeviceTable(device)->GetDeviceMemoryOpaqueCaptureAddressKHR(device_unwrapped, &info);
+                address = vulkan_wrappers::GetDeviceTable(device)->GetDeviceMemoryOpaqueCaptureAddressKHR(
+                    device_unwrapped, &info);
             }
 
             WriteSetOpaqueAddressCommand(device_wrapper->handle_id, memory_wrapper->handle_id, address);
 
-            if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+            if (IsCaptureModeTrack())
             {
                 state_tracker_->TrackDeviceMemoryDeviceAddress(device, *pMemory, address);
             }
@@ -1080,7 +1119,7 @@ VkResult VulkanCaptureManager::OverrideAllocateMemory(VkDevice                  
 
         memory_wrapper->external_allocation = external_memory;
 
-        if ((GetCaptureMode() & kModeTrack) != kModeTrack)
+        if (!IsCaptureModeTrack())
         {
             // The state tracker will set this value when it is enabled. When state tracking is disabled it is set
             // here to ensure it is available for mapped memory tracking.
@@ -1143,7 +1182,7 @@ VkResult VulkanCaptureManager::OverrideGetPhysicalDeviceToolPropertiesEXT(
         }
     }
 
-    VkResult result = GetVulkanInstanceTable(physicalDevice)
+    VkResult result = vulkan_wrappers::GetInstanceTable(physicalDevice)
                           ->GetPhysicalDeviceToolPropertiesEXT(physicalDevice, pToolCount, pToolProperties);
 
     if (original_pToolProperties != nullptr)
@@ -1168,9 +1207,10 @@ VulkanCaptureManager::OverrideCreateRayTracingPipelinesKHR(VkDevice             
                                                            const VkAllocationCallbacks*             pAllocator,
                                                            VkPipeline*                              pPipelines)
 {
-    auto                     device_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
-    const VulkanDeviceTable* device_table   = GetVulkanDeviceTable(device);
-    auto deferred_operation_wrapper = GetVulkanWrapper<vulkan_wrappers::DeferredOperationKHRWrapper>(deferredOperation);
+    auto                     device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    const VulkanDeviceTable* device_table   = vulkan_wrappers::GetDeviceTable(device);
+    auto                     deferred_operation_wrapper =
+        vulkan_wrappers::GetWrapper<vulkan_wrappers::DeferredOperationKHRWrapper>(deferredOperation);
 
     HandleUnwrapMemory* handle_unwrap_memory = nullptr;
 
@@ -1197,7 +1237,7 @@ VulkanCaptureManager::OverrideCreateRayTracingPipelinesKHR(VkDevice             
         handle_unwrap_memory = VulkanCaptureManager::Get()->GetHandleUnwrapMemory();
     }
     const VkRayTracingPipelineCreateInfoKHR* pCreateInfos_unwrapped =
-        UnwrapStructArrayHandles(pCreateInfos, createInfoCount, handle_unwrap_memory);
+        vulkan_wrappers::UnwrapStructArrayHandles(pCreateInfos, createInfoCount, handle_unwrap_memory);
 
     VkResult result;
     if (device_wrapper->property_feature_info.feature_rayTracingPipelineShaderGroupHandleCaptureReplay)
@@ -1307,21 +1347,21 @@ VulkanCaptureManager::OverrideCreateRayTracingPipelinesKHR(VkDevice             
     {
         // If the return result show the creation is successfully finished, we do the following process.
 
-        CreateWrappedVulkanHandles<vulkan_wrappers::DeviceWrapper,
-                                   vulkan_wrappers::DeferredOperationKHRWrapper,
-                                   vulkan_wrappers::PipelineWrapper>(
+        vulkan_wrappers::CreateWrappedHandles<vulkan_wrappers::DeviceWrapper,
+                                              vulkan_wrappers::DeferredOperationKHRWrapper,
+                                              vulkan_wrappers::PipelineWrapper>(
             device, deferredOperation, pPipelines, createInfoCount, GetUniqueId);
 
         for (uint32_t i = 0; i < createInfoCount; ++i)
         {
-            auto pipeline_wrapper = GetVulkanWrapper<vulkan_wrappers::PipelineWrapper>(pPipelines[i]);
+            auto pipeline_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::PipelineWrapper>(pPipelines[i]);
 
             if (deferred_operation_wrapper)
             {
                 // We need to set device_id here because some hardware may not have the feature
                 // rayTracingPipelineShaderGroupHandleCaptureReplay so the device_id cannot be set by
                 // VulkanStateTracker::TrackRayTracingShaderGroupHandles
-                pipeline_wrapper->device_id = GetVulkanWrappedId<vulkan_wrappers::DeviceWrapper>(device);
+                pipeline_wrapper->device_id = vulkan_wrappers::GetWrappedId<vulkan_wrappers::DeviceWrapper>(device);
                 pipeline_wrapper->deferred_operation.handle_id         = deferred_operation_wrapper->handle_id;
                 pipeline_wrapper->deferred_operation.create_call_id    = deferred_operation_wrapper->create_call_id;
                 pipeline_wrapper->deferred_operation.create_parameters = deferred_operation_wrapper->create_parameters;
@@ -1340,7 +1380,7 @@ VulkanCaptureManager::OverrideCreateRayTracingPipelinesKHR(VkDevice             
                     WriteSetRayTracingShaderGroupHandlesCommand(
                         device_wrapper->handle_id, pipeline_wrapper->handle_id, data_size, data.data());
 
-                    if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+                    if (IsCaptureModeTrack())
                     {
                         state_tracker_->TrackRayTracingShaderGroupHandles(
                             device, pPipelines[i], data_size, data.data());
@@ -1359,9 +1399,10 @@ void VulkanCaptureManager::DeferredOperationPostProcess(VkDevice               d
 {
     const std::lock_guard<std::mutex> lock(deferred_operation_mutex);
     VkResult                          result = VK_SUCCESS;
-    auto deferred_operation_wrapper = GetVulkanWrapper<vulkan_wrappers::DeferredOperationKHRWrapper>(deferredOperation);
-    auto device_wrapper             = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
-    const VulkanDeviceTable* device_table = GetVulkanDeviceTable(device);
+    auto                              deferred_operation_wrapper =
+        vulkan_wrappers::GetWrapper<vulkan_wrappers::DeferredOperationKHRWrapper>(deferredOperation);
+    auto                     device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    const VulkanDeviceTable* device_table   = vulkan_wrappers::GetDeviceTable(device);
 
     GFXRECON_ASSERT(device_table != nullptr);
 
@@ -1373,22 +1414,22 @@ void VulkanCaptureManager::DeferredOperationPostProcess(VkDevice               d
                     deferred_operation_wrapper->pipelines.data(),
                     sizeof(VkPipeline) * deferred_operation_wrapper->create_infos.size());
 
-        CreateWrappedVulkanHandles<vulkan_wrappers::DeviceWrapper,
-                                   vulkan_wrappers::DeferredOperationKHRWrapper,
-                                   vulkan_wrappers::PipelineWrapper>(
+        vulkan_wrappers::CreateWrappedHandles<vulkan_wrappers::DeviceWrapper,
+                                              vulkan_wrappers::DeferredOperationKHRWrapper,
+                                              vulkan_wrappers::PipelineWrapper>(
             device, deferredOperation, deferred_operation_wrapper->pPipelines, create_info_count, GetUniqueId);
 
         for (uint32_t i = 0; i < create_info_count; ++i)
         {
-            auto pipeline_wrapper =
-                GetVulkanWrapper<vulkan_wrappers::PipelineWrapper>(deferred_operation_wrapper->pPipelines[i]);
+            auto pipeline_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::PipelineWrapper>(
+                deferred_operation_wrapper->pPipelines[i]);
 
             if (deferred_operation_wrapper)
             {
                 // We need to set device_id here because some hardware may not have the feature
                 // rayTracingPipelineShaderGroupHandleCaptureReplay so the device_id cannot be set by
                 // VulkanStateTracker::TrackRayTracingShaderGroupHandles
-                pipeline_wrapper->device_id = GetVulkanWrappedId<vulkan_wrappers::DeviceWrapper>(device);
+                pipeline_wrapper->device_id = vulkan_wrappers::GetWrappedId<vulkan_wrappers::DeviceWrapper>(device);
                 pipeline_wrapper->deferred_operation.handle_id         = deferred_operation_wrapper->handle_id;
                 pipeline_wrapper->deferred_operation.create_call_id    = deferred_operation_wrapper->create_call_id;
                 pipeline_wrapper->deferred_operation.create_parameters = deferred_operation_wrapper->create_parameters;
@@ -1460,7 +1501,7 @@ void VulkanCaptureManager::DeferredOperationPostProcess(VkDevice               d
 
 VkResult VulkanCaptureManager::OverrideDeferredOperationJoinKHR(VkDevice device, VkDeferredOperationKHR operation)
 {
-    auto device_table = GetVulkanDeviceTable(device);
+    auto device_table = vulkan_wrappers::GetDeviceTable(device);
     GFXRECON_ASSERT(device_table != nullptr);
     VkResult result = device_table->DeferredOperationJoinKHR(device, operation);
 
@@ -1471,7 +1512,7 @@ VkResult VulkanCaptureManager::OverrideDeferredOperationJoinKHR(VkDevice device,
 
         if ((deferred_command_result == VK_SUCCESS) || (deferred_command_result == VK_OPERATION_NOT_DEFERRED_KHR))
         {
-            DeferredOperationPostProcess(device, operation, (GetCaptureMode() & kModeTrack) == kModeTrack);
+            DeferredOperationPostProcess(device, operation, IsCaptureModeTrack());
         }
     }
 
@@ -1480,7 +1521,7 @@ VkResult VulkanCaptureManager::OverrideDeferredOperationJoinKHR(VkDevice device,
 
 VkResult VulkanCaptureManager::OverrideGetDeferredOperationResultKHR(VkDevice device, VkDeferredOperationKHR operation)
 {
-    auto device_table = GetVulkanDeviceTable(device);
+    auto device_table = vulkan_wrappers::GetDeviceTable(device);
     GFXRECON_ASSERT(device_table != nullptr);
     VkResult result = device_table->GetDeferredOperationResultKHR(device, operation);
 
@@ -1491,7 +1532,7 @@ VkResult VulkanCaptureManager::OverrideGetDeferredOperationResultKHR(VkDevice de
         // hardware/driver return VK_OPERATION_NOT_DEFERRED_KHR:
         //    1. The deferred operation finished and returned VK_SUCCESS.
         //    2. No command has been deferred on the deferred operation object.
-        DeferredOperationPostProcess(device, operation, (GetCaptureMode() & kModeTrack) == kModeTrack);
+        DeferredOperationPostProcess(device, operation, IsCaptureModeTrack());
     }
 
     return result;
@@ -1504,7 +1545,7 @@ void VulkanCaptureManager::OverrideGetPhysicalDeviceQueueFamilyProperties(
 {
     GFXRECON_ASSERT(pQueueFamilyPropertyCount != nullptr);
 
-    GetVulkanInstanceTable(physicalDevice)
+    vulkan_wrappers::GetInstanceTable(physicalDevice)
         ->GetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, pQueueFamilyProperties);
 
     if (GetQueueZeroOnly())
@@ -1524,7 +1565,7 @@ void VulkanCaptureManager::OverrideGetPhysicalDeviceQueueFamilyProperties2(
 {
     GFXRECON_ASSERT(pQueueFamilyPropertyCount != nullptr);
 
-    GetVulkanInstanceTable(physicalDevice)
+    vulkan_wrappers::GetInstanceTable(physicalDevice)
         ->GetPhysicalDeviceQueueFamilyProperties2(physicalDevice, pQueueFamilyPropertyCount, pQueueFamilyProperties);
 
     if (GetQueueZeroOnly())
@@ -1544,7 +1585,7 @@ void VulkanCaptureManager::OverrideGetPhysicalDeviceQueueFamilyProperties2KHR(
 {
     GFXRECON_ASSERT(pQueueFamilyPropertyCount != nullptr);
 
-    GetVulkanInstanceTable(physicalDevice)
+    vulkan_wrappers::GetInstanceTable(physicalDevice)
         ->GetPhysicalDeviceQueueFamilyProperties2KHR(physicalDevice, pQueueFamilyPropertyCount, pQueueFamilyProperties);
 
     if (GetQueueZeroOnly())
@@ -1564,7 +1605,7 @@ void VulkanCaptureManager::ProcessEnumeratePhysicalDevices(VkResult          res
 {
     assert(devices != nullptr);
 
-    auto instance_wrapper = GetVulkanWrapper<vulkan_wrappers::InstanceWrapper>(instance);
+    auto instance_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::InstanceWrapper>(instance);
     assert(instance_wrapper != nullptr);
 
     // Write meta-data describing physical device properties on first call to vkEnumeratePhysicalDevices or
@@ -1583,11 +1624,11 @@ void VulkanCaptureManager::ProcessEnumeratePhysicalDevices(VkResult          res
 
             if (physical_device != VK_NULL_HANDLE)
             {
-                const VulkanInstanceTable* instance_table = GetVulkanInstanceTable(physical_device);
+                const VulkanInstanceTable* instance_table = vulkan_wrappers::GetInstanceTable(physical_device);
                 assert(instance_table != nullptr);
 
                 auto physical_device_wrapper =
-                    GetVulkanWrapper<vulkan_wrappers::PhysicalDeviceWrapper>(physical_device);
+                    vulkan_wrappers::GetWrapper<vulkan_wrappers::PhysicalDeviceWrapper>(physical_device);
                 format::HandleId physical_device_id     = physical_device_wrapper->handle_id;
                 VkPhysicalDevice physical_device_handle = physical_device_wrapper->handle;
                 uint32_t         count                  = 0;
@@ -1598,7 +1639,7 @@ void VulkanCaptureManager::ProcessEnumeratePhysicalDevices(VkResult          res
                 instance_table->GetPhysicalDeviceProperties(physical_device_handle, &properties);
                 instance_table->GetPhysicalDeviceMemoryProperties(physical_device_handle, &memory_properties);
 
-                if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+                if (IsCaptureModeTrack())
                 {
                     // Let the state tracker process the memory properties.
                     assert(state_tracker_ != nullptr);
@@ -1660,9 +1701,9 @@ void VulkanCaptureManager::ProcessReferenceToAndroidHardwareBuffer(VkDevice devi
 {
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
     assert(hardware_buffer != nullptr);
-    auto     device_wrapper   = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto     device_wrapper   = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     VkDevice device_unwrapped = device_wrapper->handle;
-    auto     device_table     = GetVulkanDeviceTable(device);
+    auto     device_table     = vulkan_wrappers::GetDeviceTable(device);
 
     auto entry = hardware_buffers_.find(hardware_buffer);
     if (entry == hardware_buffers_.end())
@@ -1819,7 +1860,7 @@ void VulkanCaptureManager::ProcessImportAndroidHardwareBuffer(VkDevice         d
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
     GFXRECON_UNREFERENCED_PARAMETER(device);
 
-    auto memory_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
+    auto memory_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
     assert((memory_wrapper != nullptr) && (hardware_buffer != nullptr));
 
     ProcessReferenceToAndroidHardwareBuffer(device, hardware_buffer);
@@ -1913,7 +1954,7 @@ void VulkanCaptureManager::PreProcess_vkCreateXlibSurfaceKHR(VkInstance         
     assert(pCreateInfo != nullptr);
     if (pCreateInfo && !GetTrimKey().empty())
     {
-        if (!keyboard_.Initialize(pCreateInfo->dpy))
+        if (!GetKeyboard().Initialize(pCreateInfo->dpy))
         {
             GFXRECON_LOG_ERROR("Failed to initialize Xlib keyboard capture trigger");
         }
@@ -1940,7 +1981,7 @@ void VulkanCaptureManager::PreProcess_vkCreateXcbSurfaceKHR(VkInstance          
     assert(pCreateInfo != nullptr);
     if (pCreateInfo && !GetTrimKey().empty())
     {
-        if (!keyboard_.Initialize(pCreateInfo->connection))
+        if (!GetKeyboard().Initialize(pCreateInfo->connection))
         {
             GFXRECON_LOG_ERROR("Failed to initialize XCB keyboard capture trigger");
         }
@@ -1982,7 +2023,7 @@ void VulkanCaptureManager::PreProcess_vkCreateSwapchain(VkDevice                
 
     if (pCreateInfo)
     {
-        WriteResizeWindowCmd2(GetVulkanWrappedId<vulkan_wrappers::SurfaceKHRWrapper>(pCreateInfo->surface),
+        WriteResizeWindowCmd2(vulkan_wrappers::GetWrappedId<vulkan_wrappers::SurfaceKHRWrapper>(pCreateInfo->surface),
                               pCreateInfo->imageExtent.width,
                               pCreateInfo->imageExtent.height,
                               pCreateInfo->preTransform);
@@ -1999,12 +2040,12 @@ void VulkanCaptureManager::PostProcess_vkMapMemory(VkResult         result,
 {
     if ((result == VK_SUCCESS) && (ppData != nullptr))
     {
-        auto wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
+        auto wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
         assert(wrapper != nullptr);
 
         if (wrapper->mapped_data == nullptr)
         {
-            if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+            if (IsCaptureModeTrack())
             {
                 assert(state_tracker_ != nullptr);
                 state_tracker_->TrackMappedMemory(device, memory, (*ppData), offset, size, flags);
@@ -2044,12 +2085,12 @@ void VulkanCaptureManager::PostProcess_vkMapMemory(VkResult         result,
                     bool use_shadow_memory = true;
                     bool use_write_watch   = false;
 
-                    if (GetPageGuardMemoryMode() == kMemoryModeExternal)
+                    if (IsPageGuardMemoryModeExternal())
                     {
                         use_shadow_memory = false;
                         use_write_watch   = true;
                     }
-                    else if ((GetPageGuardMemoryMode() == kMemoryModeShadowPersistent) &&
+                    else if (IsPageGuardMemoryModeShadowPersistent() &&
                              (wrapper->shadow_allocation == util::PageGuardManager::kNullShadowHandle))
                     {
                         wrapper->shadow_allocation = manager->AllocatePersistentShadowMemory(static_cast<size_t>(size));
@@ -2069,7 +2110,7 @@ void VulkanCaptureManager::PostProcess_vkMapMemory(VkResult         result,
             else if (GetMemoryTrackingMode() == CaptureSettings::MemoryTrackingMode::kUnassisted)
             {
                 // Need to keep track of mapped memory objects so memory content can be written at queue submit.
-                std::lock_guard<std::mutex> lock(mapped_memory_lock_);
+                std::lock_guard<std::mutex> lock(GetMappedMemoryLock());
                 mapped_memory_.insert(wrapper);
             }
         }
@@ -2118,7 +2159,7 @@ void VulkanCaptureManager::PreProcess_vkFlushMappedMemoryRanges(VkDevice        
             for (uint32_t i = 0; i < memoryRangeCount; ++i)
             {
                 auto next_memory_wrapper =
-                    GetVulkanWrapper<vulkan_wrappers::DeviceMemoryWrapper>(pMemoryRanges[i].memory);
+                    vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceMemoryWrapper>(pMemoryRanges[i].memory);
 
                 // Currently processing all dirty pages for the mapped memory, so filter multiple ranges from the same
                 // object.
@@ -2148,7 +2189,7 @@ void VulkanCaptureManager::PreProcess_vkFlushMappedMemoryRanges(VkDevice        
             for (uint32_t i = 0; i < memoryRangeCount; ++i)
             {
                 current_memory_wrapper =
-                    GetVulkanWrapper<vulkan_wrappers::DeviceMemoryWrapper>(pMemoryRanges[i].memory);
+                    vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceMemoryWrapper>(pMemoryRanges[i].memory);
 
                 if ((current_memory_wrapper != nullptr) && (current_memory_wrapper->mapped_data != nullptr))
                 {
@@ -2175,7 +2216,7 @@ void VulkanCaptureManager::PreProcess_vkFlushMappedMemoryRanges(VkDevice        
 
 void VulkanCaptureManager::PreProcess_vkUnmapMemory(VkDevice device, VkDeviceMemory memory)
 {
-    auto wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
+    auto wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
     assert(wrapper != nullptr);
 
     if (wrapper->mapped_data != nullptr)
@@ -2207,12 +2248,12 @@ void VulkanCaptureManager::PreProcess_vkUnmapMemory(VkDevice device, VkDeviceMem
             WriteFillMemoryCmd(wrapper->handle_id, 0, size, wrapper->mapped_data);
 
             {
-                std::lock_guard<std::mutex> lock(mapped_memory_lock_);
+                std::lock_guard<std::mutex> lock(GetMappedMemoryLock());
                 mapped_memory_.erase(wrapper);
             }
         }
 
-        if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+        if (IsCaptureModeTrack())
         {
             assert(state_tracker_ != nullptr);
             state_tracker_->TrackMappedMemory(device, memory, nullptr, 0, 0, 0);
@@ -2242,7 +2283,7 @@ void VulkanCaptureManager::PreProcess_vkFreeMemory(VkDevice                     
 
     if (memory != VK_NULL_HANDLE)
     {
-        auto wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
+        auto wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
 
         if (wrapper->mapped_data != nullptr)
         {
@@ -2257,7 +2298,7 @@ void VulkanCaptureManager::PreProcess_vkFreeMemory(VkDevice                     
             }
             else if (GetMemoryTrackingMode() == CaptureSettings::MemoryTrackingMode::kUnassisted)
             {
-                std::lock_guard<std::mutex> lock(mapped_memory_lock_);
+                std::lock_guard<std::mutex> lock(GetMappedMemoryLock());
                 mapped_memory_.erase(wrapper);
             }
         }
@@ -2274,7 +2315,7 @@ void VulkanCaptureManager::PostProcess_vkFreeMemory(VkDevice                    
     if (memory != VK_NULL_HANDLE)
     {
         // Destroy external resources.
-        auto wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
+        auto wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceMemoryWrapper>(memory);
 
         if (GetMemoryTrackingMode() == CaptureSettings::MemoryTrackingMode::kPageGuard ||
             GetMemoryTrackingMode() == CaptureSettings::MemoryTrackingMode::kUserfaultfd)
@@ -2282,12 +2323,12 @@ void VulkanCaptureManager::PostProcess_vkFreeMemory(VkDevice                    
             util::PageGuardManager* manager = util::PageGuardManager::Get();
             assert(manager != nullptr);
 
-            if ((GetPageGuardMemoryMode() == kMemoryModeExternal) && (wrapper->external_allocation != nullptr))
+            if ((IsPageGuardMemoryModeExternal()) && (wrapper->external_allocation != nullptr))
             {
                 size_t external_memory_size = manager->GetAlignedSize(static_cast<size_t>(wrapper->allocation_size));
                 manager->FreeMemory(wrapper->external_allocation, external_memory_size);
             }
-            else if ((GetPageGuardMemoryMode() == kMemoryModeShadowPersistent) &&
+            else if (IsPageGuardMemoryModeShadowPersistent() &&
                      (wrapper->shadow_allocation != util::PageGuardManager::kNullShadowHandle))
             {
                 manager->FreePersistentShadowMemory(wrapper->shadow_allocation);
@@ -2310,7 +2351,7 @@ void VulkanCaptureManager::PostProcess_vkAcquireFullScreenExclusiveModeEXT(VkRes
     GFXRECON_UNREFERENCED_PARAMETER(device);
     GFXRECON_UNREFERENCED_PARAMETER(swapchain);
 
-    if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+    if (IsCaptureModeTrack())
     {
         assert(state_tracker_ != nullptr);
         state_tracker_->TrackAcquireFullScreenExclusiveMode(device, swapchain);
@@ -2326,7 +2367,7 @@ void VulkanCaptureManager::PostProcess_vkGetPhysicalDeviceSurfacePresentModes2EX
 {
     if ((pPresentModeCount != nullptr) && (pPresentModes != nullptr) && (pSurfaceInfo != nullptr))
     {
-        if (((GetCaptureMode() & kModeTrack) == kModeTrack) && (result == VK_SUCCESS))
+        if (IsCaptureModeTrack() && (result == VK_SUCCESS))
         {
             assert(state_tracker_ != nullptr);
             state_tracker_->TrackPhysicalDeviceSurfacePresentModes(
@@ -2346,7 +2387,7 @@ void VulkanCaptureManager::PostProcess_vkReleaseFullScreenExclusiveModeEXT(VkRes
     GFXRECON_UNREFERENCED_PARAMETER(device);
     GFXRECON_UNREFERENCED_PARAMETER(swapchain);
 
-    if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+    if (IsCaptureModeTrack())
     {
         assert(state_tracker_ != nullptr);
         state_tracker_->TrackReleaseFullScreenExclusiveMode(device, swapchain);
@@ -2362,7 +2403,7 @@ void VulkanCaptureManager::PostProcess_vkGetDeviceGroupSurfacePresentModesKHR(Vk
 
     if (pModes != nullptr)
     {
-        if (((GetCaptureMode() & kModeTrack) == kModeTrack) && (result == VK_SUCCESS))
+        if (IsCaptureModeTrack() && (result == VK_SUCCESS))
         {
             assert(state_tracker_ != nullptr);
             state_tracker_->TrackDeviceGroupSurfacePresentModes(device, surface, pModes);
@@ -2380,7 +2421,7 @@ void VulkanCaptureManager::PostProcess_vkGetDeviceGroupSurfacePresentModes2EXT(
 
     if ((pSurfaceInfo != nullptr) && (pModes != nullptr))
     {
-        if (((GetCaptureMode() & kModeTrack) == kModeTrack) && (result == VK_SUCCESS))
+        if (IsCaptureModeTrack() && (result == VK_SUCCESS))
         {
             assert(state_tracker_ != nullptr);
             state_tracker_->TrackDeviceGroupSurfacePresentModes(
@@ -2403,7 +2444,7 @@ void VulkanCaptureManager::PreProcess_vkQueueSubmit(VkQueue             queue,
 
     PreQueueSubmit();
 
-    if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+    if (IsCaptureModeTrack())
     {
         if (pSubmits)
         {
@@ -2430,7 +2471,7 @@ void VulkanCaptureManager::PreProcess_vkQueueSubmit2(VkQueue              queue,
 
     PreQueueSubmit();
 
-    if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+    if (IsCaptureModeTrack())
     {
         std::vector<VkCommandBuffer> command_buffs;
         if (pSubmits)
@@ -2465,7 +2506,7 @@ void VulkanCaptureManager::QueueSubmitWriteFillMemoryCmd()
     }
     else if (GetMemoryTrackingMode() == CaptureSettings::MemoryTrackingMode::kUnassisted)
     {
-        std::lock_guard<std::mutex> lock(mapped_memory_lock_);
+        std::lock_guard<std::mutex> lock(GetMappedMemoryLock());
 
         for (auto wrapper : mapped_memory_)
         {
@@ -2517,7 +2558,7 @@ void VulkanCaptureManager::PreProcess_vkCreateDescriptorUpdateTemplateKHR(
 
 void VulkanCaptureManager::PreProcess_vkGetBufferDeviceAddress(VkDevice device, const VkBufferDeviceAddressInfo* pInfo)
 {
-    auto device_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     if (!device_wrapper->property_feature_info.feature_bufferDeviceAddressCaptureReplay)
     {
         GFXRECON_LOG_ERROR_ONCE(
@@ -2530,7 +2571,7 @@ void VulkanCaptureManager::PreProcess_vkGetBufferDeviceAddress(VkDevice device, 
 void VulkanCaptureManager::PreProcess_vkGetBufferOpaqueCaptureAddress(VkDevice                         device,
                                                                       const VkBufferDeviceAddressInfo* pInfo)
 {
-    auto device_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     if (!device_wrapper->property_feature_info.feature_bufferDeviceAddressCaptureReplay)
     {
         GFXRECON_LOG_ERROR_ONCE(
@@ -2544,7 +2585,7 @@ void VulkanCaptureManager::PreProcess_vkGetBufferOpaqueCaptureAddress(VkDevice  
 void VulkanCaptureManager::PreProcess_vkGetDeviceMemoryOpaqueCaptureAddress(
     VkDevice device, const VkDeviceMemoryOpaqueCaptureAddressInfo* pInfo)
 {
-    auto device_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     if (!device_wrapper->property_feature_info.feature_bufferDeviceAddressCaptureReplay)
     {
         GFXRECON_LOG_ERROR_ONCE(
@@ -2558,7 +2599,7 @@ void VulkanCaptureManager::PreProcess_vkGetDeviceMemoryOpaqueCaptureAddress(
 void VulkanCaptureManager::PreProcess_vkGetAccelerationStructureDeviceAddressKHR(
     VkDevice device, const VkAccelerationStructureDeviceAddressInfoKHR* pInfo)
 {
-    auto device_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     if (!device_wrapper->property_feature_info.feature_accelerationStructureCaptureReplay)
     {
         GFXRECON_LOG_WARNING_ONCE(
@@ -2571,7 +2612,7 @@ void VulkanCaptureManager::PreProcess_vkGetAccelerationStructureDeviceAddressKHR
 void VulkanCaptureManager::PreProcess_vkGetRayTracingShaderGroupHandlesKHR(
     VkDevice device, VkPipeline pipeline, uint32_t firstGroup, uint32_t groupCount, size_t dataSize, void* pData)
 {
-    auto device_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     if (!device_wrapper->property_feature_info.feature_rayTracingPipelineShaderGroupHandleCaptureReplay)
     {
         GFXRECON_LOG_WARNING_ONCE(
@@ -2588,7 +2629,7 @@ void VulkanCaptureManager::PreProcess_vkGetAndroidHardwareBufferPropertiesANDROI
 {
     GFXRECON_UNREFERENCED_PARAMETER(pProperties);
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
-    auto device_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
+    auto device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
     if (hardware_buffer != nullptr)
     {
         ProcessReferenceToAndroidHardwareBuffer(device, const_cast<AHardwareBuffer*>(hardware_buffer));
@@ -2610,7 +2651,7 @@ void VulkanCaptureManager::PostProcess_vkSetPrivateData(VkResult          result
 
     if (privateDataSlot != VK_NULL_HANDLE)
     {
-        if (((GetCaptureMode() & kModeTrack) == kModeTrack) && (result == VK_SUCCESS))
+        if (IsCaptureModeTrack() && (result == VK_SUCCESS))
         {
             assert(state_tracker_ != nullptr);
             state_tracker_->TrackSetPrivateData(device, objectType, objectHandle, privateDataSlot, data);
@@ -2626,7 +2667,7 @@ void VulkanCaptureManager::PostProcess_vkSetLocalDimmingAMD(VkDevice       devic
 
     if (swapChain != VK_NULL_HANDLE)
     {
-        if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+        if (IsCaptureModeTrack())
         {
             assert(state_tracker_ != nullptr);
             state_tracker_->TrackSetLocalDimmingAMD(device, swapChain, localDimmingEnable);
@@ -2642,7 +2683,22 @@ void VulkanCaptureManager::PostProcess_vkCmdDebugMarkerInsertEXT(VkCommandBuffer
         // Look for the debug marker that identifies this command buffer as a VR frame boundary.
         if (util::platform::StringContains(pMarkerInfo->pMarkerName, graphics::kVulkanVrFrameDelimiterString))
         {
-            auto cmd_buffer_wrapper = GetVulkanWrapper<vulkan_wrappers::CommandBufferWrapper>(commandBuffer);
+            auto cmd_buffer_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::CommandBufferWrapper>(commandBuffer);
+            GFXRECON_ASSERT(cmd_buffer_wrapper != nullptr);
+            cmd_buffer_wrapper->is_frame_boundary = true;
+        }
+    }
+}
+
+void VulkanCaptureManager::PostProcess_vkCmdInsertDebugUtilsLabelEXT(VkCommandBuffer             commandBuffer,
+                                                                     const VkDebugUtilsLabelEXT* pLabelInfo)
+{
+    if (pLabelInfo != nullptr)
+    {
+        // Look for the label that identifies this command buffer as a VR frame boundary.
+        if (util::platform::StringContains(pLabelInfo->pLabelName, graphics::kVulkanVrFrameDelimiterString))
+        {
+            auto cmd_buffer_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::CommandBufferWrapper>(commandBuffer);
             GFXRECON_ASSERT(cmd_buffer_wrapper != nullptr);
             cmd_buffer_wrapper->is_frame_boundary = true;
         }
@@ -2778,6 +2834,35 @@ void VulkanCaptureManager::PreProcess_vkBindImageMemory2(VkDevice               
             GFXRECON_LOG_WARNING_ONCE("Image bound to device memory at an offset which is not page aligned. Corruption "
                                       "might occur. In that case set "
                                       "Page Guard Align Buffer Sizes env variable to true.");
+        }
+    }
+}
+
+void VulkanCaptureManager::PostProcess_vkCreateShaderModule(VkResult                        result,
+                                                            VkDevice                        device,
+                                                            const VkShaderModuleCreateInfo* pCreateInfo,
+                                                            const VkAllocationCallbacks*    pAllocator,
+                                                            VkShaderModule*                 pShaderModule)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(device);
+    GFXRECON_UNREFERENCED_PARAMETER(pAllocator);
+    GFXRECON_UNREFERENCED_PARAMETER(pShaderModule);
+
+    if (result == VK_SUCCESS)
+    {
+        // spirv-parsing for buffer-references
+        gfxrecon::util::SpirVParsingUtil spirv_util;
+
+        if (spirv_util.ParseBufferReferences(pCreateInfo->pCode, pCreateInfo->codeSize))
+        {
+            auto buffer_reference_infos = spirv_util.GetBufferReferenceInfos();
+
+            if (!buffer_reference_infos.empty())
+            {
+                GFXRECON_LOG_WARNING_ONCE(
+                    "Shader is using the 'SPV_KHR_physical_storage_buffer' feature. "
+                    "Resource tracking for buffers accessed via references is currently unsupported");
+            }
         }
     }
 }

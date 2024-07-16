@@ -19,20 +19,16 @@ to one of these other documents:
  * [GFXReconstruct for Desktop Vulkan](./USAGE_desktop_Vulkan.md)
  * [GFXReconstruct for Desktop D3D12](./USAGE_desktop_D3D12.md)
 
-
 ## Index
 
-1. [Behavior on Android](#behavior-on-android)
-    1. [Android Writable Locations](#android-writable-locations)
-2. [Capturing API Calls](#capturing-api-calls)
+1. [Capturing API Calls](#capturing-api-calls)
     1. [Before Use](#before-use)
-    2. [To Root or Not To Root](#to-root-or-not-to-root)
-    2. [Enabling the Layer with ADB](#enabling-the-layer-with-adb)
+    2. [Enabling the Capture Layer](#enabling-the-capture-layer)
     3. [Capture Options](#capture-options)
     4. [Capture Files](#capture-files)
     6. [Capture Limitations](#capture-limitations)
     7. [Troubleshooting Capturing of Applications](#troubleshooting-capturing-of-applications)
-3. [Replaying API Calls](#replaying-api-calls)
+2. [Replaying API Calls](#replaying-api-calls)
     1. [Launch Script](#launch-script)
     2. [Install APK Command](#install-apk-command)
     3. [Replay Command](#replay-command)
@@ -40,7 +36,8 @@ to one of these other documents:
     5. [Key Controls](#key-controls)
     6. [Limitations of Replay On Android](#limitations-of-replay-on-android)
     7. [Troubleshooting Replay of Applications](#troubleshooting-replay-of-applications)
-4. [Android Detailed Examples](#android-detailed-examples)
+    8. [Dumping resources](#dumping-resources)
+3. [Android Detailed Examples](#android-detailed-examples)
 
 
 ## Behavior on Android
@@ -81,39 +78,48 @@ readable location with adb shell before they can be replayed.
 ## Capturing API Calls
 
 The GFXReconstruct capture layer is a Vulkan layer that intercepts Vulkan API
-calls and logs them to a GFXReconstruct capture file.
+calls made by the capture target application and logs them to a GFXReconstruct capture file.
+
+> [!Note]
+> This document uses `${Package Name}` as a placeholder for the full package name
+> of a capture target application, such as com.khronos.vulkan_samples.
 
 ### Before Use
 
-#### Permissions
+#### Android Writable Locations
 
-The GFXReconstruct layer can optionally read a configuration file
-from or write capture files to external storage.  This requires that
-the application loading the layer have external storage permissions.
+The GFXReconstruct layer, and therefore the capture target application, *must*
+have access to the path provided by the `debug.gfxrecon.capture_file` property.
+This is typically a location within external storage. The best external storage
+path varies based on application and Android version, but some recommended
+locations include:
 
-The read and write external storage permission may be requested in
-the application's manifest file.  When installing the application,
-it may be necessary to ensure that the requested permissions are
-granted through one of the following actions:
+* `/sdcard/Android/data/${Package Name}` (should not require additional permissions)
+* `/sdcard/Download`
+* `/sdcard`
 
-When installing the application with `adb install`:
+External locations outside of the app-specific directory (first list item)
+require that the target capture application have additional storage permissions
+as described in the [Android Data Storage](https://developer.android.com/training/data-storage/manage-all-files)
+documentation.
 
-* Specify the -g option: `adb install -g`
+If external storage cannot be used, internal storage may be used instead. While
+these locations require no additional permissions, they may require `adb` root
+access to retrieve the resulting capture files and/or copy them to a location
+that the replay tool can read.
 
-When deploying from Android Studio:
+* `/data/data/${Package Name}/`
+* `/data/user/0/${Package Name}/`
 
-* Click on "Run" in the menu
-* Choose "Edit Configurations..."
-* In the dialog box, look for the "Install Flags:" text box
-* Enter `-g`
-* Click "Apply"
-
-It may also be possible to grant external storage permissions to
-an installed application through the device Settings.
-
-**Failure to enable the write external storage permission** can cause
-the layer to return `VK_ERROR_INITIALIZATION_FAILED` from its
-`vkCreateInstance` function if it fails to create a capture file.
+> [!Warning]
+>Failure to provide a suitable location for the capture file will cause
+>the layer to return `VK_ERROR_INITIALIZATION_FAILED` from its
+>`vkCreateInstance` function and produce the following error in logcat:
+>
+>```text
+> E gfxrecon: fopen(/sdcard/gfxrecon_capture.gfxr, wb) failed (errno = 1)
+> F gfxrecon: Failed to initialize CaptureManager
+>```
 
 #### Understanding GFXReconstruct Layer Memory Capture
 
@@ -152,6 +158,7 @@ signal handler installed by the page guard manager.
 Because a shadow memory is allocated and returned to the application instead
 of the actual mapped memory returned by the driver, both reads and writes need
 to be tracked.
+
 - Writes need to be dumped to the capture file.
 - Reads must trigger a memory copy from the actual mapped memory into the shadow
 memory so that the application will read the correct/updated data each time.
@@ -234,174 +241,36 @@ It may also be set as a post attach command in the project configuration:
 * Enter the `process handle SIGSEGV -n true -p true -s false` command
 * Click "Apply"
 
+### Enabling the Capture Layer
 
-### To Root Or Not To Root
+#### Install the Replay APK
 
-Rooting the Android device for capture is not required if you are attempting
-to capture an application that is built in Debug mode.
-This is especially true if you can build in Debug mode and associate it with the
-GFXReconstruct layer during the build.
+The GFXReconstruct capture layer is included in the replay tool APK. Follow the [Install APK Command](#install-apk-command) instructions to make it available on the target device.
 
-One of the ways to set the application to debug requires modifying the
-application Manifest file and setting the `android:debuggable` flag to true
-before rebuilding.
-Refer to the following info:
-https://developer.android.com/guide/topics/manifest/application-element#debug
+#### Enable the Layer for a Specific Application
 
-Alternatively, if you are building using Gradle, then make sure that the
-application's `build.gradle` contains the `debuggable` flag under the
-appropriate "buildTypes" section:
+There are 5 steps to enable the GFXReconstruct capture layer for a capture target application:
 
-```text
-debug {
-   debuggable true
-}
-```
-
-However, if you can not do that, your only option is to attempt to capture
-the image on a rooted device.
-Instructions for rooting Android devices are available on the internet.
-
-If not building the application with the layer, several additional steps are
-required once the application is installed on a rooted Android device:
-
-#### Start ADB Shell With Admin Privileges
-
-```bash
-adb shell
-su
-```
-
-#### Locate the Application Data Directory
-
-```bash
-find /data/app -name *${Application Full Name}*
-```
-
-**NOTE:** Replace `${Application Full Name}` with the full Android name of the
-application being captured, for example "com.khronos.vulkan_samples" is the full
-name of the Vulkan Samples.
-You can find out the application full name by watch Logcat output if you don't
-already know it.
-
-#### Find the Appropriate Capture Layer .so
-
-By default, the capture layer's shared object file will be written to:
-
-```bash
-./android/layer/build/intermediates/cmake/${Build Type}/obj/${Build Target}/libVkLayer_gfxreconstruct.so
-```
-
-`${Build Type}` is the build type used when compiling the layer: "debug" or
-"release".
-
-`${Build Target}` is the platform target: "arm64-v8a", "armeabi-v7a", etc.
-
-#### Copy the Capture Layer Onto the Device
-
-The data folder returned by the instructions in
-[Locate the Application Data Directory](#locate-the-application-data-directory)
-above can be used to store the layer, but it must be placed in the appropriate
-library path.
-However, you can't copy it directly, so you need to first push the file into
-either the `/sdcard/Download` or `/storage/emulated/0/Download` directory with an adb
-command:
-
-```bash
-adb push \
-    ./android/layer/build/intermediates/cmake/${Build Type}/obj/${Build Target}/libVkLayer_gfxreconstruct.so \
-    /sdcard/Download
-```
-
-For example, for a debug build of the ARM64 version of the library:
-
-```bash
-adb push \
-    ./android/layer/build/intermediates/cmake/debug/obj/arm64-v8a/libVkLayer_gfxreconstruct.so \
-    /sdcard/Download
-```
-
-Then move it to the application folder using the adb shell with Admin authority:
-
-```bash
-mv /sdcard/Download/libVkLayer_gfxreconstruct.so \
-       ${Application Data Path}/lib/arm64/libVkLayer_gfxreconstruct.so
-```
-
-Make the layer copied over above writeable on the system using the ADB
-Admin shell:
-
-```bash
-chmod 777 ${Application Data Path}/lib/arm64/libVkLayer_gfxreconstruct.so
-```
-
-#### Give Application Write Permissions
-You may also have to give the application permission to write to external
-storage using:
-
-```bash
-adb shell pm grant ${Application Full Name} android.permission.WRITE_EXTERNAL_STORAGE
-```
-
-### Enabling the Layer with ADB
-
-#### Enable the Layer a Specific Application
-
-To enable the GFXReconstruct capture layer just for a specific application
-requires that 4 steps be taken:
-
- 1. Make sure the application is debuggable
+ 1. Make sure the target application is debuggable
  2. Enable GPU Debug layers
  3. Indicate what app you are enabling GPU Debug on
- 4. Identify the layers used to debug (in this case the layer is
-    `VK_LAYER_LUNARG_gfxreconstruct`)
+ 4. Identify the layers used to debug (in this case the layer is `VK_LAYER_LUNARG_gfxreconstruct`)
+ 5. Indicate what package to load debug layers from (in this case the package is `com.lunarg.gfxreconstruct.replay`)
 
-Together, the last 3 commands look like the following.
+Together, the last 4 commands look like the following:
 
 ```bash
 adb shell settings put global enable_gpu_debug_layers 1
-adb shell settings put global gpu_debug_app ${Application Full Name}
+adb shell settings put global gpu_debug_app ${Package Name}
 adb shell settings put global gpu_debug_layers VK_LAYER_LUNARG_gfxreconstruct
+adb shell settings put global gpu_debug_layers_app com.lunarg.gfxreconstruct.replay
 ```
-
-**NOTE:** Replace `${Application Full Name}` with the full Android name of the
-application being captured, for example "com.khronos.vulkan_samples" is the full
-name of the Vulkan Samples.
 
 If you attempt to capture and nothing is happening, check the `logcat` output.
 A successful run of GFXReconstruct should show a message like the following:
 
 ```text
 I gfxrecon: Initializing GFXReconstruct capture layer
-```
-
-If that fails to show up, you may have to try enabling the layer for the entire
-system.
-
-#### Enable the Layer for the Entire System
-
-The layer can be enabled through a system property by executing the following
-ADB command:
-
-```bash
-adb shell "setprop debug.vulkan.layers 'VK_LAYER_LUNARG_gfxreconstruct'"
-```
-
-The following command will disable the layer:
-
-```bash
-adb shell "setprop debug.vulkan.layers ''"
-```
-
-**NOTE:** The downside to this alternative is that some Android systems use
-Vulkan to render the UI.
-In this scenario, enabling the layer may cause the desktop UI to either be
-recorded as well, or possibly become unresponsive.
-If this occurs, the UI can be forced to run in OpenGL mode on most Android
-devices using:
-
-```bash
-adb shell "setprop debug.hwui.renderer 'skiagl'"
 ```
 
 ### Capture Options
@@ -523,7 +392,7 @@ If the layer fails to open the capture file, it will make the call to
 
 The capture file's save location can be specified by setting the
 `debug.gfxrecon.capture_file` system property, described above in
-the [Layer Options](#layer-options) section.
+the [Capture Options](#capture-options) section.
 
 Please note that only some directories are writable.
 See [Android Writable Locations](#android-writable-locations) for more info.
@@ -670,7 +539,7 @@ There are several steps to take to determine why a capture may not be working.
 Attempt each of these and re-run after the suggested modifications to see if
 the problem is resolved.
 
-#### Enable LogCat
+#### Enable Logcat
 
 First, run logcat showing only messages for GFXReconstruct:
 
@@ -696,12 +565,8 @@ In this case, you must force stop the application and restart it in order for
 the capture to work properly.
 
 ```bash
-adb shell am force-stop ${Application Full Name}
+adb shell am force-stop ${Package Name}
 ```
-
-**NOTE:** Replace `${Application Full Name}` with the full Android name of the
-application being captured, for example "com.khronos.vulkan_samples" is the full
-name of the Vulkan Samples.
 
 ##### Forcing Aligned Pages
 
@@ -735,12 +600,8 @@ That may be possible through the application’s settings in the Android
 interface, or you can try “granting” the permission through the `pm` command:
 
 ```bash
-adb shell pm grant ${Application Full Name} android.permission.WRITE_EXTERNAL_STORAGE
+adb shell pm grant ${Package Name} android.permission.WRITE_EXTERNAL_STORAGE
 ```
-
-**NOTE:** Replace `${Application Full Name}` with the full Android name of the
-application being captured, for example "com.khronos.vulkan_samples" is the full
-name of the Vulkan Samples.
 
 Refer to the other settings in [Capture Options](#capture-options).
 
@@ -754,10 +615,10 @@ The `gfxrecon.py` script, located in android/scripts directory of the
 is provided as a convenient method for deploying and launching the Android replay tool. The script
 currently supports the following commands:
 
-| Command     | Description                                                     |
-| ----------- | --------------------------------------------------------------- |
-| install-apk | Install the specified APK file with the `-g -t -r` options.     |
-| replay      | Launch the replay tool with the specified command line options. |
+| Command     | Description                                                                       |
+| ----------- | --------------------------------------------------------------------------------- |
+| install-apk | Install the specified APK file with the `-g -t -r --force-queryable` options.     |
+| replay      | Launch the replay tool with the specified command line options.                   |
 
 ### Install APK Command
 
@@ -776,7 +637,7 @@ optional arguments:
 The command is equivalent to:
 
 ```bash
-adb install -g -t -r <file>
+adb install -g -t -r --force-queryable <file>
 ```
 
 The install-apk option of the `gfxrecon.py` script with the install-apk option is
@@ -792,11 +653,6 @@ popd
 ```
 
 #### Additional Permissions
-
-A recent change to enable the replay tool on Android 12 and greater has resulted
-in the need of enabling additional permissions on some versions of Android.
-This was the result of updating the replay's Android Manifest file to add the
-`MANAGE_EXTERNAL_STORAGE` permission flag.
 
 ##### Android 10
 
@@ -818,6 +674,13 @@ opens up:
 adb shell appops set com.lunarg.gfxreconstruct.replay MANAGE_EXTERNAL_STORAGE allow
 ```
 
+In addition to the storage permissions, Android 11 requires the app be installed
+with the `--force-queryable` flag to make it visible to other applications when
+using the the `gpu_debug_layer_app` Android system setting. This should be
+handled automatically by the `gfxrecon.py install-apk` command above. On some
+devices it may be necessary to run the install command _twice_ in order for the
+queryable permission to apply.
+
 ### Replay Command
 
 The `gfxrecon.py replay` command has the following usage:
@@ -834,7 +697,18 @@ usage: gfxrecon.py replay [-h] [--push-file LOCAL_FILE] [--version] [--pause-fra
                           [--flush-measurement-range] [-m MODE]
                           [--swapchain MODE] [--use-captured-swapchain-indices]
                           [--use-colorspace-fallback] [--wait-before-present]
-                          [file]
+                          [--dump-resources <arg>]
+                          [--dump-resources <filename>]
+                          [--dump-resources <filename>.json]
+                          [--dump-resources-before-draw] [--dump-resources-scale <scale>]
+                          [--dump-resources-dir <dir>]
+                          [--dump-resources-image-format <format>]
+                          [--dump-resources-dump-depth-attachment]
+                          [--dump-resources-dump-color-attachment-index <index>]
+                          [--dump-resources-dump-vertex-index-buffers]
+                          [--dump-resources-json-output-per-command]
+                          [--dump-resources-dump-immutable-resources]
+                          [--dump-resources-dump-all-image-subresources] [file]
 
 Launch the replay tool.
 
@@ -977,6 +851,54 @@ optional arguments:
                         Force wait on completion of queue operations for all queues
                         before calling Present. This is needed for accurate acquisition
                         of instrumentation data on some platforms.
+   --dump-resources <arg>
+                        <arg> is BeginCommandBuffer=<n>,Draw=<m>,BeginRenderPass=<o>,
+                        NextSubpass=<p>,Dispatch=<q>,CmdTraceRays=<r>,QueueSubmit=<s>
+                        GPU resources are dumped after the given vkCmdDraw*,
+                        vkCmdDispatch, or vkCmdTraceRaysKHR is replayed.
+                        Dump gpu resources after the given vmCmdDraw*, vkCmdDispatch, or
+                        vkCmdTraceRaysKHR is replayed. The parameter for each is a block
+                        index from the capture file.  The additional parameters are used
+                        to identify during which occurence of the vkCmdDraw/VkCmdDispath/
+                        VkCmdTrancRaysKHR resources will be dumped.  NextSubPass can be
+                        repeated 0 or more times to indicate subpasses withing a render
+                        pass.  Note that the minimal set of parameters must be one of:
+                            BeginCmdBuffer, Draw, BeginRenderPass, EndRenderPass, and QueueSubmit
+                            BeginCmdBuffer, Dispatch and QueueSubmit
+                            BeginCmdBuffer, TraceRays and QueueSubmit
+  --dump-resources <filename>
+              Extract --dump-resources args from the specified file, with each line in the file containing a comma or space separated
+              list of the parameters to --dump-resources. The file can contain multiple lines specifying multiple dumps.
+  --dump-resources <filename>.json
+              Extract --dump-resource args from the specified json file. The format for the json file is documented in detail
+              in the gfxreconstruct documentation.
+  --dump-resources-image-format <format>
+                        Image file format to use for image resource dumping.
+                        Available formats are:
+                            bmp         Bitmap file format.  This is the default format.
+                            png         Png file format.
+  --dump-resources-before-draw
+              In addition to dumping gpu resources after the CmdDraw, CmdDispatch and CmdTraceRays calls specified by the
+              --dump-resources argument, also dump resources before those calls.
+  --dump-resources-scale <scale>
+              Scale images generated by dump resources by the given scale factor. The scale factor must be a floating point number
+              greater than 0. Values greater than 10 are capped at 10. Default value is 1.0.
+  --dump-resources-dir <dir>
+              Directory to write dump resources output files. Default is the current working directory.
+  --dump-resources-dump-depth-attachment
+              Configures whether to dump the depth attachment when dumping draw calls. Default is disabled.
+  --dump-resources-dump-color-attachment-index <index>
+              Specify which color attachment to dump when dumping draw calls. It should be an unsigned zero
+              based integer. Default is to dump all color attachment
+  --dump-resources-dump-vertex-index-buffers
+              Enables dumping of vertex and index buffers while dumping draw call resources.
+  --dump-resources-json-output-per-command
+              Enables storing a json output file for each dumped command. Overrides default behavior which
+              is generating one output json file that contains the information for all dumped commands.
+  --dump-resources-dump-immutable-resources
+              Enables dumping of resources that are used as inputs in the commands requested for dumping
+  --dump-resources-dump-all-image-subresources
+              Enables dumping of all image sub resources (mip map levels and array layers)
 ```
 
 The command will force-stop an active replay process before starting the replay
@@ -1118,6 +1040,9 @@ If the user wants to bypass the feature and use the captured indices to present
 directly on the swapchain of the replay implementation, they should add the
 `--use-captured-swapchain-indices` option when invoking `gfxrecon-replay`.
 
+#### Dumping resources
+
+GFXReconstruct offers the capability to dump resources when replaying a capture file. Detailed documentation of that feature can be found in [vulkan_dump_resources.md](./vulkan_dump_resources.md)
 
 ## Android Detailed Examples
 

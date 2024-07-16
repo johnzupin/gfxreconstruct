@@ -685,9 +685,16 @@ void EncodeStruct(ParameterEncoder* encoder, const VkBindMemoryStatusKHR& value)
 void EncodeStruct(ParameterEncoder* encoder, const VkBindDescriptorSetsInfoKHR& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPushConstantsInfoKHR& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPushDescriptorSetInfoKHR& value);
-void EncodeStruct(ParameterEncoder* encoder, const VkPushDescriptorSetWithTemplateInfoKHR& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkSetDescriptorBufferOffsetsInfoEXT& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkBindDescriptorBufferEmbeddedSamplersInfoEXT& value);
+
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceShaderRelaxedExtendedInstructionFeaturesKHR& value);
+
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceMaintenance7FeaturesKHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceMaintenance7PropertiesKHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceLayeredApiPropertiesKHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceLayeredApiPropertiesListKHR& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceLayeredApiVulkanPropertiesKHR& value);
 
 void EncodeStruct(ParameterEncoder* encoder, const VkDebugReportCallbackCreateInfoEXT& value);
 
@@ -1253,6 +1260,9 @@ void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceRayTracingInv
 void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceExtendedSparseAddressSpaceFeaturesNV& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceExtendedSparseAddressSpacePropertiesNV& value);
 
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceLegacyVertexAttributesFeaturesEXT& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceLegacyVertexAttributesPropertiesEXT& value);
+
 void EncodeStruct(ParameterEncoder* encoder, const VkLayerSettingEXT& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkLayerSettingsCreateInfoEXT& value);
 
@@ -1301,7 +1311,13 @@ void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceRawAccessChai
 
 void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceShaderAtomicFloat16VectorFeaturesNV& value);
 
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceShaderReplicatedCompositesFeaturesEXT& value);
+
 void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceRayTracingValidationFeaturesNV& value);
+
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceImageAlignmentControlFeaturesMESA& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceImageAlignmentControlPropertiesMESA& value);
+void EncodeStruct(ParameterEncoder* encoder, const VkImageAlignmentControlCreateInfoMESA& value);
 
 void EncodeStruct(ParameterEncoder* encoder, const VkAccelerationStructureBuildRangeInfoKHR& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkAccelerationStructureGeometryTrianglesDataKHR& value);

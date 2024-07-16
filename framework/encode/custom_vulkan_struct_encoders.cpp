@@ -82,12 +82,12 @@ void EncodeStruct(ParameterEncoder* encoder, const VkPipelineExecutableStatistic
 
 void EncodeStruct(ParameterEncoder* encoder, const VkDeviceOrHostAddressKHR& value)
 {
-    encoder->EncodeVkDeviceAddressValue(value.deviceAddress);
+    encoder->EncodeUInt64Value(value.deviceAddress);
 }
 
 void EncodeStruct(ParameterEncoder* encoder, const VkDeviceOrHostAddressConstKHR& value)
 {
-    encoder->EncodeVkDeviceAddressValue(value.deviceAddress);
+    encoder->EncodeUInt64Value(value.deviceAddress);
 }
 
 void EncodeStruct(ParameterEncoder* encoder, const VkAccelerationStructureMotionInstanceNV& value)
@@ -277,6 +277,15 @@ void EncodeStruct(ParameterEncoder* encoder, const SECURITY_ATTRIBUTES& value)
     encoder->EncodeUInt32Value(value.nLength);
     EncodeStructPtr(encoder, reinterpret_cast<SECURITY_DESCRIPTOR*>(value.lpSecurityDescriptor));
     encoder->EncodeInt32Value(value.bInheritHandle);
+}
+
+void EncodeStruct(ParameterEncoder* encoder, const VkPushDescriptorSetWithTemplateInfoKHR& value)
+{
+    encoder->EncodeEnumValue(value.sType);
+    EncodePNextStruct(encoder, value.pNext);
+    encoder->EncodeVulkanHandleValue<vulkan_wrappers::DescriptorUpdateTemplateWrapper>(value.descriptorUpdateTemplate);
+    encoder->EncodeVulkanHandleValue<vulkan_wrappers::PipelineLayoutWrapper>(value.layout);
+    encoder->EncodeUInt32Value(value.set);
 }
 
 GFXRECON_END_NAMESPACE(encode)

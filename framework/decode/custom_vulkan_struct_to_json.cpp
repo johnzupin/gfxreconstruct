@@ -393,11 +393,29 @@ void FieldToJson(nlohmann::ordered_json&                      jdata,
                          acceleration_structure_count,
                          options);
         }
+
+        const size_t inline_uniform_block_num_bytes = pData->GetInlineUniformBlockCount();
+        if (inline_uniform_block_num_bytes > 0)
+        {
+            jdata["inlineUniformBlock"] =
+                std::vector<uint8_t>(pData->GetInlineUniformBlockPointer(),
+                                     pData->GetInlineUniformBlockPointer() + inline_uniform_block_num_bytes);
+        }
     }
     else
     {
         jdata = nullptr;
     }
+}
+
+void FieldToJson(nlohmann::ordered_json&                                     jdata,
+                 const Decoded_VkPushDescriptorSetWithTemplateInfoKHR* const pData,
+                 const util::JsonOptions&                                    options)
+{
+    HandleToJson(jdata["descriptorUpdateTemplate"], pData->descriptorUpdateTemplate, options);
+    HandleToJson(jdata["layout"], pData->layout, options);
+    FieldToJson(jdata["set"], pData->decoded_value->set, options);
+    FieldToJson(jdata["pData"], &pData->pData, options);
 }
 
 GFXRECON_END_NAMESPACE(decode)

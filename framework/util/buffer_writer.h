@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2023 Advanced Micro Devices, Inc. All rights reserved.
+** Copyright (c) 2023 LunarG, Inc.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -20,37 +20,21 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#include "vulkan_scoped_destroy_lock.h"
+#ifndef GFXRECON_UTIL_BUFFER_WRITER_H
+#define GFXRECON_UTIL_BUFFER_WRITER_H
+
+#include "util/defines.h"
+
+#include <string>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
-GFXRECON_BEGIN_NAMESPACE(encode)
+GFXRECON_BEGIN_NAMESPACE(util)
+GFXRECON_BEGIN_NAMESPACE(bufferwriter)
 
-std::shared_mutex ScopedDestroyLock::mutex_for_create_destroy_handle_;
+bool WriteBuffer(const std::string& filename, const void* data, size_t size);
 
-ScopedDestroyLock::ScopedDestroyLock(bool shared)
-{
-    lock_shared_ = shared;
-    if (shared)
-    {
-        mutex_for_create_destroy_handle_.lock_shared();
-    }
-    else
-    {
-        mutex_for_create_destroy_handle_.lock();
-    }
-};
-
-ScopedDestroyLock::~ScopedDestroyLock()
-{
-    if (lock_shared_)
-    {
-        mutex_for_create_destroy_handle_.unlock_shared();
-    }
-    else
-    {
-        mutex_for_create_destroy_handle_.unlock();
-    }
-};
-
-GFXRECON_END_NAMESPACE(encode)
 GFXRECON_END_NAMESPACE(gfxrecon)
+GFXRECON_END_NAMESPACE(util)
+GFXRECON_END_NAMESPACE(bufferwriter)
+
+#endif /* GFXRECON_UTIL_BUFFER_WRITER_H */

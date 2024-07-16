@@ -306,6 +306,9 @@ class BaseGenerator(OutputGenerator):
         # These structures should not be processed by the code generator.  They require special implementations.
         self.STRUCT_BLACKLIST = []
 
+        # These structures should be ignored for handle mapping/unwrapping. They require special implementations.
+        self.STRUCT_MAPPERS_BLACKLIST = ['VkAccelerationStructureBuildGeometryInfoKHR']
+
         # Platform specific basic types that have been defined extarnally to the Vulkan header.
         self.PLATFORM_TYPES = {}
 
@@ -382,6 +385,7 @@ class BaseGenerator(OutputGenerator):
         self.generate_video = False
 
         # Typenames
+        self.base_types = dict()
         self.struct_names = set()  # Set of Vulkan struct typenames
         self.handle_names = set()  # Set of Vulkan handle typenames
         self.flags_types = dict(
@@ -394,6 +398,17 @@ class BaseGenerator(OutputGenerator):
         self.process_cmds = process_cmds  # Populate the feature_cmd_params map
         self.process_structs = process_structs  # Populate the feature_struct_members map
         self.feature_break = feature_break  # Insert a line break between features
+
+        # Basetypes and their corresponding encode command type
+        self.encode_types = dict()
+        self.encode_types['int8_t'] = 'Int8'
+        self.encode_types['int16_t'] = 'Int16'
+        self.encode_types['int32_t'] = 'Int32'
+        self.encode_types['int64_t'] = 'Int64'
+        self.encode_types['uint8_t'] = 'UInt8'
+        self.encode_types['uint16_t'] = 'UInt16'
+        self.encode_types['uint32_t'] = 'UInt32'
+        self.encode_types['uint64_t'] = 'UInt64'
 
         # Command parameter and struct member data for the current feature
         if self.process_structs:
@@ -488,7 +503,7 @@ class BaseGenerator(OutputGenerator):
     def gen_video_type(self):
         if not self.VIDEO_TREE:
             return
-        
+
         if self.process_structs:
             types = self.VIDEO_TREE.find('types')
             for element in types.iter('type'):
@@ -557,6 +572,8 @@ class BaseGenerator(OutputGenerator):
             else:
                 # Otherwise, look for base type inside type declaration
                 self.flags_types[name] = type_elem.find('type').text
+        elif (category == "basetype") and type_elem.find('type') is not None:
+            self.base_types[name] = type_elem.find('type').text
 
     def genStruct(self, typeinfo, typename, alias):
         """Method override.
@@ -761,6 +778,14 @@ class BaseGenerator(OutputGenerator):
         if base_type in self.handle_names:
             return True
         return False
+
+    def has_basetype(self, base_type):
+        if base_type in self.base_types and self.base_types[base_type] is not None:
+            return True
+        return False
+
+    def get_basetype(self, base_type):
+        return self.base_types[base_type]
 
     def is_dispatchable_handle(self, base_type):
         """Check for dispatchable handle type."""
@@ -1179,7 +1204,7 @@ class BaseGenerator(OutputGenerator):
         if self.is_struct(base_type):
             return base_type
         elif self.is_handle(base_type):
-            return 'Handle'
+            return 'VulkanHandle'
         elif self.is_flags(base_type):
             # Strip 'Vk' from base flag type
             return self.flags_types[base_type][2:]
@@ -1330,6 +1355,76 @@ class BaseGenerator(OutputGenerator):
 
         return 'void {}()'.format(name)
 
+    def make_dump_resources_func_decl(
+        self, return_type, name, values, is_override
+    ):
+        """make_consumer_decl - return VulkanConsumer class member function declaration.
+        Generate VulkanConsumer class member function declaration.
+        """
+        param_decls = []
+        param_decl = self.make_aligned_param_decl(
+            'const ApiCallInfo&', 'call_info', self.INDENT_SIZE,
+            self.genOpts.align_func_param
+        )
+        param_decls.append(param_decl)
+
+        param_decl = self.make_aligned_param_decl(
+            'PFN_' + name.rsplit('_', 1)[1], 'func', self.INDENT_SIZE,
+            self.genOpts.align_func_param
+        )
+        param_decls.append(param_decl)
+
+        if return_type != 'void':
+            param_decl = self.make_aligned_param_decl(
+                return_type, 'returnValue', self.INDENT_SIZE,
+                self.genOpts.align_func_param
+            )
+            param_decls.append(param_decl)
+
+        for value in values:
+            type_name = value.base_type
+
+            if is_override:
+                if value.is_pointer or value.is_array:
+                    count = value.pointer_count
+                    if self.is_struct(type_name):
+                        param_type = 'StructPointerDecoder<Decoded_{}>*'.format(
+                            type_name
+                        )
+                    elif self.is_class(value):
+                        if count == 1:
+                            param_type = type_name[2:] + 'Info*'
+                        else:
+                            param_type = 'HandlePointerDecoder<{}*>'.format(type_name)
+                    elif self.is_handle(type_name) and type_name != 'VkCommandBuffer':
+                        param_type = 'HandlePointerDecoder<{}>*'.format(type_name)
+                    else:
+                        param_type = 'const ' + type_name + '*'
+                else:
+                    if self.is_handle(type_name) and type_name != 'VkCommandBuffer':
+                        param_type = "const " + type_name[2:] + "Info*"
+                    else:
+                        param_type = type_name
+            else:
+                if value.is_pointer or value.is_array:
+                    count = value.pointer_count
+                    param_type = 'const ' + type_name + '*'
+                    if count > 1:
+                        param_type += ' const *' * (count - 1)
+                else:
+                    param_type = type_name
+
+            param_decl = self.make_aligned_param_decl(
+                param_type, value.name, self.INDENT_SIZE,
+                self.genOpts.align_func_param
+            )
+            param_decls.append(param_decl)
+
+        if param_decls:
+            return 'void {}(\n{})'.format(name, ',\n'.join(param_decls))
+
+        return 'void {}()'.format(name)
+
     def make_structure_type_enum(self, typeinfo, typename):
         """Generate the VkStructureType enumeration value for the specified structure type."""
         members = typeinfo.elem.findall('.//member')
@@ -1357,7 +1452,7 @@ class BaseGenerator(OutputGenerator):
         """Generate an expression for the length of a given array value."""
         length_expr = value.array_length
         length_value = value.array_length_value
-    
+
         if length_value:
             if length_value.is_pointer:
                 # Add implicit dereference when length expr == pointer name
@@ -1396,10 +1491,13 @@ class BaseGenerator(OutputGenerator):
             arg_list = ', '.join([v.name for v in values])
             return ['ArraySize2D<{}>({})'.format(type_list, arg_list)]
 
-    def get_handle_prefix(self):
+    def get_api_prefix(self):
         return 'Vulkan'
 
-    def get_handle_wrapper_prefix(self):
+    def get_prefix_from_type(self):
+        return 'Vulkan'
+
+    def get_wrapper_prefix_from_type(self):
         return 'vulkan_wrappers'
 
     def make_encoder_method_call(
@@ -1424,8 +1522,9 @@ class BaseGenerator(OutputGenerator):
                     arg_name, handle_type_name
                 )
             else:
-                arg_name = 'GetVulkanWrappedId({}, {})'.format(
-                    arg_name, handle_type_name
+                wrapper = self.get_wrapper_prefix_from_type()
+                arg_name = '{}::GetWrappedId({}, {})'.format(
+                    wrapper, arg_name, handle_type_name
                 )
 
         args = [arg_name]
@@ -1435,6 +1534,7 @@ class BaseGenerator(OutputGenerator):
         is_funcp = False
 
         type_name = self.make_invocation_type_name(value.base_type)
+        is_handle = self.is_handle(value.base_type)
 
         if self.is_struct(type_name):
             args = ['encoder'] + args
@@ -1446,8 +1546,10 @@ class BaseGenerator(OutputGenerator):
                 is_string = True
             elif type_name == 'FunctionPtr':
                 is_funcp = True
-            elif type_name == 'Handle':
-                method_call += self.get_handle_prefix()
+            elif self.has_basetype(type_name):
+                type_base_type = self.get_basetype(type_name)
+                if type_base_type in self.encode_types:
+                    type_name = self.encode_types[type_base_type]
 
             method_call += type_name
 
@@ -1479,8 +1581,8 @@ class BaseGenerator(OutputGenerator):
             else:
                 method_call += 'Value'
 
-        if type_name == 'Handle':
-            wrapper_prefix = self.get_handle_wrapper_prefix()
+        if is_handle:
+            wrapper_prefix = self.get_wrapper_prefix_from_type()
             method_call += '<{}>'.format(wrapper_prefix + '::' + value.base_type[2:] + 'Wrapper')
 
         if self.is_output_parameter(value) and omit_output_param:
@@ -1490,6 +1592,9 @@ class BaseGenerator(OutputGenerator):
 
     def is_dx12_class(self):
         return True if ('Dx12' in self.__class__.__name__) else False
+
+    def is_resource_dump_class(self):
+        return True if ('ReplayDumpResources' in self.__class__.__name__) else False
 
     def __get_feature_protect(self, interface):
         """Return appropriate feature protect string from 'platform' tag on feature.
@@ -1560,13 +1665,13 @@ class BaseGenerator(OutputGenerator):
     def is_flags_enum_64bit(self, enum):
         flag_type = BitsEnumToFlagsTypedef(enum)
         return self.is_64bit_flags(flag_type)
-    
+
     def is_has_specific_key_word_in_type(self, value, key_word):
         if key_word in value.base_type:
             return True
-        
+
         values = self.feature_struct_members.get(value.base_type)
         if values:
             for value in values:
                 return self.is_has_specific_key_word_in_type(value, key_word)
-        return False  
+        return False

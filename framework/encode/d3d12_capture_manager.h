@@ -1,7 +1,7 @@
 /*
 ** Copyright (c) 2018-2020 Valve Corporation
 ** Copyright (c) 2018-2021 LunarG, Inc.
-** Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
+** Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@
 #ifndef GFXRECON_ENCODE_D3D12_CAPTURE_MANAGER_H
 #define GFXRECON_ENCODE_D3D12_CAPTURE_MANAGER_H
 
-#include "encode/capture_manager.h"
+#include "encode/api_capture_manager.h"
 
 #include <cassert>
 #include <stdint.h>
@@ -41,14 +41,16 @@
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
 
-class D3D12CaptureManager : public CaptureManager
+class D3D12CaptureManager : public ApiCaptureManager
 {
   public:
-    static D3D12CaptureManager* Get() { return instance_; }
-
+    static D3D12CaptureManager* Get() { return singleton_; }
     // Creates the capture manager instance if none exists, or increments a reference count if an instance already
     // exists.
     static bool CreateInstance();
+
+    static D3D12CaptureManager* InitSingleton();
+    static void                 DestroySingleton();
 
     // Decrement the instance reference count, releasing resources when the count reaches zero.  Ignored if the count is
     // already zero.
@@ -157,7 +159,7 @@ class D3D12CaptureManager : public CaptureManager
     template <typename ParentWrapper>
     void EndCreateMethodCallCapture(HRESULT result, REFIID riid, void** handle, ParentWrapper* create_object_wrapper)
     {
-        if (((GetCaptureMode() & kModeTrack) == kModeTrack) && SUCCEEDED(result))
+        if (IsCaptureModeTrack() && SUCCEEDED(result))
         {
             if ((handle != nullptr) && (*handle != nullptr))
             {
@@ -184,7 +186,7 @@ class D3D12CaptureManager : public CaptureManager
                                          GetHandlesFunc             func,
                                          GetHandlesArgs... args)
     {
-        if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+        if (IsCaptureModeTrack())
         {
             assert(state_tracker_ != nullptr);
 
@@ -205,7 +207,7 @@ class D3D12CaptureManager : public CaptureManager
         {
             resource_value_annotator_->RemoveObjectGPUVA(wrapper);
         }
-        if ((GetCaptureMode() & kModeTrack) == kModeTrack)
+        if (IsCaptureModeTrack())
         {
             state_tracker_->RemoveEntry(wrapper);
             state_tracker_->TrackRelease(wrapper);
@@ -685,6 +687,27 @@ class D3D12CaptureManager : public CaptureManager
                                                      void*                 feature_support_data,
                                                      UINT                  feature_support_data_size);
 
+    HRESULT OverrideIDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2_Wrapper*                 factory2_wrapper,
+                                                         IUnknown*                              pDevice,
+                                                         HWND                                   hWnd,
+                                                         const DXGI_SWAP_CHAIN_DESC1*           pDesc,
+                                                         const DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pFullscreenDesc,
+                                                         IDXGIOutput*                           pRestrictToOutput,
+                                                         IDXGISwapChain1**                      ppSwapChain);
+
+    HRESULT OverrideIDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactory2_Wrapper*       factory2_wrapper,
+                                                               IUnknown*                    pDevice,
+                                                               IUnknown*                    pWindow,
+                                                               const DXGI_SWAP_CHAIN_DESC1* pDesc,
+                                                               IDXGIOutput*                 pRestrictToOutput,
+                                                               IDXGISwapChain1**            ppSwapChain);
+
+    HRESULT OverrideIDXGIFactory2_CreateSwapChainForComposition(IDXGIFactory2_Wrapper*       factory2_wrapper,
+                                                                IUnknown*                    pDevice,
+                                                                const DXGI_SWAP_CHAIN_DESC1* pDesc,
+                                                                IDXGIOutput*                 pRestrictToOutput,
+                                                                IDXGISwapChain1**            ppSwapChain);
+
     void OverrideGetRaytracingAccelerationStructurePrebuildInfo(
         ID3D12Device5_Wrapper*                                      device5_wrapper,
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS* pDesc,
@@ -740,7 +763,7 @@ class D3D12CaptureManager : public CaptureManager
   protected:
     D3D12CaptureManager();
 
-    virtual ~D3D12CaptureManager() override {}
+    virtual ~D3D12CaptureManager() {}
 
     virtual void CreateStateTracker() override { state_tracker_ = std::make_unique<Dx12StateTracker>(); }
 
@@ -783,6 +806,7 @@ class D3D12CaptureManager : public CaptureManager
     bool     IsUploadResource(D3D12_HEAP_TYPE type, D3D12_CPU_PAGE_PROPERTY page_property);
     uint64_t GetResourceSizeInBytes(ID3D12Device_Wrapper* device_wrapper, const D3D12_RESOURCE_DESC* desc);
     uint64_t GetResourceSizeInBytes(ID3D12Device8_Wrapper* device_wrapper, const D3D12_RESOURCE_DESC1* desc);
+    void     UpdateSwapChainSize(uint32_t width, uint32_t height, IDXGISwapChain1* swapchain);
     PFN_D3D12_GET_DEBUG_INTERFACE GetDebugInterfacePtr();
     void                          EnableDebugLayer();
     void                          EnableDRED();
@@ -790,7 +814,7 @@ class D3D12CaptureManager : public CaptureManager
 
     void                              PrePresent(IDXGISwapChain_Wrapper* wrapper);
     void                              PostPresent(IDXGISwapChain_Wrapper* wrapper, UINT flags);
-    static D3D12CaptureManager*       instance_;
+    static D3D12CaptureManager*       singleton_;
     std::set<ID3D12Resource_Wrapper*> mapped_resources_; ///< Track mapped resources for unassisted tracking mode.
     DxgiDispatchTable  dxgi_dispatch_table_;  ///< DXGI dispatch table for functions retrieved from the DXGI DLL.
     D3D12DispatchTable d3d12_dispatch_table_; ///< D3D12 dispatch table for functions retrieved from the D3D12 DLL.

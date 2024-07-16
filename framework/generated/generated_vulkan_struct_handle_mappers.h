@@ -30,8 +30,8 @@
 #ifndef  GFXRECON_GENERATED_VULKAN_STRUCT_HANDLE_MAPPERS_H
 #define  GFXRECON_GENERATED_VULKAN_STRUCT_HANDLE_MAPPERS_H
 
-#include "decode/pnext_node.h"
 #include "decode/vulkan_object_info_table.h"
+#include "decode/vulkan_pnext_node.h"
 #include "format/platform_types.h"
 #include "decode/custom_vulkan_struct_handle_mappers.h"
 #include "generated/generated_vulkan_struct_decoders_forward.h"
@@ -261,8 +261,6 @@ void MapStructHandles(Decoded_VkPushConstantsInfoKHR* wrapper, const VulkanObjec
 
 void MapStructHandles(Decoded_VkPushDescriptorSetInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
 
-void MapStructHandles(Decoded_VkPushDescriptorSetWithTemplateInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
-
 void MapStructHandles(Decoded_VkSetDescriptorBufferOffsetsInfoEXT* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkBindDescriptorBufferEmbeddedSamplersInfoEXT* wrapper, const VulkanObjectInfoTable& object_info_table);
@@ -368,8 +366,6 @@ void MapStructHandles(Decoded_VkShaderCreateInfoEXT* wrapper, const VulkanObject
 void MapStructHandles(Decoded_VkLatencySleepInfoNV* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkAccelerationStructureGeometryTrianglesDataKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
-
-void MapStructHandles(Decoded_VkAccelerationStructureBuildGeometryInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkAccelerationStructureCreateInfoKHR* wrapper, const VulkanObjectInfoTable& object_info_table);
 

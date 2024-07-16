@@ -40,7 +40,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" "${CMAKE_SOURCE_DIR}/external/
 # Version info
 set(GFXRECONSTRUCT_PROJECT_VERSION_MAJOR 1)
 set(GFXRECONSTRUCT_PROJECT_VERSION_MINOR 0)
-set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 4)
+set(GFXRECONSTRUCT_PROJECT_VERSION_PATCH 5)
 
 set(GFXRECON_PROJECT_VERSION_SHA1 "unknown-build-source")
 
@@ -185,6 +185,7 @@ if(MSVC)
                 "set D3D12_SUPPORT=OFF or configure the build with the recommended Windows SDK version. See BUILD.md "
                 "for more information.")
         endif()
+
     else()
         set(BUILD_LAUNCHER_AND_INTERCEPTOR OFF)
     endif()
@@ -212,6 +213,7 @@ if(MSVC)
         endif() # GFXRECON_AGS_SUPPORT
     endif() # D3D12_SUPPORT
 
+
 else(MSVC)
     # Turn off D3D12 support for non MSVC builds.
     set(D3D12_SUPPORT OFF)
@@ -229,6 +231,9 @@ endif(MSVC)
 
 if(APPLE)
     add_link_options(-Wl,-dead_strip -Wl,-dead_strip_dylibs)
+    set(CMAKE_PREFIX_PATH
+        "${CMAKE_SOURCE_DIR}/external/precompiled/macos"
+        ${CMAKE_PREFIX_PATH})
 endif()
 
 # GFXReconstruct provided find modules
@@ -237,13 +242,6 @@ find_package(Detours)
 endif() # WIN32
 
 option(LZ4_OPTIONAL "Allow building without LZ4-compression" OFF)
-
-if(APPLE)
-    set(LZ4_USE_STATIC_LIBRARY TRUE)
-else()
-    set(LZ4_USE_STATIC_LIBRARY ${BUILD_STATIC})
-endif()
-
 find_package(LZ4)
 
 if(NOT LZ4_FOUND)
@@ -255,6 +253,10 @@ if(NOT LZ4_FOUND)
 endif()# NOT LZ4_FOUND
 
 find_package(ZSTD)
+
+if(MSVC)
+find_package(jsoncpp)
+endif() # MSVC
 
 if(UNIX AND NOT APPLE)
     option(BUILD_WSI_XCB_SUPPORT "Build XCB WSI support" ON)
@@ -332,12 +334,22 @@ add_library(vulkan_registry INTERFACE)
 target_include_directories(vulkan_registry INTERFACE ${CMAKE_SOURCE_DIR}/external/Vulkan-Headers/include)
 target_compile_definitions(vulkan_registry INTERFACE VK_NO_PROTOTYPES VK_ENABLE_BETA_EXTENSIONS)
 
+add_library(spirv_registry INTERFACE)
+target_include_directories(spirv_registry INTERFACE ${CMAKE_SOURCE_DIR}/external/SPIRV-Headers/include)
+
 add_library(vulkan_memory_allocator INTERFACE)
 target_compile_options(vulkan_memory_allocator INTERFACE
     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:
         -Wno-nullability-completeness>
 )
 target_include_directories(vulkan_memory_allocator INTERFACE ${CMAKE_SOURCE_DIR}/external/VulkanMemoryAllocator/include)
+
+# SPIRV-Reflect included as submodule -> libspirv-reflect-static.a
+set(SPIRV_REFLECT_EXAMPLES OFF)
+set(SPIRV_REFLECT_EXECUTABLE OFF)
+set(SPIRV_REFLECT_STATIC_LIB ON)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+add_subdirectory(external/SPIRV-Reflect EXCLUDE_FROM_ALL)
 
 if (${RUN_TESTS})
     add_library(catch2 INTERFACE)

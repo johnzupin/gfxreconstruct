@@ -1,3 +1,219 @@
+gfxreconstruct (1.0.4+431~rc1-1lunarg24.04-1) noble; urgency=medium
+
+  [ Bartosz Muszarski ]
+  * Add trace preload option
+
+  [ Charles Giessen ]
+  * Make FileProcessor::ProcessBlocks common code reuseable
+  * Refactor PreloadFileProcessor recording logic
+  * Add --pbi-all and --pbis options for all FileProcessor subclasses
+
+  [ Locke Lin ]
+  * Allocator support VideoSession (#1620)
+
+  [ Mike Schuchardt ]
+  * Uffd restart interrupted system calls
+
+  [ davidd-lunarg ]
+  * Use a customizable delegate for dumping res data
+  * Track more info with each dumped resource
+
+  [ ziga-lunarg ]
+  * Fix typo in dump resources log (#1630)
+
+  [ Locke Lin ]
+  * Avoid writing redundant QueueSubmit (#1638)
+
+  [ Nick Driscoll ]
+  * Fix broken trimming for vkCmdPushDescriptorSetWithTemplate[2]KHR commands (#1633)
+
+  [ Dustin Graves ]
+  * Add ID3D12DeviceFactory replay override
+
+  [ Ming Zheng ]
+  * Fix playback handling error of ID3D12Device::CreateConstantBufferView (#1631)
+
+  [ Dustin Graves ]
+  * Fix DX12 render pass union encode/decode
+
+  [ Panagiotis Apostolou ]
+  * Vulkan dump resources: Fix indirect params fetching (#1639)
+
+  [ Fabian Schmidt ]
+  * Asynchronous Pipeline Creation (#1607)
+  * Refactor encode::vulkan_trackers::TrackStruct() routine (#1643)
+
+  [ Panagiotis Apostolou ]
+  * vulkan dump resources fixes (#1642)
+
+  [ Fabian Schmidt ]
+  * Extend Async Support: vkCreateComputePipelines, vkCreateShadersEXT (#1646)
+  * Fix wrong/forgotten copyright in a header-file (#1648)
+
+  [ Mike Schuchardt ]
+  * tocpp: Add support for output pointer struct members
+  * tocpp: Fix output arguments
+  * tocpp: Fix array args
+  * tocpp: Don't assert on positive return codes
+
+  [ ziga-lunarg ]
+  * Fix wrong setting name in android usage doc (#1649)
+
+  [ Fabian Schmidt ]
+  * Check SPIRV/Buffer-References inlined in pNext (#1650)
+
+  [ ziga-lunarg ]
+  * Remove duplicated line in dump resources doc (#1653)
+
+  [ Bartosz Muszarski ]
+  * Remove assert from DestroyCommandPool
+
+  [ Ihor Zvieriev ]
+  * Fix uninitialized member that led to gfxrecon-info incorrectly reporting usage of page guard external memory
+
+  [ Charles Giessen ]
+  * build: Apply /bigobj for encode & decode targets
+
+  [ Fabian Schmidt ]
+  * Rework async-dependency-tracking to be deterministic (#1655)
+
+  [ Marius Pelegrin ]
+  * Fix noop functions address comparison
+
+  [ Ihor Zvieriev ]
+  * Fixing ppBuildRanges for gfxrecon-convert
+
+  [ Marius Pelegrin ]
+  * Remove empty command buffer from frame boundary submission
+  * Fix `VulkanSwapchainOptions`
+
+  [ Fabian Schmidt ]
+  * Check SPIRV-capabilities, early exit parser (#1662)
+  * Avoid async w. externally synched pipeline-caches (#1661)
+  * Add macOS to github-release-build action (#1651)
+  * Fix regression: handle vkDestroy*** calls being passed null-handles (#1666)
+
+  [ Nick Driscoll ]
+  * Save process environment variables to capture file
+
+  [ David Pinedo ]
+  * Dump resources bug fixes
+  * Dump resources: Handle null depth attachment in vkCmdBeginRenderingKHR
+  * Dump resources: Handle case when vkCmdBindDesriptorSets has null value in pDescriptorSets
+  * Dump resources: Remove extra call to ReadFromBufferResource
+  * Dump resources: Don't dump stencil buffers
+  * Dump resources: Fix params in call to vkResolveImage
+  * Dump resources: Fix code formatting error
+  * Dump resources: Use VK_NULL_HANDLE rather than nullptr
+
+  [ Panagiotis Apostolou ]
+  * Some fixes in the resolve path of VulkanResourcesUtil
+
+  [ bradgrantham-lunarg ]
+  * add missing C_FLAGS to x86_32 toolchain (#1676)
+
+  [ David Pinedo ]
+  * Dump resources: Fix scaling of dump resources images
+
+  [ Per ]
+  * Handle soft signal interrupts during file processing (#1597)
+
+  [ davidd-lunarg ]
+  * Support D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS
+  * Trim support for Build TLAS with ARRAY_OF_POINTERS
+
+  [ Fabian Schmidt ]
+  * Raytracing: Shader-group-handle mapping (#1690)
+
+  [ bradgrantham-lunarg ]
+  * remove CONVERT_EXPERIMENTAL_D3D12 and always support D3D12 in convert (#1691)
+
+  [ Mark Young ]
+  * Update Android build to use Gradle 8.1 and JDK 1.17
+  * Use JDK 17 in Github CI
+
+  [ Brad Grantham ]
+  * github ci: Fix Gradle 8 build
+
+  [ ziga-lunarg ]
+  * Update the build path in android how to (#1705)
+  * Warn when AHardwareBuffer read is skipped (#1704)
+
+  [ jirongjiao ]
+  * modify copy resource message
+
+  [ Fabian Schmidt ]
+  * Refactor pNext-util, enforce usage (#1700)
+
+  [ David Pinedo ]
+  * Fix parsing of txt dump resources args when some params are missing
+
+  [ Panagiotis Apostolou ]
+  * Fix few checks
+
+  [ bradgrantham-lunarg ]
+  * upgrade versions of actions/*-artifact (#1707)
+
+  [ Dustin Graves ]
+  * Fix D3D12 WriteToSubresource size calculation (#1699)
+
+  [ Mike Schuchardt ]
+  * Clean up Android/Java section of BUILD.md
+
+  [ ziga-lunarg ]
+  * Check if AHardwareBuffer is cpu readable in trim (#1706)
+
+  [ Dustin Graves ]
+  * Make IDXGISwapChain buffer cast conditional (#1728)
+
+  [ bradgrantham-lunarg ]
+  * quiet cmake project warning by adding project line (#1737)
+
+  [ Aaron Vaage ]
+  * Remove hanging back-quote (#1693)
+
+  [ dfriederich ]
+  * Fix warnings (#1741)
+
+  [ zongdu-arm ]
+  * Add force_fifo_present_mode optional setting (#1687)
+
+  [ Ming Zheng ]
+  * Fix mapped memory image data update issue (#1535)
+
+  [ Fabian Schmidt ]
+  * Track Buffer-Device-Addresses (#1712)
+
+  [ Panagiotis Apostolou ]
+  * Always dump alpha channel for dump resources images (#1744)
+  * Dump all subresources of render target images (#1681)
+
+  [ beau-lunarg ]
+  * Check for unsupported formats when resolving image during WriteState (#1735)
+
+  [ Jerry Li ]
+  * TLAS instance desc NULL pointer
+
+  [ Ming Zheng ]
+  * Fix an error for parsing shader code (#1757)
+
+  [ Fabian Schmidt ]
+  * Fix vulkan_struct_deep_copy edge-cases (#1738)
+
+  [ jirongjiao ]
+  * Fix allocator null for trim capture
+
+  [ Nick Driscoll ]
+  * Update Vulkan headers to 1.3.295 (#1752)
+
+  [ davidd-lunarg ]
+  * Update Vulkan generated files
+
+  [ Nick Driscoll ]
+  * Update Vulkan Headers to 1.3.296 (#1773)
+
+ -- john <john@odin>  Tue, 01 Oct 2024 10:53:15 -0600
+
 gfxreconstruct (1.0.4+345~rc1-1lunarg24.04-1) noble; urgency=medium
 
   [ locke-lunarg ]

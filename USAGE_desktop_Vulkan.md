@@ -544,6 +544,7 @@ gfxrecon-replay         [-h | --help] [--version] [--gpu <index>]
                         [--dump-resources-dump-immutable-resources]
                         [--dump-resources-dump-all-image-subresources] <file>
                         [--pbi-all] [--pbis <index1,index2>]
+                        [--pipeline-creation-jobs | --pcj <num_jobs>]
 
 
 Required arguments:
@@ -712,7 +713,7 @@ Optional arguments:
               of instrumentation data on some platforms.
    --dump-resources <arg>
               <arg> is BeginCommandBuffer=<n>,Draw=<m>,BeginRenderPass=<o>,
-              NextSubpass=<p>,Dispatch=<q>,CmdTraceRays=<r>,QueueSubmit=<s>
+              NextSubpass=<p>,Dispatch=<q>,TraceRays=<r>,QueueSubmit=<s>
               GPU resources are dumped after the given vkCmdDraw*,
               vkCmdDispatch, or vkCmdTraceRaysKHR is replayed.
               Dump gpu resources after the given vmCmdDraw*, vkCmdDispatch, or vkCmdTraceRaysKHR is replayed. The parameter for
@@ -757,8 +758,15 @@ Optional arguments:
               Enables dumping of resources that are used as inputs in the commands requested for dumping.
   --dump-resources-dump-all-image-subresources
               Enables dumping of all image sub resources (mip map levels and array layers).
-  --pbi-all             Print all block information.
-  --pbis <index1,index2>Print block information between block index1 and block index2.
+  --pbi-all             
+              Print all block information.
+  --pbis <index1,index2>
+              Print block information between block index1 and block index2.
+  --pipeline-creation-jobs | --pcj <num_jobs>
+              Specify the number of asynchronous pipeline-creation jobs as integer.
+              If <num_jobs> is negative it will be added to the number of cpu-cores, e.g. -1 -> num_cores - 1.
+              Default: 0 (do not use asynchronous operations)
+  
 ```
 
 ### Key Controls

@@ -122,6 +122,8 @@ const char kSkipGetFenceRanges[]                  = "--skip-get-fence-ranges";
 const char kWaitBeforePresent[]                   = "--wait-before-present";
 const char kPrintBlockInfoAllOption[]             = "--pbi-all";
 const char kPrintBlockInfosArgument[]             = "--pbis";
+const char kNumPipelineCreationJobs[]             = "--pipeline-creation-jobs";
+const char kPreloadMeasurementRangeOption[]       = "--preload-measurement-range";
 #if defined(WIN32)
 const char kDxTwoPassReplay[]             = "--dx12-two-pass-replay";
 const char kDxOverrideObjectNames[]       = "--dx12-override-object-names";
@@ -916,6 +918,11 @@ static void GetReplayOptions(gfxrecon::decode::ReplayOptions&      options,
         }
     }
 
+    if (arg_parser.IsArgumentSet(kNumPipelineCreationJobs))
+    {
+        options.num_pipeline_creation_jobs = std::stoi(arg_parser.GetArgumentValue(kNumPipelineCreationJobs));
+    }
+
     const auto& override_gpu = arg_parser.GetArgumentValue(kOverrideGpuArgument);
     if (!override_gpu.empty())
     {
@@ -1123,10 +1130,10 @@ static gfxrecon::decode::DxReplayOptions GetDxReplayOptions(const gfxrecon::util
     }
 
     const std::string& dump_resources = arg_parser.GetArgumentValue(kDumpResourcesArgument);
-    if (!dump_resources.empty())
+    if (!dump_resources.empty() && dump_resources.find_first_not_of("0123456789,") == std::string::npos)
     {
-        // If the option parameter does not split into three comma separated values, consider
-        // it a Vulkan option and ignore it. It it does split into three comma separated values,
+        // If the option parameter does not split into three comma separated numbers, consider
+        // it a Vulkan option and ignore it. If it does split into three comma separated numbers,
         // the arg is for dx12 and should have already been validated in the Vulkan option parsing.
         // In that case, we simply extract and save the values here.
         std::vector<std::string> values = gfxrecon::util::strings::SplitString(dump_resources, ',');

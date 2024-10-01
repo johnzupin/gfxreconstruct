@@ -46,11 +46,78 @@ GFXRECON_BEGIN_NAMESPACE(decode)
 constexpr bool TEST_READABLE   = false;
 constexpr bool TEST_SHADER_RES = true;
 
+static const char* Dx12ResourceTypeToString(Dx12DumpResourceType type)
+{
+    switch (type)
+    {
+        case Dx12DumpResourceType::kRtv:
+            return "rtv";
+        case Dx12DumpResourceType::kDsv:
+            return "dsv";
+        case Dx12DumpResourceType::kSrv:
+            return "srv";
+        case Dx12DumpResourceType::kUav:
+            return "uav";
+        case Dx12DumpResourceType::kUavCounter:
+            return "uavCounter";
+        case Dx12DumpResourceType::kVertex:
+            return "vertex";
+        case Dx12DumpResourceType::kIndex:
+            return "index";
+        case Dx12DumpResourceType::kCbv:
+            return "cbv";
+        case Dx12DumpResourceType::kExecuteIndirectArg:
+            return "eiArgs";
+        case Dx12DumpResourceType::kExecuteIndirectCount:
+            return "eiCount";
+        case Dx12DumpResourceType::kUnknown:
+        default:
+            return "";
+    }
+}
+
+static const char* Dx12DumpResourcePosToString(Dx12DumpResourcePos pos)
+{
+    switch (pos)
+    {
+        case Dx12DumpResourcePos::kBeforeDrawCall:
+            return "before";
+        case Dx12DumpResourcePos::kDrawCall:
+            return "drawcall";
+        case Dx12DumpResourcePos::kAfterDrawCall:
+            return "after";
+        case Dx12DumpResourcePos::kUnknown:
+        default:
+            return "";
+    }
+}
+
+const static uint32_t kBeforeDrawCallArrayIndex = 0;
+const static uint32_t kDrawCallArrayIndex       = 1;
+const static uint32_t kAfterDrawCallArrayIndex  = 2;
+
+uint32_t Dx12DumpResourcePosToArrayIndex(Dx12DumpResourcePos pos)
+{
+    switch (pos)
+    {
+        case Dx12DumpResourcePos::kBeforeDrawCall:
+            return kBeforeDrawCallArrayIndex;
+        case Dx12DumpResourcePos::kDrawCall:
+            return kDrawCallArrayIndex;
+        case Dx12DumpResourcePos::kAfterDrawCall:
+            return kAfterDrawCallArrayIndex;
+        case Dx12DumpResourcePos::kUnknown:
+        default:
+            GFXRECON_ASSERT(false && "Invalid use of Dx12DumpResourcePosToArrayIndex.");
+            return 0;
+    }
+}
+
 Dx12DumpResources::Dx12DumpResources(std::function<DxObjectInfo*(format::HandleId id)> get_object_info_func,
                                      const graphics::Dx12GpuVaMap&                     gpu_va_map,
                                      DxReplayOptions&                                  options) :
     get_object_info_func_(get_object_info_func),
-    gpu_va_map_(gpu_va_map), options_(options)
+    gpu_va_map_(gpu_va_map), options_(options), user_delegate_(nullptr), active_delegate_(nullptr)
 {}
 
 void Dx12DumpResources::StartDump(ID3D12Device* device, const std::string& capture_file_name)
@@ -64,43 +131,18 @@ void Dx12DumpResources::StartDump(ID3D12Device* device, const std::string& captu
     track_dump_resources_.fence_event        = CreateEventA(nullptr, TRUE, FALSE, nullptr);
     track_dump_resources_.fence_signal_value = initial_fence_value;
 
-    // prepare for output data
-    json_options_.format = kDefaultDumpResourcesFileFormat;
-
-    json_filename_    = capture_file_name;
-    auto ext_pos      = json_filename_.find_last_of(".");
-    auto path_sep_pos = json_filename_.find_last_of(util::filepath::kPathSepStr);
-    if (ext_pos != std::string::npos && (path_sep_pos == std::string::npos || ext_pos > path_sep_pos))
+    if (user_delegate_ != nullptr)
     {
-        json_filename_ = json_filename_.substr(0, ext_pos);
+        active_delegate_ = user_delegate_;
     }
-    json_filename_ += "_dr." + util::get_json_format(json_options_.format);
-    json_options_.data_sub_dir = util::filepath::GetFilenameStem(json_filename_);
-    json_options_.root_dir     = util::filepath::GetBasedir(json_filename_);
+    else
+    {
+        // Use a default delegate if none was provided.
+        default_delegate_ = std::make_unique<DefaultDx12DumpResourcesDelegate>();
+        active_delegate_  = default_delegate_.get();
+    }
 
-    util::platform::FileOpen(&json_file_handle_, json_filename_.c_str(), "w");
-
-    header_["D3D12SDKVersion"] = std::to_string(D3D12SDKVersion);
-    header_["gfxreconversion"] = GFXRECON_PROJECT_VERSION_STRING;
-    header_["captureFile"]     = capture_file_name;
-
-    auto& dr_options       = header_["dumpResourcesOptions"];
-    dr_options["submit"]   = std::to_string(options_.dump_resources_target.submit_index);
-    dr_options["command"]  = std::to_string(options_.dump_resources_target.command_index);
-    dr_options["drawcall"] = std::to_string(options_.dump_resources_target.drawcall_index);
-
-    StartFile();
-
-    // Emit the header object as the first line of the file:
-    WriteBlockStart();
-    json_data_["header"] = header_;
-    WriteBlockEnd();
-
-    WriteBlockStart();
-
-    util::FieldToJson(drawcall_["block_index"], track_dump_resources_.target.drawcall_block_index, json_options_);
-    util::FieldToJson(
-        drawcall_["execute_block_index"], track_dump_resources_.target.execute_block_index, json_options_);
+    active_delegate_->BeginDumpResources(capture_file_name, track_dump_resources_);
 }
 
 void Dx12DumpResources::FinishDump(DxObjectInfo* queue_object_info)
@@ -124,9 +166,11 @@ void Dx12DumpResources::FinishDump(DxObjectInfo* queue_object_info)
 
 void Dx12DumpResources::CloseDump()
 {
-    json_data_[NameDrawCall()] = drawcall_;
-    WriteBlockEnd();
-    EndFile();
+    active_delegate_->EndDumpResources();
+    active_delegate_ = nullptr;
+
+    // Free the default delegate if it was used.
+    default_delegate_ = nullptr;
 }
 
 bool Dx12DumpResources::ExecuteCommandLists(DxObjectInfo*                             replay_object_info,
@@ -173,12 +217,14 @@ bool Dx12DumpResources::ExecuteCommandLists(DxObjectInfo*                       
                     // processes, for exmaples: finding resource by GPU VA, getting the resource infomation, and
                     // write resource id, offset, size. But those duplicated processes shouldn't hurt the
                     // performance.
-                    CopyDrawcallResources(replay_object_info, front_command_list_ids, "before");
+                    CopyDrawcallResources(
+                        replay_object_info, front_command_list_ids, Dx12DumpResourcePos::kBeforeDrawCall);
 
                     ID3D12CommandList* ppCommandLists[] = { track_dump_resources_.split_command_sets[1].list };
                     replay_object->ExecuteCommandLists(1, ppCommandLists);
 
-                    CopyDrawcallResources(replay_object_info, front_command_list_ids, "after");
+                    CopyDrawcallResources(
+                        replay_object_info, front_command_list_ids, Dx12DumpResourcePos::kAfterDrawCall);
 
                     FinishDump(replay_object_info);
 
@@ -421,8 +467,7 @@ void Dx12DumpResources::BeginRenderPass(
 
             // before
             ID3D12GraphicsCommandList4* command_list4_before;
-            dump_command_sets[TrackDumpResources::SplitCommandType::kBeforeDrawCall].list->QueryInterface(
-                IID_PPV_ARGS(&command_list4_before));
+            dump_command_sets[kBeforeDrawCallArrayIndex].list->QueryInterface(IID_PPV_ARGS(&command_list4_before));
 
             std::vector<D3D12_RENDER_PASS_RENDER_TARGET_DESC> before_rt_descs;
             for (uint32_t i = 0; i < NumRenderTargets; ++i)
@@ -445,8 +490,7 @@ void Dx12DumpResources::BeginRenderPass(
 
             // drawcall
             ID3D12GraphicsCommandList4* command_list4_draw_call;
-            dump_command_sets[TrackDumpResources::SplitCommandType::kDrawCall].list->QueryInterface(
-                IID_PPV_ARGS(&command_list4_draw_call));
+            dump_command_sets[kDrawCallArrayIndex].list->QueryInterface(IID_PPV_ARGS(&command_list4_draw_call));
 
             std::vector<D3D12_RENDER_PASS_RENDER_TARGET_DESC> draw_call_rt_descs;
             for (uint32_t i = 0; i < NumRenderTargets; ++i)
@@ -473,8 +517,7 @@ void Dx12DumpResources::BeginRenderPass(
 
             // after
             ID3D12GraphicsCommandList4* command_list4_after;
-            dump_command_sets[TrackDumpResources::SplitCommandType::kAfterDrawCall].list->QueryInterface(
-                IID_PPV_ARGS(&command_list4_after));
+            dump_command_sets[kAfterDrawCallArrayIndex].list->QueryInterface(IID_PPV_ARGS(&command_list4_after));
 
             std::vector<D3D12_RENDER_PASS_RENDER_TARGET_DESC> after_rt_descs;
             for (uint32_t i = 0; i < NumRenderTargets; ++i)
@@ -523,7 +566,7 @@ bool MatchDescriptorCPUGPUHandle(size_t                                      rep
 
 void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                        queue_object_info,
                                               const std::vector<format::HandleId>& front_command_list_ids,
-                                              const std::string&                   write_type)
+                                              Dx12DumpResourcePos                  pos)
 {
     // If Bundle have the bindings, using the bindings, or using the command's bindings.
     auto bundle_target_drawcall = track_dump_resources_.target.bundle_target_drawcall.get();
@@ -555,8 +598,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                         view.BufferLocation,
                                         view.SizeInBytes,
                                         json_path,
-                                        "vertex",
-                                        write_type);
+                                        Dx12DumpResourceType::kVertex,
+                                        pos,
+                                        format::kNullHandleId,
+                                        0);
             ++resource_index;
         }
     }
@@ -580,8 +625,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                     index_buffer_view->BufferLocation,
                                     index_buffer_view->SizeInBytes,
                                     json_path,
-                                    "index",
-                                    write_type);
+                                    Dx12DumpResourceType::kIndex,
+                                    pos,
+                                    format::kNullHandleId,
+                                    0);
     }
 
     // descriptor
@@ -612,16 +659,19 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
         auto heap_size = descriptor_heap_ids->size();
         for (uint32_t heap_index = 0; heap_index < heap_size; ++heap_index)
         {
-            json_path.emplace_back("heap_id_" + std::to_string(heap_index), format::kNoneIndex);
+            auto descriptor_heap_id = (*descriptor_heap_ids)[heap_index];
 
-            auto heap_object_info = get_object_info_func_((*descriptor_heap_ids)[heap_index]);
+            json_path.emplace_back("heap_id_" + util::HandleIdToString(descriptor_heap_id), format::kNoneIndex);
+
+            auto heap_object_info = get_object_info_func_(descriptor_heap_id);
             auto heap_extra_info  = GetExtraInfo<D3D12DescriptorHeapInfo>(heap_object_info);
 
             // constant buffer
             resource_index = 0;
             for (const auto& info_pair : heap_extra_info->constant_buffer_infos)
             {
-                const auto& info = info_pair.second;
+                auto        descriptor_heap_index = info_pair.first;
+                const auto& info                  = info_pair.second;
                 if (MatchDescriptorCPUGPUHandle(heap_extra_info->replay_cpu_addr_begin,
                                                 info.replay_handle.ptr,
                                                 heap_extra_info->capture_gpu_addr_begin,
@@ -634,8 +684,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                                 info.captured_view.BufferLocation,
                                                 info.captured_view.SizeInBytes,
                                                 json_path_sub,
-                                                "cbv",
-                                                write_type);
+                                                Dx12DumpResourceType::kCbv,
+                                                pos,
+                                                descriptor_heap_id,
+                                                descriptor_heap_index);
                     ++resource_index;
                 }
             }
@@ -646,7 +698,8 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                 resource_index = 0;
                 for (const auto& info_pair : heap_extra_info->shader_resource_infos)
                 {
-                    const auto& info = info_pair.second;
+                    auto        descriptor_heap_index = info_pair.first;
+                    const auto& info                  = info_pair.second;
                     if (MatchDescriptorCPUGPUHandle(heap_extra_info->replay_cpu_addr_begin,
                                                     info.replay_handle.ptr,
                                                     heap_extra_info->capture_gpu_addr_begin,
@@ -679,8 +732,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                                           size,
                                                           info.subresource_indices,
                                                           json_path_sub,
-                                                          "srv",
-                                                          write_type);
+                                                          Dx12DumpResourceType::kSrv,
+                                                          pos,
+                                                          descriptor_heap_id,
+                                                          descriptor_heap_index);
                         ++resource_index;
                     }
                 }
@@ -689,7 +744,8 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                 resource_index = 0;
                 for (const auto& info_pair : heap_extra_info->unordered_access_infos)
                 {
-                    const auto& info = info_pair.second;
+                    auto        descriptor_heap_index = info_pair.first;
+                    const auto& info                  = info_pair.second;
                     if (MatchDescriptorCPUGPUHandle(heap_extra_info->replay_cpu_addr_begin,
                                                     info.replay_handle.ptr,
                                                     heap_extra_info->capture_gpu_addr_begin,
@@ -723,8 +779,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                                           size,
                                                           info.subresource_indices,
                                                           json_path_sub,
-                                                          "uav",
-                                                          write_type);
+                                                          Dx12DumpResourceType::kUav,
+                                                          pos,
+                                                          descriptor_heap_id,
+                                                          descriptor_heap_index);
 
                         if (info.counter_resource_id != format::kNullHandleId)
                         {
@@ -738,8 +796,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                                               0,
                                                               sub_indices_emptry,
                                                               json_path_sub,
-                                                              "uav_counter",
-                                                              write_type);
+                                                              Dx12DumpResourceType::kUavCounter,
+                                                              pos,
+                                                              descriptor_heap_id,
+                                                              descriptor_heap_index);
                         }
                         ++resource_index;
                     }
@@ -754,12 +814,14 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
     auto rt_size   = track_dump_resources_.replay_render_target_handles.size();
     for (uint32_t i = 0; i < rt_size; ++i)
     {
-        auto heap_object_info = get_object_info_func_(track_dump_resources_.render_target_heap_ids[i]);
-        auto heap_extra_info  = GetExtraInfo<D3D12DescriptorHeapInfo>(heap_object_info);
+        auto descriptor_heap_id = track_dump_resources_.render_target_heap_ids[i];
+        auto heap_object_info   = get_object_info_func_(descriptor_heap_id);
+        auto heap_extra_info    = GetExtraInfo<D3D12DescriptorHeapInfo>(heap_object_info);
 
         for (const auto& info_pair : heap_extra_info->render_target_infos)
         {
-            const auto& info = info_pair.second;
+            auto        descriptor_heap_index = info_pair.first;
+            const auto& info                  = info_pair.second;
             if (info.replay_handle.ptr == track_dump_resources_.replay_render_target_handles[i].ptr)
             {
                 uint64_t offset = 0;
@@ -785,8 +847,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                                   0,
                                                   info.subresource_indices,
                                                   json_path,
-                                                  "rtv",
-                                                  write_type);
+                                                  Dx12DumpResourceType::kRtv,
+                                                  pos,
+                                                  descriptor_heap_id,
+                                                  descriptor_heap_index);
                 ++resource_index;
                 break;
             }
@@ -797,12 +861,14 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
     // depth stencil isn't available in Bundle.
     if (track_dump_resources_.replay_depth_stencil_handle.ptr != kNullCpuAddress)
     {
-        auto heap_object_info = get_object_info_func_(track_dump_resources_.depth_stencil_heap_id);
-        auto heap_extra_info  = GetExtraInfo<D3D12DescriptorHeapInfo>(heap_object_info);
+        auto descriptor_heap_id = track_dump_resources_.depth_stencil_heap_id;
+        auto heap_object_info   = get_object_info_func_(descriptor_heap_id);
+        auto heap_extra_info    = GetExtraInfo<D3D12DescriptorHeapInfo>(heap_object_info);
 
         for (const auto& info_pair : heap_extra_info->depth_stencil_infos)
         {
-            const auto& info = info_pair.second;
+            auto        descriptor_heap_index = info_pair.first;
+            const auto& info                  = info_pair.second;
             if (info.replay_handle.ptr == track_dump_resources_.replay_depth_stencil_handle.ptr)
             {
                 json_path.clear();
@@ -814,8 +880,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                                   0,
                                                   info.subresource_indices,
                                                   json_path,
-                                                  "dsv",
-                                                  write_type);
+                                                  Dx12DumpResourceType::kDsv,
+                                                  pos,
+                                                  descriptor_heap_id,
+                                                  descriptor_heap_index);
                 break;
             }
         }
@@ -842,8 +910,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                           0,
                                           sub_indices_emptry,
                                           json_path,
-                                          "ei_args",
-                                          write_type);
+                                          Dx12DumpResourceType::kExecuteIndirectArg,
+                                          pos,
+                                          format::kNullHandleId,
+                                          0);
         json_path.clear();
         json_path.emplace_back("execute_indirect_counts", format::kNoneIndex);
         CopyDrawcallResourceBySubresource(queue_object_info,
@@ -853,8 +923,10 @@ void Dx12DumpResources::CopyDrawcallResources(DxObjectInfo*                     
                                           0,
                                           sub_indices_emptry,
                                           json_path,
-                                          "ei_count",
-                                          write_type);
+                                          Dx12DumpResourceType::kExecuteIndirectCount,
+                                          pos,
+                                          format::kNullHandleId,
+                                          0);
     }
 }
 
@@ -863,8 +935,10 @@ void Dx12DumpResources::CopyDrawcallResourceByGPUVA(DxObjectInfo*               
                                                     D3D12_GPU_VIRTUAL_ADDRESS            captured_source_gpu_va,
                                                     uint64_t                             source_size,
                                                     const std::vector<std::pair<std::string, int32_t>>& json_path,
-                                                    const std::string&                                  file_name,
-                                                    const std::string&                                  write_type)
+                                                    Dx12DumpResourceType                                resource_type,
+                                                    Dx12DumpResourcePos                                 pos,
+                                                    format::HandleId descriptor_heap_id,
+                                                    uint32_t         descriptor_heap_index)
 {
     if (captured_source_gpu_va == 0)
     {
@@ -881,8 +955,10 @@ void Dx12DumpResources::CopyDrawcallResourceByGPUVA(DxObjectInfo*               
                                       source_size,
                                       { 0 },
                                       json_path,
-                                      file_name,
-                                      write_type);
+                                      resource_type,
+                                      pos,
+                                      descriptor_heap_id,
+                                      descriptor_heap_index);
 }
 
 void Dx12DumpResources::CopyDrawcallResourceBySubresource(DxObjectInfo*                        queue_object_info,
@@ -892,14 +968,18 @@ void Dx12DumpResources::CopyDrawcallResourceBySubresource(DxObjectInfo*         
                                                           uint64_t                             source_size,
                                                           const std::vector<uint32_t>&         subresource_indices,
                                                           const std::vector<std::pair<std::string, int32_t>>& json_path,
-                                                          const std::string&                                  file_name,
-                                                          const std::string& write_type)
+                                                          Dx12DumpResourceType resource_type,
+                                                          Dx12DumpResourcePos  pos,
+                                                          format::HandleId     descriptor_heap_id,
+                                                          uint32_t             descriptor_heap_index)
 {
     CopyResourceDataPtr copy_resource_data(new CopyResourceData());
-    copy_resource_data->subresource_indices = subresource_indices;
-    copy_resource_data->json_path           = json_path;
-    copy_resource_data->file_name           = file_name;
-    copy_resource_data->write_type          = write_type;
+    copy_resource_data->subresource_indices   = subresource_indices;
+    copy_resource_data->json_path             = json_path;
+    copy_resource_data->resource_type         = resource_type;
+    copy_resource_data->dump_position         = pos;
+    copy_resource_data->descriptor_heap_id    = descriptor_heap_id;
+    copy_resource_data->descriptor_heap_index = descriptor_heap_index;
 
     CopyDrawcallResource(
         queue_object_info, front_command_list_ids, source_resource_id, source_offset, source_size, copy_resource_data);
@@ -1164,7 +1244,7 @@ void Dx12DumpResources::CopyResourceAsyncRead(graphics::dx12::ID3D12FenceComPtr 
     }
 
     // After copying task is done, write the data to disk, and free it to reduce memory use.
-    WriteResource(copy_resource_data);
+    active_delegate_->DumpResource(copy_resource_data);
     copy_resource_data->Clear();
 
     // Signal command queue to continue execution.
@@ -1263,16 +1343,18 @@ std::vector<CommandSet> Dx12DumpResources::GetCommandListsForDumpResources(DxObj
         }
     }
 
-    TrackDumpResources::SplitCommandType split_type = TrackDumpResources::SplitCommandType::kBeforeDrawCall;
+    Dx12DumpResourcePos split_type = Dx12DumpResourcePos::kBeforeDrawCall;
 
     if (block_index == drawcall_info->drawcall_block_index)
     {
-        split_type = TrackDumpResources::SplitCommandType::kDrawCall;
+        split_type = Dx12DumpResourcePos::kDrawCall;
     }
     else if (block_index >= drawcall_info->drawcall_block_index)
     {
-        split_type = TrackDumpResources::SplitCommandType::kAfterDrawCall;
+        split_type = Dx12DumpResourcePos::kAfterDrawCall;
     }
+
+    auto split_type_array_index = Dx12DumpResourcePosToArrayIndex(split_type);
 
     // Here is to split command lists.
     switch (api_call_id)
@@ -1333,12 +1415,12 @@ std::vector<CommandSet> Dx12DumpResources::GetCommandListsForDumpResources(DxObj
         {
             switch (split_type)
             {
-                case TrackDumpResources::SplitCommandType::kBeforeDrawCall:
+                case Dx12DumpResourcePos::kBeforeDrawCall:
                     cmd_sets.insert(cmd_sets.end(), command_sets->begin(), command_sets->end());
                     break;
                 // But if the command is after DrawCall, it's just added at the third CommandList.
-                case TrackDumpResources::SplitCommandType::kAfterDrawCall:
-                    cmd_sets.emplace_back((*command_sets)[TrackDumpResources::SplitCommandType::kAfterDrawCall]);
+                case Dx12DumpResourcePos::kAfterDrawCall:
+                    cmd_sets.emplace_back((*command_sets)[kAfterDrawCallArrayIndex]);
                     break;
                 default:
                     break;
@@ -1353,7 +1435,7 @@ std::vector<CommandSet> Dx12DumpResources::GetCommandListsForDumpResources(DxObj
             }
             else
             {
-                cmd_sets.emplace_back((*command_sets)[split_type]);
+                cmd_sets.emplace_back((*command_sets)[split_type_array_index]);
             }
             break;
         }
@@ -1365,7 +1447,7 @@ std::vector<CommandSet> Dx12DumpResources::GetCommandListsForDumpResources(DxObj
             }
             else
             {
-                cmd_sets.emplace_back((*command_sets)[split_type]);
+                cmd_sets.emplace_back((*command_sets)[split_type_array_index]);
             }
             break;
         }
@@ -1377,21 +1459,74 @@ std::vector<CommandSet> Dx12DumpResources::GetCommandListsForDumpResources(DxObj
             }
             else
             {
-                cmd_sets.emplace_back((*command_sets)[split_type]);
+                cmd_sets.emplace_back((*command_sets)[split_type_array_index]);
             }
             break;
         }
         default:
         {
             // command type could be changed data, drawcalls.
-            cmd_sets.emplace_back((*command_sets)[split_type]);
+            cmd_sets.emplace_back((*command_sets)[split_type_array_index]);
             break;
         }
     }
     return cmd_sets;
 }
 
-void Dx12DumpResources::WriteResource(const CopyResourceDataPtr resource_data)
+void DefaultDx12DumpResourcesDelegate::BeginDumpResources(const std::string&        capture_file_name,
+                                                          const TrackDumpResources& track_dump_resources)
+{
+    // prepare for output data
+    json_options_.format = kDefaultDumpResourcesFileFormat;
+
+    json_filename_    = capture_file_name;
+    auto ext_pos      = json_filename_.find_last_of(".");
+    auto path_sep_pos = json_filename_.find_last_of(util::filepath::kPathSepStr);
+    if (ext_pos != std::string::npos && (path_sep_pos == std::string::npos || ext_pos > path_sep_pos))
+    {
+        json_filename_ = json_filename_.substr(0, ext_pos);
+    }
+    json_filename_ += "_dr." + util::get_json_format(json_options_.format);
+    json_options_.data_sub_dir = util::filepath::GetFilenameStem(json_filename_);
+    json_options_.root_dir     = util::filepath::GetBasedir(json_filename_);
+
+    util::platform::FileOpen(&json_file_handle_, json_filename_.c_str(), "w");
+
+    header_["D3D12SDKVersion"] = std::to_string(D3D12SDKVersion);
+    header_["gfxreconversion"] = GFXRECON_PROJECT_VERSION_STRING;
+    header_["captureFile"]     = capture_file_name;
+
+    auto& dr_options       = header_["dumpResourcesOptions"];
+    dr_options["submit"]   = std::to_string(track_dump_resources.target.dump_resources_target.submit_index);
+    dr_options["command"]  = std::to_string(track_dump_resources.target.dump_resources_target.command_index);
+    dr_options["drawcall"] = std::to_string(track_dump_resources.target.dump_resources_target.drawcall_index);
+
+    StartFile();
+
+    // Emit the header object as the first line of the file:
+    WriteBlockStart();
+    json_data_["header"] = header_;
+    WriteBlockEnd();
+
+    WriteBlockStart();
+
+    util::FieldToJson(drawcall_["block_index"], track_dump_resources.target.drawcall_block_index, json_options_);
+    util::FieldToJson(drawcall_["execute_block_index"], track_dump_resources.target.execute_block_index, json_options_);
+}
+
+void DefaultDx12DumpResourcesDelegate::DumpResource(CopyResourceDataPtr resource_data)
+{
+    WriteResource(resource_data);
+}
+
+void DefaultDx12DumpResourcesDelegate::EndDumpResources()
+{
+    json_data_[NameDrawCall()] = drawcall_;
+    WriteBlockEnd();
+    EndFile();
+}
+
+void DefaultDx12DumpResourcesDelegate::WriteResource(const CopyResourceDataPtr resource_data)
 {
     if (resource_data->source_resource_id == format::kNullHandleId)
     {
@@ -1410,19 +1545,19 @@ void Dx12DumpResources::WriteResource(const CopyResourceDataPtr resource_data)
             jdata_sub = &(*jdata_sub)[path.first][path.second];
         }
     }
-    std::string prefix_file_name = json_options_.data_sub_dir + "_" + resource_data->file_name;
-    WriteResource(*jdata_sub, prefix_file_name, resource_data->write_type, resource_data);
+    std::string prefix_file_name =
+        json_options_.data_sub_dir + "_" + Dx12ResourceTypeToString(resource_data->resource_type);
+    WriteResource(*jdata_sub, prefix_file_name, resource_data);
 
     if (TEST_READABLE)
     {
-        TestWriteReadableResource(prefix_file_name, resource_data->write_type, resource_data);
+        TestWriteReadableResource(prefix_file_name, resource_data);
     }
 }
 
-void Dx12DumpResources::WriteResource(nlohmann::ordered_json&   jdata,
-                                      const std::string&        prefix_file_name,
-                                      const std::string&        suffix,
-                                      const CopyResourceDataPtr resource_data)
+void DefaultDx12DumpResourcesDelegate::WriteResource(nlohmann::ordered_json&   jdata,
+                                                     const std::string&        prefix_file_name,
+                                                     const CopyResourceDataPtr resource_data)
 {
     if (resource_data->source_resource_id == format::kNullHandleId)
     {
@@ -1432,6 +1567,8 @@ void Dx12DumpResources::WriteResource(nlohmann::ordered_json&   jdata,
     std::string file_name = prefix_file_name + "_res_id_" + std::to_string(resource_data->source_resource_id);
 
     util::FieldToJson(jdata["res_id"], resource_data->source_resource_id, json_options_);
+
+    std::string suffix    = Dx12DumpResourcePosToString(resource_data->dump_position);
     std::string json_path = suffix + "_file";
     for (const auto sub_index : resource_data->subresource_indices)
     {
@@ -1454,9 +1591,8 @@ void Dx12DumpResources::WriteResource(nlohmann::ordered_json&   jdata,
     }
 }
 
-void Dx12DumpResources::TestWriteReadableResource(const std::string&        prefix_file_name,
-                                                  const std::string&        suffix,
-                                                  const CopyResourceDataPtr resource_data)
+void DefaultDx12DumpResourcesDelegate::TestWriteReadableResource(const std::string&        prefix_file_name,
+                                                                 const CopyResourceDataPtr resource_data)
 {
     if (resource_data->source_resource_id == format::kNullHandleId)
     {
@@ -1465,17 +1601,16 @@ void Dx12DumpResources::TestWriteReadableResource(const std::string&        pref
 
     if (resource_data->desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
     {
-        TestWriteFloatResource(prefix_file_name, suffix, resource_data);
+        TestWriteFloatResource(prefix_file_name, resource_data);
     }
     else
     {
-        TestWriteImageResource(prefix_file_name, suffix, resource_data);
+        TestWriteImageResource(prefix_file_name, resource_data);
     }
 }
 
-void Dx12DumpResources::TestWriteFloatResource(const std::string&        prefix_file_name,
-                                               const std::string&        suffix,
-                                               const CopyResourceDataPtr resource_data)
+void DefaultDx12DumpResourcesDelegate::TestWriteFloatResource(const std::string&        prefix_file_name,
+                                                              const CopyResourceDataPtr resource_data)
 {
     std::string file_name = prefix_file_name + "_res_id_" + std::to_string(resource_data->source_resource_id);
 
@@ -1496,6 +1631,7 @@ void Dx12DumpResources::TestWriteFloatResource(const std::string&        prefix_
             data += "\n";
         }
 
+        const char* suffix        = Dx12DumpResourcePosToString(resource_data->dump_position);
         std::string file_name_sub = file_name + "_sub_" + std::to_string(sub_index) + "_" + suffix + ".txt";
         std::string file_path     = gfxrecon::util::filepath::Join(json_options_.root_dir, file_name_sub);
         FILE*       file_handle;
@@ -1505,9 +1641,8 @@ void Dx12DumpResources::TestWriteFloatResource(const std::string&        prefix_
     }
 }
 
-void Dx12DumpResources::TestWriteImageResource(const std::string&        prefix_file_name,
-                                               const std::string&        suffix,
-                                               const CopyResourceDataPtr resource_data)
+void DefaultDx12DumpResourcesDelegate::TestWriteImageResource(const std::string&        prefix_file_name,
+                                                              const CopyResourceDataPtr resource_data)
 {
     std::string file_name = prefix_file_name + "_res_id_" + std::to_string(resource_data->source_resource_id);
 
@@ -1540,6 +1675,7 @@ void Dx12DumpResources::TestWriteImageResource(const std::string&        prefix_
         // Write data.
         GFXRECON_ASSERT(!resource_data->datas[sub_index].empty());
 
+        std::string suffix = Dx12DumpResourcePosToString(resource_data->dump_position);
         file_name_sub += "_" + suffix + ".bmp ";
         std::string file_path = gfxrecon::util::filepath::Join(json_options_.root_dir, file_name_sub);
         if (!util::imagewriter::WriteBmpImage(file_path,
@@ -1554,7 +1690,7 @@ void Dx12DumpResources::TestWriteImageResource(const std::string&        prefix_
     }
 }
 
-void Dx12DumpResources::StartFile()
+void DefaultDx12DumpResourcesDelegate::StartFile()
 {
     num_objects_ = 0;
     if (json_options_.format == util::JsonFormat::JSON)
@@ -1563,7 +1699,7 @@ void Dx12DumpResources::StartFile()
     }
 }
 
-void Dx12DumpResources::EndFile()
+void DefaultDx12DumpResourcesDelegate::EndFile()
 {
     if (json_file_handle_ != nullptr)
     {
@@ -1580,13 +1716,13 @@ void Dx12DumpResources::EndFile()
     }
 }
 
-void Dx12DumpResources::WriteBlockStart()
+void DefaultDx12DumpResourcesDelegate::WriteBlockStart()
 {
     json_data_.clear(); // < Dominates profiling (1/2).
     num_objects_++;
 }
 
-void Dx12DumpResources::WriteBlockEnd()
+void DefaultDx12DumpResourcesDelegate::WriteBlockEnd()
 {
     if (num_objects_ > 1)
     {
@@ -1595,21 +1731,21 @@ void Dx12DumpResources::WriteBlockEnd()
     // Dominates profiling (2/2):
     const std::string block =
         json_data_.dump(json_options_.format == util::JsonFormat::JSONL ? -1 : util::kJsonIndentWidth);
-    util::platform::FileWriteNoLock(block.data(), sizeof(std::string::value_type), block.length(), json_file_handle_);
+    util::platform::FileWriteNoLock(block.data(), block.length() * sizeof(std::string::value_type), json_file_handle_);
     util::platform::FileFlush(json_file_handle_); /// @todo Implement a FileFlushNoLock() for all platforms.
 }
 
-bool Dx12DumpResources::WriteBinaryFile(const std::string&          filename,
-                                        const std::vector<uint8_t>& data,
-                                        uint64_t                    offset,
-                                        uint64_t                    size)
+bool DefaultDx12DumpResourcesDelegate::WriteBinaryFile(const std::string&          filename,
+                                                       const std::vector<uint8_t>& data,
+                                                       uint64_t                    offset,
+                                                       uint64_t                    size)
 {
     FILE* file_output = nullptr;
     if (util::platform::FileOpen(&file_output, filename.c_str(), "wb") == 0)
     {
-        util::platform::FileWrite(data.data() + offset, size, 1, file_output);
+        bool success = util::platform::FileWrite(data.data() + offset, size, file_output);
         util::platform::FileClose(file_output);
-        return true;
+        return success;
     }
     return false;
 }

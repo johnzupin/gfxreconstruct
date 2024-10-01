@@ -1,5 +1,6 @@
 /*
 ** Copyright (c) 2023 LunarG, Inc.
+** Copyright (c) 2024 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -92,30 +93,6 @@ class VulkanResourcesUtil
                                           std::vector<uint64_t>* subresource_offsets  = nullptr,
                                           std::vector<uint64_t>* subresource_sizes    = nullptr,
                                           bool                   all_layers_per_level = false);
-
-    // Will return the size requirements and offsets for each subresource contained in the specified image.
-    // Sizes and offsets are calculated in such a way that the each subresource will be tightly packed.
-    //
-    // This function will use texel size values from the Vulkan Utilities Library and is intented to be used
-    // with images that can be created with Linear tiling and therefore it is possible to be accesses directly
-    // without using a staging buffer.
-    //
-    // The sizes are returned in the subresource_sizes vector and will be in the order:
-    //    M0 L0 L1 ... La M1 L0 L1 ... La ... Mm L0 L1 ... La
-    // Where M denotes the mip map levels and L the array layers.
-    // The offsets will be returned in the subresource_offsets vector in the same manner.
-    // all_layers_per_level boolean determines if all array layer per mip map level will be accounted as one.
-    //
-    // Return value is the total size of the image.
-    uint64_t GetImageResourceSizesLinear(VkImage                image,
-                                         VkFormat               format,
-                                         const VkExtent3D&      extent,
-                                         uint32_t               mip_levels,
-                                         uint32_t               array_layers,
-                                         VkImageAspectFlagBits  aspect,
-                                         std::vector<uint64_t>* subresource_offsets  = nullptr,
-                                         std::vector<uint64_t>* subresource_sizes    = nullptr,
-                                         bool                   all_layers_per_level = false);
 
     // Use this function to dump an image sub resources into data vector.
     // This function is intented to be used when accessing the image content directly is not possible
@@ -242,7 +219,7 @@ class VulkanResourcesUtil
                        VkFormat              format,
                        VkImageType           type,
                        const VkExtent3D&     extent,
-                       VkExtent3D&           scaled_extent,
+                       const VkExtent3D&     scaled_extent,
                        uint32_t              mip_levels,
                        uint32_t              array_layers,
                        VkImageAspectFlagBits aspect,
@@ -287,6 +264,49 @@ bool FindMemoryTypeIndex(const VkPhysicalDeviceMemoryProperties& memory_properti
                          VkMemoryPropertyFlags                   desired_flags,
                          uint32_t*                               found_index,
                          VkMemoryPropertyFlags*                  found_flags);
+
+bool GetImageTexelSize(VkFormat      format,
+                       VkDeviceSize* texel_size,
+                       bool*         is_texel_block_size,
+                       uint16_t*     block_width_pointer,
+                       uint16_t*     block_height_pointer);
+
+bool GetTexelCoordinatesFromOffset(VkImageType                imageType,
+                                   uint32_t                   arrayLayers,
+                                   VkFormat                   format,
+                                   const VkExtent3D&          extent,
+                                   const VkSubresourceLayout& subresource_layout,
+                                   VkDeviceSize               offset_to_subresource_data_start,
+                                   bool*                      pointer_texel_rectangle_block_coordinates,
+                                   uint32_t*                  pointer_x,
+                                   uint32_t*                  pointer_y,
+                                   uint32_t*                  pointer_z,
+                                   uint32_t*                  pointer_layer,
+                                   VkDeviceSize*              pointer_offset_in_texel_or_padding,
+                                   bool*                      pointer_padding_location,
+                                   VkDeviceSize*              pointer_current_row_left_size);
+
+bool GetOffsetFromTexelCoordinates(VkImageType         imageType,
+                                   uint32_t            arrayLayers,
+                                   VkFormat            format,
+                                   const VkExtent3D&   extent,
+                                   VkSubresourceLayout subresource_layout,
+                                   bool                compressed_texel_block_coordinates,
+                                   uint32_t            x,
+                                   uint32_t            y,
+                                   uint32_t            z,
+                                   uint32_t            layer,
+                                   VkDeviceSize        offset_in_texel_or_padding,
+                                   bool                padding_location,
+                                   VkDeviceSize*       offset_to_subresource_data_start);
+
+bool NextRowTexelCoordinates(VkImageType       imageType,
+                             uint32_t          arrayLayers,
+                             VkFormat          format,
+                             const VkExtent3D& extent,
+                             uint32_t&         y,
+                             uint32_t&         z,
+                             uint32_t&         layer);
 
 GFXRECON_END_NAMESPACE(gfxrecon)
 GFXRECON_END_NAMESPACE(encode)

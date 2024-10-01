@@ -1018,10 +1018,10 @@ void VulkanReplayDumpResourcesBase::OverrideCmdBindDescriptorSets(const ApiCallI
 
     for (uint32_t i = 0; i < descriptor_sets_count; ++i)
     {
-        const DescriptorSetInfo* desc_set_info = object_info_table_.GetDescriptorSetInfo(descriptor_sets_ids[i]);
-        assert(desc_set_info);
+        const DescriptorSetInfo* desc_set_info;
+        desc_set_info       = object_info_table_.GetDescriptorSetInfo(descriptor_sets_ids[i]);
         desc_set_infos[i]   = desc_set_info;
-        desc_set_handles[i] = desc_set_info->handle;
+        desc_set_handles[i] = (desc_set_info != nullptr) ? desc_set_info->handle : VK_NULL_HANDLE;
     }
 
     DrawCallsDumpingContext* dc_context = FindDrawCallCommandBufferContext(original_command_buffer);
@@ -1641,7 +1641,8 @@ void VulkanReplayDumpResourcesBase::OverrideCmdBeginRendering(
 
             ImageInfo*    depth_attachment;
             VkImageLayout depth_attachment_layout;
-            if (rendering_info_meta->pDepthAttachment != nullptr)
+            if (rendering_info_meta->pDepthAttachment != nullptr &&
+                rendering_info_meta->pDepthAttachment->GetMetaStructPointer() != nullptr)
             {
                 const auto depth_attachment_meta = rendering_info_meta->pDepthAttachment->GetMetaStructPointer();
                 const ImageViewInfo* img_view_info =
@@ -1749,7 +1750,6 @@ bool VulkanReplayDumpResourcesBase::MustDumpDispatch(VkCommandBuffer original_co
     assert(IsRecording(original_command_buffer));
 
     const DispatchTraceRaysDumpingContext* context = FindDispatchRaysCommandBufferContext(original_command_buffer);
-    assert(context);
 
     if (context != nullptr)
     {
@@ -1860,8 +1860,8 @@ VkResult VulkanReplayDumpResourcesBase::QueueSubmit(const std::vector<VkSubmitIn
             if (pre_submit)
             {
                 // These semaphores have already been handled. Do not bother with them
-                modified_submit_infos[s].waitSemaphoreCount = 0;
-                modified_submit_infos[s].pSignalSemaphores  = 0;
+                modified_submit_infos[s].waitSemaphoreCount   = 0;
+                modified_submit_infos[s].signalSemaphoreCount = 0;
             }
 
             DrawCallsDumpingContext*         dc_context = FindDrawCallCommandBufferContext(command_buffer_handles[o]);
@@ -2072,6 +2072,83 @@ void VulkanReplayDumpResourcesBase::ResetCommandBuffer(VkCommandBuffer original_
     if (dr_context != nullptr)
     {
         dr_context->Release();
+    }
+}
+
+void VulkanReplayDumpResourcesBase::DumpGraphicsPipelineInfos(
+    const StructPointerDecoder<Decoded_VkGraphicsPipelineCreateInfo>* pCreateInfos,
+    uint32_t                                                          createInfoCount,
+    HandlePointerDecoder<VkPipeline>*                                 pPipelines)
+{
+    const VkGraphicsPipelineCreateInfo*         in_p_create_infos = pCreateInfos->GetPointer();
+    const Decoded_VkGraphicsPipelineCreateInfo* create_info_meta  = pCreateInfos->GetMetaStructPointer();
+
+    for (uint32_t i = 0; i < createInfoCount; ++i)
+    {
+        PipelineInfo* pipeline_info = reinterpret_cast<PipelineInfo*>(pPipelines->GetConsumerData(i));
+
+        // Copy shader stage information
+        const Decoded_VkPipelineShaderStageCreateInfo* stages_info_meta =
+            create_info_meta[i].pStages->GetMetaStructPointer();
+        const size_t stages_count = create_info_meta->pStages->GetLength();
+
+        if (stages_info_meta != nullptr)
+        {
+            for (size_t s = 0; s < stages_count; ++s)
+            {
+                ShaderModuleInfo* module_info = object_info_table_.GetShaderModuleInfo(stages_info_meta[s].module);
+                assert(module_info);
+                assert(pipeline_info);
+
+                pipeline_info->shaders.insert({ pCreateInfos->GetPointer()->pStages[s].stage, *module_info });
+            }
+        }
+
+        // Copy vertex input state information
+        if (in_p_create_infos != nullptr && in_p_create_infos[i].pVertexInputState)
+        {
+            // Vertex binding info
+            for (uint32_t vb = 0; vb < in_p_create_infos[i].pVertexInputState->vertexBindingDescriptionCount; ++vb)
+            {
+                PipelineInfo::InputBindingDescription info{
+                    in_p_create_infos[i].pVertexInputState->pVertexBindingDescriptions[vb].stride,
+                    in_p_create_infos[i].pVertexInputState->pVertexBindingDescriptions[vb].inputRate
+                };
+
+                uint32_t binding = in_p_create_infos[i].pVertexInputState->pVertexBindingDescriptions[vb].binding;
+                pipeline_info->vertex_input_binding_map.emplace(binding, info);
+            }
+
+            // Vertex attribute info
+            for (uint32_t va = 0; va < in_p_create_infos[i].pVertexInputState->vertexAttributeDescriptionCount; ++va)
+            {
+                PipelineInfo::InputAttributeDescription info{
+                    in_p_create_infos[i].pVertexInputState->pVertexAttributeDescriptions[va].binding,
+                    in_p_create_infos[i].pVertexInputState->pVertexAttributeDescriptions[va].format,
+                    in_p_create_infos[i].pVertexInputState->pVertexAttributeDescriptions[va].offset
+                };
+
+                uint32_t location = in_p_create_infos[i].pVertexInputState->pVertexAttributeDescriptions[va].location;
+                pipeline_info->vertex_input_attribute_map.emplace(location, info);
+            }
+        }
+
+        // Dynamic state
+        if (in_p_create_infos != nullptr && in_p_create_infos[i].pDynamicState)
+        {
+            for (uint32_t ds = 0; ds < in_p_create_infos[i].pDynamicState->dynamicStateCount; ++ds)
+            {
+                if (in_p_create_infos[i].pDynamicState->pDynamicStates[ds] == VK_DYNAMIC_STATE_VERTEX_INPUT_EXT)
+                {
+                    pipeline_info->dynamic_vertex_input = true;
+                }
+                else if (in_p_create_infos[i].pDynamicState->pDynamicStates[ds] ==
+                         VK_DYNAMIC_STATE_VERTEX_INPUT_BINDING_STRIDE_EXT)
+                {
+                    pipeline_info->dynamic_vertex_binding_stride = true;
+                }
+            }
+        }
     }
 }
 

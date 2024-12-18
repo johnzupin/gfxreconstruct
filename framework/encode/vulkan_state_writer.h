@@ -38,7 +38,9 @@
 
 #include "vulkan/vulkan.h"
 
+#include <cstdint>
 #include <set>
+#include <unordered_map>
 #include <vector>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
@@ -47,18 +49,30 @@ GFXRECON_BEGIN_NAMESPACE(encode)
 class VulkanStateWriter
 {
   public:
-    VulkanStateWriter(util::FileOutputStream* output_stream, util::Compressor* compressor, format::ThreadId thread_id);
+    using AssetFileOffsetsInfo = std::unordered_map<uint64_t, int64_t>;
 
-    ~VulkanStateWriter();
+    VulkanStateWriter(util::FileOutputStream*                  output_stream,
+                      util::Compressor*                        compressor,
+                      format::ThreadId                         thread_id,
+                      std::function<format::HandleId()>        get_unique_id_fn,
+                      util::FileOutputStream*                  asset_file_stream  = nullptr,
+                      const std::string&                       asset_file_name    = "",
+                      VulkanStateWriter::AssetFileOffsetsInfo* asset_file_offsets = nullptr);
 
     // Returns number of blocks written to the output_stream.
     uint64_t WriteState(const VulkanStateTable& state_table, uint64_t frame_number);
+
+    uint64_t WriteAssets(const VulkanStateTable& state_table);
+
+    bool OutputStreamWrite(const void* data, size_t len);
+
+    void WriteFillMemoryCmd(format::HandleId memory_id, VkDeviceSize offset, VkDeviceSize size, const void* data);
 
   private:
     // Data structures for processing resource memory snapshots.
     struct BufferSnapshotInfo
     {
-        const vulkan_wrappers::BufferWrapper*       buffer_wrapper{ nullptr };
+        vulkan_wrappers::BufferWrapper*             buffer_wrapper{ nullptr };
         const vulkan_wrappers::DeviceMemoryWrapper* memory_wrapper{ nullptr };
         VkMemoryPropertyFlags                       memory_properties{};
         bool                                        need_staging_copy{ false };
@@ -66,7 +80,7 @@ class VulkanStateWriter
 
     struct ImageSnapshotInfo
     {
-        const vulkan_wrappers::ImageWrapper*        image_wrapper{ nullptr };
+        vulkan_wrappers::ImageWrapper*              image_wrapper{ nullptr };
         const vulkan_wrappers::DeviceMemoryWrapper* memory_wrapper{ nullptr };
         VkMemoryPropertyFlags                       memory_properties{};
         bool                                        need_staging_copy{ false };
@@ -128,6 +142,8 @@ class VulkanStateWriter
 
     void WriteDescriptorSetState(const VulkanStateTable& state_table);
 
+    void WriteDescriptorSetStateWithAssetFile(const VulkanStateTable& state_table);
+
     void WriteQueryPoolState(const VulkanStateTable& state_table);
 
     void WriteSurfaceKhrState(const VulkanStateTable& state_table);
@@ -136,37 +152,50 @@ class VulkanStateWriter
 
     void WriteBufferState(const VulkanStateTable& state_table);
 
+    void WriteBufferDeviceAddressState(const VulkanStateTable& state_table);
+
     void WriteDeviceMemoryState(const VulkanStateTable& state_table);
+
+    void WriteRayTracingPipelinePropertiesState(const VulkanStateTable& state_table);
+
+    void WriteRayTracingShaderGroupHandlesState(const VulkanStateTable& state_table);
 
     void WriteAccelerationStructureKHRState(const VulkanStateTable& state_table);
 
     void WriteDeferredOperationJoinCommand(format::HandleId device_id, format::HandleId deferred_operation_id);
 
-    void
-    ProcessHardwareBuffer(format::HandleId memory_id, AHardwareBuffer* hardware_buffer, VkDeviceSize allocation_size);
-
     void ProcessBufferMemory(const vulkan_wrappers::DeviceWrapper*  device_wrapper,
                              const std::vector<BufferSnapshotInfo>& buffer_snapshot_info,
                              graphics::VulkanResourcesUtil&         resource_util);
+
+    void ProcessBufferMemoryWithAssetFile(const vulkan_wrappers::DeviceWrapper*  device_wrapper,
+                                          const std::vector<BufferSnapshotInfo>& buffer_snapshot_info,
+                                          graphics::VulkanResourcesUtil&         resource_util);
 
     void ProcessImageMemory(const vulkan_wrappers::DeviceWrapper* device_wrapper,
                             const std::vector<ImageSnapshotInfo>& image_snapshot_info,
                             graphics::VulkanResourcesUtil&        resource_util);
 
+    void ProcessImageMemoryWithAssetFile(const vulkan_wrappers::DeviceWrapper* device_wrapper,
+                                         const std::vector<ImageSnapshotInfo>& image_snapshot_info,
+                                         graphics::VulkanResourcesUtil&        resource_util);
+
     void WriteBufferMemoryState(const VulkanStateTable& state_table,
                                 DeviceResourceTables*   resources,
                                 VkDeviceSize*           max_resource_size,
-                                VkDeviceSize*           max_staging_copy_size);
+                                VkDeviceSize*           max_staging_copy_size,
+                                bool                    write_memory_state);
 
     void WriteImageMemoryState(const VulkanStateTable& state_table,
                                DeviceResourceTables*   resources,
                                VkDeviceSize*           max_resource_size,
-                               VkDeviceSize*           max_staging_copy_size);
+                               VkDeviceSize*           max_staging_copy_size,
+                               bool                    write_memory_state);
 
     void WriteImageSubresourceLayouts(const vulkan_wrappers::ImageWrapper* image_wrapper,
                                       VkImageAspectFlags                   aspect_flags);
 
-    void WriteResourceMemoryState(const VulkanStateTable& state_table);
+    void WriteResourceMemoryState(const VulkanStateTable& state_table, bool write_memory_state);
 
     void WriteMappedMemoryState(const VulkanStateTable& state_table);
 
@@ -234,7 +263,8 @@ class VulkanStateWriter
 
     void WriteDescriptorUpdateCommand(format::HandleId                         device_id,
                                       const vulkan_state_info::DescriptorInfo* binding,
-                                      VkWriteDescriptorSet*                    write);
+                                      VkWriteDescriptorSet*                    write,
+                                      util::FileOutputStream*                  output_stream = nullptr);
 
     void WriteQueryPoolReset(format::HandleId                                             device_id,
                              const std::vector<const vulkan_wrappers::QueryPoolWrapper*>& query_pool_wrappers);
@@ -267,9 +297,9 @@ class VulkanStateWriter
                                       format::HandleId                object_id,
                                       const util::MemoryOutputStream* create_parameters);
 
-    void WriteFunctionCall(format::ApiCallId call_id, util::MemoryOutputStream* parameter_buffer);
-
-    void WriteFillMemoryCmd(format::HandleId memory_id, VkDeviceSize offset, VkDeviceSize size, const void* data);
+    void WriteFunctionCall(format::ApiCallId         call_id,
+                           util::MemoryOutputStream* parameter_buffer,
+                           util::FileOutputStream*   output_stream = nullptr);
 
     void WriteResizeWindowCmd(format::HandleId surface_id, uint32_t width, uint32_t height);
 
@@ -277,10 +307,6 @@ class VulkanStateWriter
                                uint32_t                      width,
                                uint32_t                      height,
                                VkSurfaceTransformFlagBitsKHR pre_transform);
-
-    void WriteCreateHardwareBufferCmd(format::HandleId                                    memory_id,
-                                      AHardwareBuffer*                                    hardware_buffer,
-                                      const std::vector<format::HardwareBufferPlaneInfo>& plane_info);
 
     void WriteSetDevicePropertiesCommand(format::HandleId                  physical_device_id,
                                          const VkPhysicalDeviceProperties& properties);
@@ -346,6 +372,49 @@ class VulkanStateWriter
 
     void WriteTlasToBlasDependenciesMetadata(const VulkanStateTable& state_table);
 
+    void WriteAccelerationStructureStateMetaCommands(const VulkanStateTable& state_table);
+
+    using AccelerationStructureBuildCommandData =
+        vulkan_wrappers::AccelerationStructureKHRWrapper::AccelerationStructureKHRBuildCommandData;
+
+    void WriteAccelerationStructureBuildState(const gfxrecon::format::HandleId&      device,
+                                              AccelerationStructureBuildCommandData& command);
+
+    void EncodeAccelerationStructureBuildMetaCommand(format::HandleId                             device_id,
+                                                     const AccelerationStructureBuildCommandData& command);
+
+    struct AccelerationStructureCopyCommandData
+    {
+        std::vector<VkCopyAccelerationStructureInfoKHR> infos;
+    };
+    void EncodeAccelerationStructureCopyMetaCommand(format::HandleId                            device_id,
+                                                    const AccelerationStructureCopyCommandData& command);
+
+    struct AccelerationStructureWritePropertiesCommandData
+    {
+        VkQueryType      query_type;
+        format::HandleId acceleration_structure;
+    };
+    void
+    EncodeAccelerationStructureWritePropertiesCommand(format::HandleId                                       device_id,
+                                                      const AccelerationStructureWritePropertiesCommandData& command);
+
+    void
+    WriteGetAccelerationStructureDeviceAddressKHRCall(const VulkanStateTable& state_table,
+                                                      const vulkan_wrappers::AccelerationStructureKHRWrapper* wrapper);
+
+    static void UpdateAddresses(AccelerationStructureBuildCommandData& command);
+
+    using ASInputBuffer = vulkan_wrappers::AccelerationStructureKHRWrapper::ASInputBuffer;
+    void BeginAccelerationStructuresSection(format::HandleId device_id, uint64_t max_resource_size);
+    void WriteASInputBufferState(ASInputBuffer& buffer);
+    void WriteASInputMemoryState(ASInputBuffer& buffer);
+    void InitializeASInputBuffer(ASInputBuffer& buffer);
+    void WriteDestroyASInputBuffer(ASInputBuffer& buffer);
+    void EndAccelerationStructureSection(format::HandleId device_id);
+
+    void WriteExecuteFromFile(const std::string& filename, uint32_t n_blocks, int64_t offset);
+
   private:
     util::FileOutputStream*  output_stream_;
     util::Compressor*        compressor_;
@@ -353,7 +422,14 @@ class VulkanStateWriter
     format::ThreadId         thread_id_;
     util::MemoryOutputStream parameter_stream_;
     ParameterEncoder         encoder_;
-    uint64_t                 blocks_written_;
+    uint64_t                 blocks_written_{ 0 };
+
+    // helper to retrieve a unique id, e.g. from a CaptureManager
+    std::function<format::HandleId()> get_unique_id_;
+
+    util::FileOutputStream* asset_file_stream_;
+    std::string             asset_file_name_;
+    AssetFileOffsetsInfo*   asset_file_offsets_;
 };
 
 GFXRECON_END_NAMESPACE(encode)

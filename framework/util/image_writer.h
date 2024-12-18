@@ -67,27 +67,42 @@ struct BmpInfoHeader
 enum DataFormats
 {
     kFormat_UNSPECIFIED = 0,
-    kFormat_R8,
     kFormat_RGB,
     kFormat_RGBA,
     kFormat_BGR,
-    kFormat_R16G16B16A16_SFLOAT,
-    kFormat_B10G11R11_UFLOAT,
     kFormat_BGRA,
-    kFormat_A2B10G10R10,
     kFormat_D32_FLOAT,
     kFormat_D24_UNORM,
     kFormat_D16_UNORM,
     kFormat_ASTC
 };
 
+constexpr bool DataFormatHasAlpha(DataFormats format)
+{
+    switch (format)
+    {
+        case kFormat_RGBA:
+        case kFormat_BGRA:
+            return true;
+
+        case kFormat_RGB:
+        case kFormat_BGR:
+        case kFormat_D32_FLOAT:
+        case kFormat_D24_UNORM:
+        case kFormat_D16_UNORM:
+        case kFormat_ASTC:
+            return false;
+
+        default:
+            assert(0);
+            return false;
+    }
+}
+
 constexpr size_t DataFormatsSizes(DataFormats format)
 {
     switch (format)
     {
-        case kFormat_R8:
-            return 1;
-
         case kFormat_D16_UNORM:
             return 2;
 
@@ -99,12 +114,7 @@ constexpr size_t DataFormatsSizes(DataFormats format)
         case kFormat_RGBA:
         case kFormat_BGRA:
         case kFormat_D32_FLOAT:
-        case kFormat_B10G11R11_UFLOAT:
-        case kFormat_A2B10G10R10:
             return 4;
-
-        case kFormat_R16G16B16A16_SFLOAT:
-            return 8;
 
         case kFormat_ASTC:
             GFXRECON_LOG_WARNING("%s(): Cannot calculate element size for ASTC.", __func__);
@@ -138,6 +148,14 @@ bool WriteBmpImage(const std::string& filename,
                    DataFormats        data_format = kFormat_BGRA,
                    bool               write_alpha = false);
 
+bool WriteBmpImageSeparateAlpha(const std::string& filename,
+                                uint32_t           width,
+                                uint32_t           height,
+                                uint64_t           data_size,
+                                const void*        data,
+                                uint32_t           pitch,
+                                DataFormats        data_format);
+
 bool WritePngImage(const std::string& filename,
                    uint32_t           width,
                    uint32_t           height,
@@ -146,6 +164,14 @@ bool WritePngImage(const std::string& filename,
                    uint32_t           pitch       = 0,
                    DataFormats        format      = kFormat_BGRA,
                    bool               write_alpha = false);
+
+bool WritePngImageSeparateAlpha(const std::string& filename,
+                                uint32_t           width,
+                                uint32_t           height,
+                                uint64_t           data_size,
+                                const void*        data,
+                                uint32_t           pitch,
+                                DataFormats        format);
 
 bool WriteAstcImage(const std::string& filename,
                     uint32_t           width,

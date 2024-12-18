@@ -21,6 +21,7 @@
 ** FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ** DEALINGS IN THE SOFTWARE.
 */
+#include <string>
 #include PROJECT_VERSION_HEADER_FILE
 #include "tool_settings.h"
 #include "decode/json_writer.h" /// @todo move to util?
@@ -46,7 +47,7 @@ using Dx12JsonConsumer =
 #endif
 const char kOptions[] = "-h|--help,--version,--no-debug-popup,--file-per-frame,--include-binaries,--expand-flags";
 
-const char kArguments[] = "--output,--format";
+const char kArguments[] = "--output,--format,--log-level";
 
 static void PrintUsage(const char* exe_name)
 {
@@ -161,6 +162,12 @@ int main(int argc, const char** argv)
     }
 #endif
 
+    // Reinitialize logging with values retrieved from command line arguments
+    gfxrecon::util::Log::Settings log_settings;
+    GetLogSettings(arg_parser, log_settings);
+    gfxrecon::util::Log::Release();
+    gfxrecon::util::Log::Init(log_settings);
+
     const auto& positional_arguments = arg_parser.GetPositionalArguments();
     std::string input_filename       = positional_arguments[0];
     JsonFormat  output_format        = GetOutputFormat(arg_parser);
@@ -173,6 +180,16 @@ int main(int argc, const char** argv)
     bool        file_per_frame       = arg_parser.IsOptionSet(kFilePerFrameOption);
     bool        output_to_stdout     = output_filename == "stdout";
 
+    bool   is_asset_file = false;
+    size_t last_dot_pos  = input_filename.find_last_of(".");
+    if (last_dot_pos != std::string::npos)
+    {
+        if (!input_filename.compare(last_dot_pos, 5, ".gfxa"))
+        {
+            is_asset_file = true;
+        }
+    }
+
     gfxrecon::decode::FileProcessor file_processor;
 
 #ifndef D3D12_SUPPORT
@@ -180,7 +197,7 @@ int main(int argc, const char** argv)
     bool detected_vulkan = false;
     gfxrecon::decode::DetectAPIs(input_filename, detected_d3d12, detected_vulkan);
 
-    if (!detected_vulkan)
+    if (!detected_vulkan && !is_asset_file)
     {
         GFXRECON_LOG_INFO("Capture file does not contain Vulkan content.  D3D12 content may be present but "
                           "gfxrecon-convert is not compiled with D3D12 support.");

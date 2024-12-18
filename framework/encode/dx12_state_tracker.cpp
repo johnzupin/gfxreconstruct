@@ -119,34 +119,46 @@ void Dx12StateTracker::TrackCommandExecution(ID3D12CommandList_Wrapper*      lis
 
     auto list_info = list_wrapper->GetObjectInfo();
 
-    if (call_id == format::ApiCallId::ApiCall_ID3D12GraphicsCommandList_Reset)
+    switch (call_id)
     {
-        list_info->was_reset = true;
-        list_info->is_closed = false;
+        case format::ApiCallId::ApiCall_ID3D12GraphicsCommandList_Reset:
+            list_info->was_reset = true;
+            list_info->is_closed = false;
 
-        // Clear command data on command buffer reset.
-        list_info->command_data.Clear();
+            // Clear command data on command buffer reset.
+            list_info->command_data.Clear();
 
-        // Clear pending resource transitions.
-        list_info->transition_barriers.clear();
+            // Clear pending resource transitions.
+            list_info->transition_barriers.clear();
 
-        list_info->command_cpu_descriptor_handles.clear();
-        list_info->command_gpu_descriptor_handles.clear();
-        list_info->command_gpu_virtual_addresses.clear();
+            list_info->command_cpu_descriptor_handles.clear();
+            list_info->command_gpu_descriptor_handles.clear();
+            list_info->command_gpu_virtual_addresses.clear();
+            list_info->draw_call_count                = 0;
+            list_info->find_target_draw_call_count    = 0;
+            list_info->target_bundle_commandlist_info = nullptr;
 
-        for (size_t i = 0; i < D3D12GraphicsCommandObjectType::NumObjectTypes; ++i)
-        {
-            list_info->command_objects[i].clear();
-        }
+            for (size_t i = 0; i < D3D12GraphicsCommandObjectType::NumObjectTypes; ++i)
+            {
+                list_info->command_objects[i].clear();
+            }
 
-        // Clear pending acceleration structure builds & copies.
-        list_info->acceleration_structure_builds.clear();
-        list_info->acceleration_structure_copies.clear();
-    }
-
-    if (call_id == format::ApiCallId::ApiCall_ID3D12GraphicsCommandList_Close)
-    {
-        list_info->is_closed = true;
+            // Clear pending acceleration structure builds & copies.
+            list_info->acceleration_structure_builds.clear();
+            list_info->acceleration_structure_copies.clear();
+            break;
+        case format::ApiCallId::ApiCall_ID3D12GraphicsCommandList_Close:
+            list_info->is_closed = true;
+            break;
+        case format::ApiCallId::ApiCall_ID3D12GraphicsCommandList_DrawInstanced:
+        case format::ApiCallId::ApiCall_ID3D12GraphicsCommandList_DrawIndexedInstanced:
+        case format::ApiCallId::ApiCall_ID3D12GraphicsCommandList_Dispatch:
+        case format::ApiCallId::ApiCall_ID3D12GraphicsCommandList_ExecuteIndirect:
+        case format::ApiCallId::ApiCall_ID3D12GraphicsCommandList_ExecuteBundle:
+            ++list_info->draw_call_count;
+            break;
+        default:
+            break;
     }
 
     // Append the command data.
@@ -437,13 +449,16 @@ void Dx12StateTracker::TrackCommandListCreation(ID3D12CommandList_Wrapper* list_
                                                 D3D12_COMMAND_LIST_TYPE    command_list_type,
                                                 ID3D12CommandAllocator*    pCommandAllocator)
 {
-    auto cmd_alloc_wrapper       = reinterpret_cast<ID3D12CommandAllocator_Wrapper*>(pCommandAllocator);
-
     auto list_info               = list_wrapper->GetObjectInfo();
     list_info->is_closed         = created_closed;
     list_info->command_list_type = command_list_type;
-    list_info->create_command_allocator_id   = GetDx12WrappedId(pCommandAllocator);
-    list_info->create_command_allocator_info = cmd_alloc_wrapper->GetObjectInfo();
+
+    if (pCommandAllocator != nullptr)
+    {
+        auto cmd_alloc_wrapper                   = reinterpret_cast<ID3D12CommandAllocator_Wrapper*>(pCommandAllocator);
+        list_info->create_command_allocator_id   = cmd_alloc_wrapper->GetCaptureId();
+        list_info->create_command_allocator_info = cmd_alloc_wrapper->GetObjectInfo();
+    }
 }
 
 void Dx12StateTracker::TrackDescriptorCreation(ID3D12Device_Wrapper*           create_object_wrapper,
@@ -1180,6 +1195,34 @@ Dx12StateTracker::CommitAccelerationStructureCopyInfo(DxAccelerationStructureCop
     inputs_data_resource = dest_build_info.input_data_resource;
 
     return CommitAccelerationStructureBuildInfo(dest_build_info);
+}
+
+void Dx12StateTracker::TrackSetColorSpace1(IDXGISwapChain_Wrapper* wrapper,
+                                           HRESULT                 result,
+                                           DXGI_COLOR_SPACE_TYPE   ColorSpace)
+{
+    GFXRECON_ASSERT(wrapper != nullptr);
+    auto wrapper_info = wrapper->GetObjectInfo();
+
+    wrapper_info->set_color_space  = true;
+    wrapper_info->color_space_type = ColorSpace;
+}
+
+void Dx12StateTracker::TrackSetHDRMetaData(
+    IDXGISwapChain_Wrapper* wrapper, HRESULT result, DXGI_HDR_METADATA_TYPE Type, UINT Size, void* pMetaData)
+{
+    GFXRECON_ASSERT(wrapper != nullptr);
+    auto wrapper_info = wrapper->GetObjectInfo();
+
+    wrapper_info->set_hdr_metadata  = true;
+    wrapper_info->hdr_metadata_type = Type;
+    wrapper_info->hdr_metadata_size = Size;
+
+    if (pMetaData != nullptr)
+    {
+        wrapper_info->hdr_metadata = new char[Size]();
+        memcpy(wrapper_info->hdr_metadata, pMetaData, Size);
+    }
 }
 
 #ifdef GFXRECON_AGS_SUPPORT

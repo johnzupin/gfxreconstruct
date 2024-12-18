@@ -117,28 +117,36 @@ class CommonCaptureManager
 
     void WriteFrameMarker(format::MarkerType marker_type);
 
-    void EndFrame(format::ApiFamilyId api_family);
+    void EndFrame(format::ApiFamilyId api_family, std::shared_lock<ApiCallMutexT>& current_lock);
 
     // Pre/PostQueueSubmit to be called immediately before and after work is submitted to the GPU by vkQueueSubmit for
     // Vulkan or by ID3D12CommandQueue::ExecuteCommandLists for DX12.
-    void PreQueueSubmit(format::ApiFamilyId api_family);
-    void PostQueueSubmit(format::ApiFamilyId api_family);
+    void PreQueueSubmit(format::ApiFamilyId api_family, std::shared_lock<ApiCallMutexT>& current_lock);
+    void PostQueueSubmit(format::ApiFamilyId api_family, std::shared_lock<ApiCallMutexT>& current_lock);
 
     bool ShouldTriggerScreenshot();
 
     util::ScreenshotFormat GetScreenshotFormat() { return screenshot_format_; }
 
-    void CheckContinueCaptureForWriteMode(format::ApiFamilyId api_family, uint32_t current_boundary_count);
+    void CheckContinueCaptureForWriteMode(format::ApiFamilyId              api_family,
+                                          uint32_t                         current_boundary_count,
+                                          std::shared_lock<ApiCallMutexT>& current_lock);
 
-    void CheckStartCaptureForTrackMode(format::ApiFamilyId api_family, uint32_t current_boundary_count);
+    void CheckStartCaptureForTrackMode(format::ApiFamilyId              api_family,
+                                       uint32_t                         current_boundary_count,
+                                       std::shared_lock<ApiCallMutexT>& current_lock);
+
+    void ActivateTrimmingDrawCalls(format::ApiFamilyId api_family, std::shared_lock<ApiCallMutexT>& current_lock);
+
+    void DeactivateTrimmingDrawCalls(std::shared_lock<ApiCallMutexT>& current_lock);
 
     bool IsTrimHotkeyPressed();
-
-    CaptureSettings::RuntimeTriggerState GetRuntimeTriggerState();
 
     bool RuntimeTriggerEnabled();
 
     bool RuntimeTriggerDisabled();
+
+    bool RuntimeWriteAssetsEnabled();
 
     void WriteDisplayMessageCmd(format::ApiFamilyId api_family, const char* message);
 
@@ -252,11 +260,15 @@ class CommonCaptureManager
     bool                                IsTrimEnabled() const { return trim_enabled_; }
     uint32_t                            GetCurrentFrame() const { return current_frame_; }
     CaptureMode                         GetCaptureMode() const { return capture_mode_; }
+    void                                SetCaptureMode(CaptureMode new_mode) { capture_mode_ = new_mode; }
     bool                                GetDebugLayerSetting() const { return debug_layer_; }
     bool                                GetDebugDeviceLostSetting() const { return debug_device_lost_; }
     bool                                GetDisableDxrSetting() const { return disable_dxr_; }
     auto                                GetAccelStructPaddingSetting() const { return accel_struct_padding_; }
     bool                                GetForceFifoPresentModeSetting() const { return force_fifo_present_mode_; }
+    auto                                GetTrimBoundary() const { return trim_boundary_; }
+    auto                                GetTrimDrawCalls() const { return trim_draw_calls_; }
+    auto                                GetQueueSubmitCount() const { return queue_submit_count_; }
 
     util::Compressor*      GetCompressor() { return compressor_.get(); }
     std::mutex&            GetMappedMemoryLock() { return mapped_memory_lock_; }
@@ -265,12 +277,17 @@ class CommonCaptureManager
     util::ScreenshotFormat GetScreenShotFormat() const { return screenshot_format_; }
 
     std::string CreateTrimFilename(const std::string& base_filename, const util::UintRange& trim_range);
+    std::string CreateTrimDrawCallsFilename(const std::string&                    base_filename,
+                                            const CaptureSettings::TrimDrawCalls& trim_draw_calls);
+    void        CreateAssetFile();
+    std::string CreateAssetFilename(const std::string& base_filename) const;
     bool        CreateCaptureFile(format::ApiFamilyId api_family, const std::string& base_filename);
     void        WriteCaptureOptions(std::string& operation_annotation);
-    void        ActivateTrimming();
-    void        DeactivateTrimming();
+    void        ActivateTrimming(std::shared_lock<ApiCallMutexT>& current_lock);
+    void        DeactivateTrimming(std::shared_lock<ApiCallMutexT>& current_lock);
 
-    void WriteFileHeader();
+    void WriteFileHeader(util::FileOutputStream* file_stream = nullptr);
+
     void BuildOptionList(const format::EnabledOptions&        enabled_options,
                          std::vector<format::FileOptionPair>* option_list);
 
@@ -286,10 +303,11 @@ class CommonCaptureManager
 
     void WriteCreateHeapAllocationCmd(format::ApiFamilyId api_family, uint64_t allocation_id, uint64_t allocation_size);
 
-    void WriteToFile(const void* data, size_t size);
+    void WriteToFile(const void* data, size_t size, util::FileOutputStream* file_stream = nullptr);
 
     template <size_t N>
-    void CombineAndWriteToFile(const std::pair<const void*, size_t> (&buffers)[N])
+    void CombineAndWriteToFile(const std::pair<const void*, size_t> (&buffers)[N],
+                               util::FileOutputStream* file_stream = nullptr)
     {
         static_assert(N != 1, "Use WriteToFile(void*, size) when writing a single buffer.");
 
@@ -303,7 +321,7 @@ class CommonCaptureManager
             scratch_buffer.insert(scratch_buffer.end(), data, data + size);
         }
 
-        WriteToFile(scratch_buffer.data(), scratch_buffer.size());
+        WriteToFile(scratch_buffer.data(), scratch_buffer.size(), file_stream);
     }
 
     void IncrementBlockIndex(uint64_t blocks)
@@ -311,6 +329,17 @@ class CommonCaptureManager
         block_index_ += blocks;
         GetThreadData()->block_index_ = block_index_;
     }
+
+    void SetWriteAssets() { write_assets_ = true; }
+
+    bool WriteFrameStateFile();
+
+  private:
+    void WriteExecuteFromFile(util::FileOutputStream& out_stream,
+                              const std::string&      filename,
+                              format::ThreadId        thread_id,
+                              uint32_t                n_blocks,
+                              int64_t                 offset);
 
   protected:
     std::unique_ptr<util::Compressor> compressor_;
@@ -344,8 +373,11 @@ class CommonCaptureManager
         capture_settings_; // Settings from the settings file and environment at capture manager creation time.
 
     std::unique_ptr<util::FileOutputStream> file_stream_;
+    std::unique_ptr<util::FileOutputStream> asset_file_stream_;
     format::EnabledOptions                  file_options_;
     std::string                             base_filename_;
+    std::string                             capture_filename_;
+    std::string                             asset_file_name_;
     bool                                    timestamp_filename_;
     bool                                    force_file_flush_;
     CaptureSettings::MemoryTrackingMode     memory_tracking_mode_;
@@ -361,6 +393,7 @@ class CommonCaptureManager
     bool                                    trim_enabled_;
     CaptureSettings::TrimBoundary           trim_boundary_;
     std::vector<util::UintRange>            trim_ranges_;
+    CaptureSettings::TrimDrawCalls          trim_draw_calls_;
     std::string                             trim_key_;
     uint32_t                                trim_key_frames_;
     uint32_t                                trim_key_first_frame_;
@@ -382,6 +415,10 @@ class CommonCaptureManager
     bool                                    allow_pipeline_compile_required_;
     bool                                    quit_after_frame_ranges_;
     bool                                    force_fifo_present_mode_;
+    bool                                    use_asset_file_;
+    bool                                    write_assets_;
+    bool                                    previous_write_assets_;
+    bool                                    write_state_files_;
 
     struct
     {

@@ -75,7 +75,7 @@ inline format::HandleId GetTempWrapperId<CommandPoolWrapper>(const VkCommandPool
 }
 
 template <typename Wrapper>
-format::HandleId GetWrappedId(const typename Wrapper::HandleType& handle)
+format::HandleId GetWrappedId(const typename Wrapper::HandleType& handle, bool log_warning = true)
 {
     if (handle == VK_NULL_HANDLE)
     {
@@ -90,27 +90,33 @@ format::HandleId GetWrappedId(const typename Wrapper::HandleType& handle)
     auto wrapper = state_handle_table_.GetWrapper<Wrapper>(handle);
     if (wrapper == nullptr)
     {
-        GFXRECON_LOG_WARNING("vulkan_wrappers::GetWrappedId() couldn't find Handle: %" PRIu64
-                             "'s wrapper. It might have been destroyed",
-                             handle);
+        if (log_warning)
+        {
+            GFXRECON_LOG_WARNING("vulkan_wrappers::GetWrappedId() couldn't find Handle: 0x%" PRIx64
+                                 "'s wrapper. It might have been destroyed",
+                                 handle);
+        }
         return format::kNullHandleId;
     }
     return wrapper->handle_id;
 }
 
 template <typename Wrapper>
-Wrapper* GetWrapper(const typename Wrapper::HandleType& handle)
+Wrapper* GetWrapper(const typename Wrapper::HandleType& handle, bool log_warning = true)
 {
     if (handle == VK_NULL_HANDLE)
     {
-        return 0;
+        return nullptr;
     }
     auto wrapper = state_handle_table_.GetWrapper<Wrapper>(handle);
     if (wrapper == nullptr)
     {
-        GFXRECON_LOG_WARNING("vulkan_wrappers::GetWrapper() couldn't find Handle: %" PRIu64
-                             "'s wrapper. It might have been destroyed",
-                             handle);
+        if (log_warning)
+        {
+            GFXRECON_LOG_WARNING("vulkan_wrappers::GetWrapper() couldn't find Handle: 0x%" PRIx64
+                                 "'s wrapper. It might have been destroyed",
+                                 handle);
+        }
     }
     return wrapper;
 }
@@ -325,6 +331,17 @@ inline void CreateWrappedHandle<DeviceWrapper, NoParentWrapper, QueueWrapper>(
         wrapper->layer_table_ref = &parent_wrapper->layer_table;
         parent_wrapper->child_queues.push_back(wrapper);
     }
+}
+
+template <>
+inline void CreateWrappedHandle<DeviceWrapper, NoParentWrapper, CommandPoolWrapper>(VkDevice device,
+                                                                                    NoParentWrapper::HandleType,
+                                                                                    VkCommandPool*  handle,
+                                                                                    PFN_GetHandleId get_id)
+{
+    CreateWrappedNonDispatchHandle<CommandPoolWrapper>(handle, get_id);
+    auto pool_wrapper    = GetWrapper<CommandPoolWrapper>(*handle);
+    pool_wrapper->device = GetWrapper<DeviceWrapper>(device);
 }
 
 template <>

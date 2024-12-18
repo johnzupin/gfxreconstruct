@@ -190,6 +190,11 @@ class ApiDecoder
 
     virtual void DispatchGetDx12RuntimeInfo(const format::Dx12RuntimeInfoCommandHeader& runtime_info_header){};
 
+    virtual void DispatchExecuteBlocksFromFile(format::ThreadId   thread_id,
+                                               uint32_t           n_blocks,
+                                               int64_t            offset,
+                                               const std::string& filename){};
+
     virtual void SetCurrentBlockIndex(uint64_t block_index){};
 
     virtual void SetCurrentApiCallId(format::ApiCallId api_call_id){};
@@ -199,6 +204,15 @@ class ApiDecoder
 
     virtual void DispatchSetEnvironmentVariablesCommand(format::SetEnvironmentVariablesCommand& header,
                                                         const char*                             env_string){};
+
+    virtual void DispatchVulkanAccelerationStructuresBuildMetaCommand(const uint8_t* parameter_buffer,
+                                                                      size_t         buffer_size){};
+
+    virtual void DispatchVulkanAccelerationStructuresCopyMetaCommand(const uint8_t* parameter_buffer,
+                                                                     size_t         buffer_size){};
+
+    virtual void DispatchVulkanAccelerationStructuresWritePropertiesMetaCommand(const uint8_t* parameter_buffer,
+                                                                                size_t         buffer_size){};
 };
 
 GFXRECON_END_NAMESPACE(decode)

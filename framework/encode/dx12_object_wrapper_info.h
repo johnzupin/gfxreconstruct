@@ -32,6 +32,7 @@
 
 #include <d3d12.h>
 #include <dxgi.h>
+#include <dxgi1_5.h>
 
 #include <array>
 #include <unordered_set>
@@ -45,6 +46,7 @@ struct IUnknown_Wrapper;
 class ID3D12Resource_Wrapper;
 class ID3D12Device_Wrapper;
 class ID3D12Heap_Wrapper;
+class IDXGISwapChain_Wrapper;
 
 struct GUID_Hash
 {
@@ -242,6 +244,14 @@ struct IDXGISwapChainInfo : public DxgiWrapperInfo
     uint32_t                         last_presented_image{ std::numeric_limits<uint32_t>::max() };
     std::vector<DxImageAcquiredInfo> image_acquired_info;
     DxResizeBuffersInfo              resize_info;
+
+    // HDR state
+    bool                   set_color_space{ false };
+    bool                   set_hdr_metadata{ false };
+    DXGI_COLOR_SPACE_TYPE  color_space_type{};
+    DXGI_HDR_METADATA_TYPE hdr_metadata_type{};
+    UINT                   hdr_metadata_size{ 0 };
+    void*                  hdr_metadata{ nullptr };
 };
 
 struct IDXGIDeviceInfo : public DxgiWrapperInfo
@@ -414,14 +424,16 @@ struct ID3D12ResourceInfo : public DxWrapperInfo
 
     ID3D12Heap_Wrapper* heap_wrapper{ nullptr };
     uint64_t            heap_offset;
+
+    IDXGISwapChain_Wrapper* swapchain_wrapper{ nullptr };
 };
 
 struct ID3D12HeapInfo : public DxWrapperInfo
 {
-    bool                    has_write_watch{ false };
-    D3D12_HEAP_TYPE         heap_type{};
-    D3D12_CPU_PAGE_PROPERTY page_property{};
-    D3D12_MEMORY_POOL       memory_pool{};
+    bool                      has_write_watch{ false };
+    D3D12_HEAP_TYPE           heap_type{};
+    D3D12_CPU_PAGE_PROPERTY   page_property{};
+    D3D12_MEMORY_POOL         memory_pool{};
     uint64_t                  heap_size{ 0 };
     D3D12_GPU_VIRTUAL_ADDRESS gpu_va{ 0 };
 
@@ -477,6 +489,14 @@ struct ID3D12CommandListInfo : public DxWrapperInfo
     // Track acceleration structure builds that are recorded to this command list.
     std::vector<DxAccelerationStructureBuildInfo> acceleration_structure_builds;
     std::vector<DxAccelerationStructureCopyInfo>  acceleration_structure_copies;
+
+    uint32_t draw_call_count{ 0 }; // DrawInstanced, DrawIndexedInstanced, Dispatch, ExecuteIndirect, ExecuteBundle
+
+    // GFXRECON_CAPTURE_DRAW_CALLS
+    std::array<graphics::dx12::CommandSet, 3>    split_command_sets;
+    bool                                         is_split_commandlist{ false };
+    uint32_t                                     find_target_draw_call_count{ 0 };
+    std::shared_ptr<const ID3D12CommandListInfo> target_bundle_commandlist_info{ false };
 };
 
 struct ID3D10BlobInfo : public DxWrapperInfo

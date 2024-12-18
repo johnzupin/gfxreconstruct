@@ -124,6 +124,9 @@ const char kPrintBlockInfoAllOption[]             = "--pbi-all";
 const char kPrintBlockInfosArgument[]             = "--pbis";
 const char kNumPipelineCreationJobs[]             = "--pipeline-creation-jobs";
 const char kPreloadMeasurementRangeOption[]       = "--preload-measurement-range";
+const char kSavePipelineCacheArgument[]           = "--save-pipeline-cache";
+const char kLoadPipelineCacheArgument[]           = "--load-pipeline-cache";
+const char kCreateNewPipelineCacheOption[]        = "--add-new-pipeline-caches";
 #if defined(WIN32)
 const char kDxTwoPassReplay[]             = "--dx12-two-pass-replay";
 const char kDxOverrideObjectNames[]       = "--dx12-override-object-names";
@@ -141,6 +144,8 @@ const char kDumpResourcesDumpVertexIndexBuffers[] = "--dump-resources-dump-verte
 const char kDumpResourcesJsonPerCommand[]         = "--dump-resources-json-output-per-command";
 const char kDumpResourcesDumpImmutableResources[] = "--dump-resources-dump-immutable-resources";
 const char kDumpResourcesDumpImageSubresources[]  = "--dump-resources-dump-all-image-subresources";
+const char kDumpResourcesDumpRawImages[]          = "--dump-resources-dump-raw-images";
+const char kDumpResourcesDumpSeparateAlpha[]      = "--dump-resources-dump-separate-alpha";
 
 enum class WsiPlatform
 {
@@ -420,6 +425,12 @@ static std::string GetWsiExtensionName(WsiPlatform wsi_platform)
         case WsiPlatform::kHeadless:
         {
             return VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME;
+        }
+#endif
+#if defined(VK_USE_PLATFORM_DISPLAY_KHR)
+        case WsiPlatform::kDisplay:
+        {
+            return VK_KHR_DISPLAY_EXTENSION_NAME;
         }
 #endif
         default:
@@ -1012,7 +1023,7 @@ GetVulkanReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parse
         replay_options.virtual_swapchain_skip_blit = true;
     }
 
-    replay_options.replace_dir = arg_parser.GetArgumentValue(kShaderReplaceArgument);
+    replay_options.replace_shader_dir = arg_parser.GetArgumentValue(kShaderReplaceArgument);
     replay_options.create_resource_allocator =
         GetCreateResourceAllocatorFunc(arg_parser, filename, replay_options, tracked_object_info_table);
 
@@ -1073,6 +1084,10 @@ GetVulkanReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parse
     {
         replay_options.wait_before_present = true;
     }
+    if (arg_parser.IsOptionSet(kPreloadMeasurementRangeOption))
+    {
+        replay_options.preload_measurement_range = true;
+    }
 
     replay_options.dump_resources              = arg_parser.GetArgumentValue(kDumpResourcesArgument);
     replay_options.dump_resources_before       = arg_parser.IsOptionSet(kDumpResourcesBeforeDrawOption);
@@ -1088,12 +1103,18 @@ GetVulkanReplayOptions(const gfxrecon::util::ArgumentParser&           arg_parse
         arg_parser.IsOptionSet(kDumpResourcesDumpImmutableResources);
     replay_options.dump_resources_dump_all_image_subresources =
         arg_parser.IsOptionSet(kDumpResourcesDumpImageSubresources);
+    replay_options.dump_resources_dump_raw_images     = arg_parser.IsOptionSet(kDumpResourcesDumpRawImages);
+    replay_options.dump_resources_dump_separate_alpha = arg_parser.IsOptionSet(kDumpResourcesDumpSeparateAlpha);
 
     std::string dr_color_att_idx = arg_parser.GetArgumentValue(kDumpResourcesColorAttIdxArg);
     if (!dr_color_att_idx.empty())
     {
         replay_options.dump_resources_color_attachment_index = std::stoi(dr_color_att_idx);
     }
+
+    replay_options.save_pipeline_cache_filename = arg_parser.GetArgumentValue(kSavePipelineCacheArgument);
+    replay_options.load_pipeline_cache_filename = arg_parser.GetArgumentValue(kLoadPipelineCacheArgument);
+    replay_options.add_new_pipeline_caches      = arg_parser.IsOptionSet(kCreateNewPipelineCacheOption);
 
     return replay_options;
 }
@@ -1139,12 +1160,14 @@ static gfxrecon::decode::DxReplayOptions GetDxReplayOptions(const gfxrecon::util
         std::vector<std::string> values = gfxrecon::util::strings::SplitString(dump_resources, ',');
         if (values.size() == 3)
         {
-            replay_options.dump_resources_target.submit_index   = std::stoi(values[0]);
-            replay_options.dump_resources_target.command_index  = std::stoi(values[1]);
-            replay_options.dump_resources_target.drawcall_index = std::stoi(values[2]);
-            replay_options.enable_dump_resources                = true;
+            replay_options.dump_resources_target.submit_index    = std::stoi(values[0]);
+            replay_options.dump_resources_target.command_index   = std::stoi(values[1]);
+            replay_options.dump_resources_target.draw_call_index = std::stoi(values[2]);
+            replay_options.enable_dump_resources                 = true;
         }
     }
+
+    replay_options.dump_resources_output_dir = GetDumpResourcesDir(arg_parser);
 
     const std::string& memory_usage = arg_parser.GetArgumentValue(kBatchingMemoryUsageArgument);
     if (!memory_usage.empty())

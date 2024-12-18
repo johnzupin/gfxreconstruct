@@ -24,6 +24,7 @@
 #include "image_writer.h"
 
 #include "platform.h"
+#include "util/file_path.h"
 #include "util/logging.h"
 
 #include <assert.h>
@@ -46,14 +47,14 @@
 // zlib compress2 function resulted in a 40+% reduction versus the original image.
 uint8_t* GFXRECON_zlib_compress2(uint8_t* data, int32_t data_len, int32_t* out_len, int32_t quality)
 {
-    unsigned long alloc_len = compressBound(data_len);
-    uint8_t*      target    = reinterpret_cast<uint8_t*>(malloc(alloc_len));
+    unsigned long alloc_len = compressBound(static_cast<uLong>(data_len));
+    auto*         target    = reinterpret_cast<uint8_t*>(malloc(alloc_len));
     if (nullptr != target)
     {
         unsigned long ret_len = alloc_len;
-        if (Z_OK == compress2(target, &ret_len, data, data_len, quality))
+        if (Z_OK == compress2(target, &ret_len, data, static_cast<uLong>(data_len), quality))
         {
-            *out_len = ret_len;
+            *out_len = static_cast<int32_t>(ret_len);
             return target;
         }
         free(target);
@@ -82,138 +83,8 @@ const uint32_t kImageBpp    = 4;  // Expecting 4 bytes per pixel for 32-bit BGRA
 const uint16_t kBmpBitCountNoAlpha = 24; // Expecting 24-bit BGR bitmap data.
 const uint32_t kImageBppNoAlpha    = 3;  // Expecting 3 bytes per pixel for 32-bit BGRA bitmap data; alpha removed.
 
-static std::unique_ptr<uint8_t[]> temporary_buffer;
-static size_t                     temporary_buffer_size = 0;
-
-// This function is a copy from Renderdoc sources
-inline float ConvertFromHalf(uint16_t comp)
-{
-    bool sign     = (comp & 0x8000) != 0;
-    int  exponent = (comp & 0x7C00) >> 10;
-    int  mantissa = comp & 0x03FF;
-
-    if (exponent == 0x00)
-    {
-        if (mantissa == 0)
-            return sign ? -0.0f : 0.0f;
-
-        // subnormal
-        float ret   = (float)mantissa;
-        int*  alias = (int*)&ret;
-
-        // set sign bit and set exponent to 2^-24
-        // (2^-14 from spec for subnormals * 2^-10 to convert (float)mantissa to 0.mantissa)
-        *alias = (sign ? 0x80000000 : 0) | (*alias - (24 << 23));
-
-        return ret;
-    }
-    else if (exponent < 0x1f)
-    {
-        exponent -= 15;
-
-        float ret   = 0.0f;
-        int*  alias = (int*)&ret;
-
-        // convert to float. Put sign bit in the right place, convert exponent to be
-        // [-128,127] and put in the right place, then shift mantissa up.
-        *alias = (sign ? 0x80000000 : 0) | (exponent + 127) << 23 | (mantissa << 13);
-
-        return ret;
-    }
-    else // if(exponent = 0x1f)
-    {
-        union
-        {
-            int   i;
-            float f;
-        } ret;
-
-        if (mantissa == 0)
-            ret.i = (sign ? 0x80000000 : 0) | 0x7F800000;
-        else
-            ret.i = 0x7F800001;
-
-        return ret.f;
-    }
-}
-
-// This function is a copy from Renderdoc sources
-static float Ufloat11ToFloat(uint16_t val)
-{
-    const uint32_t        mantissa = val & 0x3f;
-    const uint32_t        exponent = (val >> 6) & 0x1f;
-    static const uint32_t lead_bit = 0x40;
-
-    if (mantissa == 0 && exponent == 0)
-    {
-        return 0.0f;
-    }
-    else
-    {
-        if (exponent == 0x1f)
-        {
-            if (mantissa == 0)
-            {
-                // +inf
-                return std::numeric_limits<float>::max();
-            }
-            else
-            {
-                // NaN... I don't think we want a Nan in a pixel
-                return 0.0f;
-            }
-        }
-        else if (exponent != 0)
-        {
-            uint32_t combined = lead_bit | mantissa;
-            return (static_cast<float>(combined) / static_cast<float>(lead_bit)) *
-                   pow(2.0f, static_cast<float>(exponent) - 15.0f);
-        }
-        else /* if (exponent == 0) */
-        {
-            return static_cast<float>(mantissa) / static_cast<float>(lead_bit) * pow(2.0f, 1.0f - 15.0f);
-        }
-    }
-}
-
-// This function is a copy from Renderdoc sources
-static float Ufloat10ToFloat(uint16_t val)
-{
-    const uint32_t        mantissa = val & 0x1f;
-    const uint32_t        exponent = (val >> 5) & 0x1f;
-    static const uint32_t lead_bit = 0x20;
-
-    if (mantissa == 0 && exponent == 0)
-    {
-        return 0.0f;
-    }
-    else
-    {
-        if (exponent == 0x1f)
-        {
-            if (mantissa == 0)
-            {
-                // +inf
-                return std::numeric_limits<float>::max();
-            }
-            else
-            {
-                // NaN... I don't think we want a Nan in a pixel
-                return 0.0f;
-            }
-        }
-        else if (exponent != 0)
-        {
-            uint32_t combined = lead_bit | mantissa;
-            return (static_cast<float>(combined) / static_cast<float>(lead_bit)) *
-                   pow(2.0f, static_cast<float>(exponent) - 15.0f);
-        }
-        else /* if (exponent == 0) */
-        {
-            return static_cast<float>(mantissa) / static_cast<float>(lead_bit) * pow(2.0f, 1.0f - 15.0f);
-        }
-    }
-}
+static size_t               temporary_buffer_size = 0;
+static std::vector<uint8_t> temporary_buffer;
 
 #define CheckFwriteRetVal(_val_, _file_)                                                              \
     {                                                                                                 \
@@ -236,89 +107,23 @@ static const uint8_t* ConvertIntoTemporaryBuffer(uint32_t    width,
 {
     assert(data_pitch);
 
-    static std::unique_ptr<uint8_t[]> temporary_buffer;
-    static size_t                     temporary_buffer_size = 0;
-
     uint32_t output_pitch = width * (write_alpha ? kImageBpp : kImageBppNoAlpha);
     if (!is_png)
     {
-        output_pitch = util::platform::GetAlignedSize(output_pitch, 4);
+        output_pitch = static_cast<uint32_t>(util::platform::GetAlignedSize(output_pitch, 4));
     }
 
     const uint32_t output_size = height * output_pitch;
-    if (output_size > temporary_buffer_size)
+    if (temporary_buffer_size < output_size)
     {
         temporary_buffer_size = output_size;
-        temporary_buffer      = std::make_unique<uint8_t[]>(output_size);
+        temporary_buffer.resize(output_size);
     }
 
-    uint8_t* temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get());
+    uint8_t* temp_buffer = temporary_buffer.data();
 
     switch (format)
     {
-        case kFormat_R8:
-        {
-            const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
-
-            for (uint32_t y = 0; y < height; ++y)
-            {
-                for (uint32_t x = 0; x < width; ++x)
-                {
-                    const uint8_t r = bytes[x];
-
-                    *(temp_buffer++) = r;
-                    *(temp_buffer++) = r;
-                    *(temp_buffer++) = r;
-
-                    if (write_alpha)
-                    {
-                        *(temp_buffer++) = 0xff;
-                    }
-                }
-
-                bytes += data_pitch;
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
-            }
-        }
-        break;
-
-        case kFormat_RGB:
-        {
-            const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
-
-            for (uint32_t y = 0; y < height; ++y)
-            {
-                for (uint32_t x = 0; x < width; ++x)
-                {
-                    const uint8_t r = bytes[(3 * x) + 0];
-                    const uint8_t g = bytes[(3 * x) + 1];
-                    const uint8_t b = bytes[(3 * x) + 2];
-
-                    if (is_png)
-                    {
-                        *(temp_buffer++) = r;
-                        *(temp_buffer++) = g;
-                        *(temp_buffer++) = b;
-                    }
-                    else
-                    {
-                        *(temp_buffer++) = b;
-                        *(temp_buffer++) = g;
-                        *(temp_buffer++) = r;
-                    }
-
-                    if (write_alpha)
-                    {
-                        *(temp_buffer++) = 0xff;
-                    }
-                }
-
-                bytes += data_pitch;
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
-            }
-        }
-        break;
-
         case kFormat_RGBA:
         {
             const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
@@ -352,7 +157,7 @@ static const uint8_t* ConvertIntoTemporaryBuffer(uint32_t    width,
                 }
 
                 bytes += data_pitch;
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
+                temp_buffer = temporary_buffer.data() + (y + 1) * output_pitch;
             }
         }
         break;
@@ -389,7 +194,7 @@ static const uint8_t* ConvertIntoTemporaryBuffer(uint32_t    width,
                 }
 
                 bytes += data_pitch;
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
+                temp_buffer = temporary_buffer.data() + (y + 1) * output_pitch;
             }
         }
         break;
@@ -427,141 +232,7 @@ static const uint8_t* ConvertIntoTemporaryBuffer(uint32_t    width,
                 }
 
                 bytes += data_pitch;
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
-            }
-        }
-        break;
-
-        case kFormat_B10G11R11_UFLOAT:
-        {
-            const uint32_t* u32_vals = reinterpret_cast<const uint32_t*>(data);
-
-            for (uint32_t y = 0; y < height; ++y)
-            {
-                for (uint32_t x = 0; x < width; ++x)
-                {
-                    // clang-format off
-                    const float b = Ufloat10ToFloat(static_cast<uint16_t>((u32_vals[x] & (0xFFC00000)) >> 22));
-                    const float g = Ufloat11ToFloat(static_cast<uint16_t>((u32_vals[x] & (0x003FF800)) >> 11));
-                    const float r = Ufloat11ToFloat(static_cast<uint16_t>((u32_vals[x] & (0x000007FF)) >> 0));
-                    // clang-format on
-
-                    const uint8_t b_u8 = static_cast<uint8_t>(std::min(b, 1.0f) * 255.0f);
-                    const uint8_t g_u8 = static_cast<uint8_t>(std::min(g, 1.0f) * 255.0f);
-                    const uint8_t r_u8 = static_cast<uint8_t>(std::min(r, 1.0f) * 255.0f);
-
-                    if (is_png)
-                    {
-                        *(temp_buffer++) = r_u8;
-                        *(temp_buffer++) = g_u8;
-                        *(temp_buffer++) = b_u8;
-                    }
-                    else
-                    {
-                        *(temp_buffer++) = b_u8;
-                        *(temp_buffer++) = g_u8;
-                        *(temp_buffer++) = r_u8;
-                    }
-
-                    if (write_alpha)
-                    {
-                        *(temp_buffer++) = 0xff;
-                    }
-                }
-
-                u32_vals = reinterpret_cast<const uint32_t*>(reinterpret_cast<const uint8_t*>(u32_vals) + data_pitch);
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
-            }
-        }
-        break;
-
-        case kFormat_A2B10G10R10:
-        {
-            const uint32_t* u32_vals = reinterpret_cast<const uint32_t*>(data);
-
-            for (uint32_t y = 0; y < height; ++y)
-            {
-                for (uint32_t x = 0; x < width; ++x)
-                {
-                    uint8_t a = static_cast<uint8_t>((u32_vals[x] & 0xC0000000) >> 30);
-                    uint8_t b = static_cast<uint8_t>((u32_vals[x] & 0x3FF00000) >> 20);
-                    uint8_t g = static_cast<uint8_t>((u32_vals[x] & 0x000FFC00) >> 10);
-                    uint8_t r = static_cast<uint8_t>((u32_vals[x] & 0x000003FF) >> 0);
-
-                    r = static_cast<uint8_t>(static_cast<float>(r) / 1023.0f * 255.0f);
-                    g = static_cast<uint8_t>(static_cast<float>(g) / 1023.0f * 255.0f);
-                    b = static_cast<uint8_t>(static_cast<float>(b) / 1023.0f * 255.0f);
-                    a = static_cast<uint8_t>(static_cast<float>(a) / 3.0f * 255.0f);
-
-                    if (is_png)
-                    {
-                        *(temp_buffer++) = r;
-                        *(temp_buffer++) = g;
-                        *(temp_buffer++) = b;
-                    }
-                    else
-                    {
-                        *(temp_buffer++) = b;
-                        *(temp_buffer++) = g;
-                        *(temp_buffer++) = r;
-                    }
-
-                    if (write_alpha)
-                    {
-                        *(temp_buffer++) = a;
-                    }
-                }
-
-                u32_vals = reinterpret_cast<const uint32_t*>(reinterpret_cast<const uint8_t*>(u32_vals) + data_pitch);
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
-            }
-        }
-        break;
-
-        case kFormat_R16G16B16A16_SFLOAT:
-        {
-            const uint64_t* u64_vals = reinterpret_cast<const uint64_t*>(data);
-
-            for (uint32_t y = 0; y < height; ++y)
-            {
-                for (uint32_t x = 0; x < width; ++x)
-                {
-                    uint16_t a_u16 = static_cast<uint16_t>((u64_vals[x] & 0xFFFF000000000000ULL) >> 48);
-                    uint16_t b_u16 = static_cast<uint16_t>((u64_vals[x] & 0x0000FFFF00000000ULL) >> 32);
-                    uint16_t g_u16 = static_cast<uint16_t>((u64_vals[x] & 0x00000000FFFF0000ULL) >> 16);
-                    uint16_t r_u16 = static_cast<uint16_t>((u64_vals[x] & 0x000000000000FFFFULL) >> 0);
-
-                    float r_f = ConvertFromHalf(r_u16);
-                    float g_f = ConvertFromHalf(g_u16);
-                    float b_f = ConvertFromHalf(b_u16);
-                    float a_f = ConvertFromHalf(a_u16);
-
-                    uint8_t r = static_cast<uint8_t>(r_f * 255.0f);
-                    uint8_t g = static_cast<uint8_t>(g_f * 255.0f);
-                    uint8_t b = static_cast<uint8_t>(b_f * 255.0f);
-                    uint8_t a = static_cast<uint8_t>(a_f * 255.0f);
-
-                    if (is_png)
-                    {
-                        *(temp_buffer++) = r;
-                        *(temp_buffer++) = g;
-                        *(temp_buffer++) = b;
-                    }
-                    else
-                    {
-                        *(temp_buffer++) = b;
-                        *(temp_buffer++) = g;
-                        *(temp_buffer++) = r;
-                    }
-
-                    if (write_alpha)
-                    {
-                        *(temp_buffer++) = a;
-                    }
-                }
-
-                u64_vals = reinterpret_cast<const uint64_t*>(reinterpret_cast<const uint8_t*>(u64_vals) + data_pitch);
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
+                temp_buffer = temporary_buffer.data() + (y + 1) * output_pitch;
             }
         }
         break;
@@ -588,7 +259,7 @@ static const uint8_t* ConvertIntoTemporaryBuffer(uint32_t    width,
                 }
 
                 floats      = reinterpret_cast<const float*>(reinterpret_cast<const uint8_t*>(floats) + data_pitch);
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
+                temp_buffer = temporary_buffer.data() + (y + 1) * output_pitch;
             }
         }
         break;
@@ -616,7 +287,7 @@ static const uint8_t* ConvertIntoTemporaryBuffer(uint32_t    width,
                 }
 
                 bytes_u32 = reinterpret_cast<const uint32_t*>(reinterpret_cast<const uint8_t*>(bytes_u32) + data_pitch);
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
+                temp_buffer = temporary_buffer.data() + (y + 1) * output_pitch;
             }
         }
         break;
@@ -644,7 +315,7 @@ static const uint8_t* ConvertIntoTemporaryBuffer(uint32_t    width,
                 }
 
                 bytes_u16 = reinterpret_cast<const uint16_t*>(reinterpret_cast<const uint8_t*>(bytes_u16) + data_pitch);
-                temp_buffer = reinterpret_cast<uint8_t*>(temporary_buffer.get()) + (y + 1) * output_pitch;
+                temp_buffer = temporary_buffer.data() + (y + 1) * output_pitch;
             }
         }
         break;
@@ -655,7 +326,80 @@ static const uint8_t* ConvertIntoTemporaryBuffer(uint32_t    width,
             return nullptr;
     }
 
-    return reinterpret_cast<const uint8_t*>(temporary_buffer.get());
+    return reinterpret_cast<const uint8_t*>(temporary_buffer.data());
+}
+
+static uint8_t*
+ExtractAlphaChannel(uint32_t width, uint32_t height, const void* data, uint32_t data_pitch, bool expand_to_rgb)
+{
+    const size_t output_size = width * height * (expand_to_rgb ? kImageBppNoAlpha : 1);
+    if (temporary_buffer_size < output_size)
+    {
+        temporary_buffer_size = output_size;
+        temporary_buffer.resize(output_size);
+    }
+
+    const uint32_t* pixels      = reinterpret_cast<const uint32_t*>(data);
+    uint8_t*        temp_buffer = temporary_buffer.data();
+
+    for (uint32_t y = 0; y < height; ++y)
+    {
+        for (uint32_t x = 0; x < width; ++x)
+        {
+            const auto alpha = static_cast<uint8_t>((pixels[x] & 0xff000000) >> 24);
+
+            *(temp_buffer++) = alpha;
+
+            if (expand_to_rgb)
+            {
+                *(temp_buffer++) = alpha;
+                *(temp_buffer++) = alpha;
+            }
+        }
+
+        pixels = reinterpret_cast<const uint32_t*>(reinterpret_cast<const uint8_t*>(pixels) + data_pitch);
+    }
+
+    return temporary_buffer.data();
+}
+
+static bool WriteBmpHeader(FILE* file, uint32_t width, uint32_t height, bool write_alpha)
+{
+    assert(file);
+
+    // BMP image data requires row to be a multiple of 4 bytes
+    // Round-up row size to next multiple of 4, if it isn't already
+    const uint32_t bmp_pitch =
+        static_cast<uint32_t>(util::platform::GetAlignedSize(width * (write_alpha ? kImageBpp : kImageBppNoAlpha), 4));
+
+    BmpFileHeader file_header;
+    BmpInfoHeader info_header;
+
+    file_header.type      = ('M' << 8) | 'B';
+    file_header.reserved1 = 0;
+    file_header.reserved2 = 0;
+    file_header.off_bits  = sizeof(file_header) + sizeof(info_header);
+    file_header.size      = (height * bmp_pitch) + file_header.off_bits;
+
+    info_header.size             = sizeof(info_header);
+    info_header.width            = static_cast<int32_t>(width);
+    info_header.height           = static_cast<int32_t>(height);
+    info_header.planes           = 1;
+    info_header.bit_count        = write_alpha ? kBmpBitCount : kBmpBitCountNoAlpha;
+    info_header.compression      = 0;
+    info_header.size_image       = 0;
+    info_header.x_pels_per_meter = 0;
+    info_header.y_pels_per_meter = 0;
+    info_header.clr_used         = 0;
+    info_header.clr_important    = 0;
+
+    bool ret = util::platform::FileWrite(&file_header, sizeof(file_header), file);
+    CheckFwriteRetVal(ret, file);
+
+    ret = util::platform::FileWrite(&info_header, sizeof(info_header), file);
+    CheckFwriteRetVal(ret, file);
+
+    return true;
 }
 
 bool WriteBmpImage(const std::string& filename,
@@ -669,74 +413,52 @@ bool WriteBmpImage(const std::string& filename,
 {
     GFXRECON_LOG_INFO("%s(): Writing file \"%s\"", __func__, filename.c_str())
 
+    if (data_pitch == 0)
+    {
+        data_pitch = static_cast<uint32_t>(width * DataFormatsSizes(format));
+        if (data_pitch == 0)
+        {
+            GFXRECON_LOG_ERROR("%s() Failed writing file (data_pitch == 0)", __func__);
+            return false;
+        }
+    }
+
     bool    success = false;
     FILE*   file    = nullptr;
     int32_t result  = util::platform::FileOpen(&file, filename.c_str(), "wb");
 
     if ((result == 0) && (file != nullptr))
     {
-        if (data_pitch == 0)
+        success = WriteBmpHeader(file, width, height, write_alpha);
+        if (!success)
         {
-            data_pitch = width * DataFormatsSizes(format);
-
-            if (!data_pitch)
-            {
-                return false;
-            }
+            GFXRECON_LOG_ERROR("%s() Failed writing file", __func__);
+            return false;
         }
-
-        // BMP image data requires row to be a multiple of 4 bytes
-        // Round-up row size to next multiple of 4, if it isn't already
-        const uint32_t bmp_pitch =
-            util::platform::GetAlignedSize(width * (write_alpha ? kImageBpp : kImageBppNoAlpha), 4);
-
-        BmpFileHeader file_header;
-        BmpInfoHeader info_header;
-
-        file_header.type      = ('M' << 8) | 'B';
-        file_header.reserved1 = 0;
-        file_header.reserved2 = 0;
-        file_header.off_bits  = sizeof(file_header) + sizeof(info_header);
-        file_header.size      = (height * bmp_pitch) + file_header.off_bits;
-
-        info_header.size             = sizeof(info_header);
-        info_header.width            = width;
-        info_header.height           = height;
-        info_header.planes           = 1;
-        info_header.bit_count        = write_alpha ? kBmpBitCount : kBmpBitCountNoAlpha;
-        info_header.compression      = 0;
-        info_header.size_image       = 0;
-        info_header.x_pels_per_meter = 0;
-        info_header.y_pels_per_meter = 0;
-        info_header.clr_used         = 0;
-        info_header.clr_important    = 0;
-
-        bool ret = util::platform::FileWrite(&file_header, sizeof(file_header), file);
-        CheckFwriteRetVal(ret, file);
-
-        ret = util::platform::FileWrite(&info_header, sizeof(info_header), file);
-        CheckFwriteRetVal(ret, file);
 
         // Y needs to be inverted when writing the bitmap data.
         auto height_1 = height - 1;
 
         if ((format == kFormat_BGR && !write_alpha) || (format == kFormat_BGRA && write_alpha))
         {
+            const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
             for (uint32_t y = 0; y < height; ++y)
             {
-                const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
-                ret                  = util::platform::FileWrite(&bytes[(height_1 - y) * data_pitch], data_pitch, file);
-                CheckFwriteRetVal(ret, file);
+                success = util::platform::FileWrite(&bytes[(height_1 - y) * data_pitch], data_pitch, file);
+                CheckFwriteRetVal(success, file);
             }
         }
         else
         {
+            const uint32_t bmp_pitch = static_cast<uint32_t>(
+                util::platform::GetAlignedSize(width * (write_alpha ? kImageBpp : kImageBppNoAlpha), 4));
+
             const uint8_t* bytes =
                 ConvertIntoTemporaryBuffer(width, height, data, data_pitch, format, false, write_alpha);
             for (uint32_t y = 0; y < height; ++y)
             {
-                ret = util::platform::FileWrite(&bytes[(height_1 - y) * bmp_pitch], bmp_pitch, file);
-                CheckFwriteRetVal(ret, file);
+                success = util::platform::FileWrite(&bytes[(height_1 - y) * bmp_pitch], bmp_pitch, file);
+                CheckFwriteRetVal(success, file);
             }
         }
 
@@ -755,6 +477,36 @@ bool WriteBmpImage(const std::string& filename,
     return success;
 }
 
+bool WriteBmpImageSeparateAlpha(const std::string& filename,
+                                uint32_t           width,
+                                uint32_t           height,
+                                uint64_t           data_size,
+                                const void*        data,
+                                uint32_t           data_pitch,
+                                DataFormats        data_format)
+{
+    bool success = WriteBmpImage(filename, width, height, data_size, data, data_pitch, data_format, false);
+
+    if (success && DataFormatHasAlpha(data_format))
+    {
+        const uint8_t*    alpha_channel    = ExtractAlphaChannel(width, height, data, data_pitch, true);
+        const std::string alpha_filename   = util::filepath::InsertFilenamePostfix(filename, "_alpha");
+        const size_t      alpha_pitch      = width * kImageBppNoAlpha;
+        const size_t      alpha_image_size = alpha_pitch * height;
+        const DataFormats alpha_format     = data_format == kFormat_BGRA ? kFormat_BGR : kFormat_RGB;
+        success                            = WriteBmpImage(alpha_filename,
+                                width,
+                                height,
+                                alpha_image_size,
+                                alpha_channel,
+                                static_cast<uint32_t>(alpha_pitch),
+                                alpha_format,
+                                false);
+    }
+
+    return success;
+}
+
 bool WritePngImage(const std::string& filename,
                    uint32_t           width,
                    uint32_t           height,
@@ -764,18 +516,17 @@ bool WritePngImage(const std::string& filename,
                    DataFormats        format,
                    bool               write_alpha)
 {
-    GFXRECON_UNREFERENCED_PARAMETER(format);
-
     bool success = false;
 
 #ifdef GFXRECON_ENABLE_PNG_SCREENSHOT
     GFXRECON_LOG_INFO("%s(): Writing file \"%s\"", __func__, filename.c_str())
 
-    if (!data_pitch)
+    if (data_pitch == 0)
     {
-        data_pitch = width * DataFormatsSizes(format);
-        if (!data_pitch)
+        data_pitch = static_cast<uint32_t>(width * DataFormatsSizes(format));
+        if (data_pitch == 0)
         {
+            GFXRECON_LOG_ERROR("%s() Failed writing file (data_pitch == 0)", __func__);
             return false;
         }
     }
@@ -785,8 +536,12 @@ bool WritePngImage(const std::string& filename,
     stbi_write_png_compression_level = 4;
     const uint32_t png_row_pitch     = width * (write_alpha ? kImageBpp : kImageBppNoAlpha);
 
-    if (1 == stbi_write_png(
-                 filename.c_str(), width, height, write_alpha ? kImageBpp : kImageBppNoAlpha, bytes, png_row_pitch))
+    if (1 == stbi_write_png(filename.c_str(),
+                            static_cast<int>(width),
+                            static_cast<int>(height),
+                            static_cast<int>(write_alpha ? kImageBpp : kImageBppNoAlpha),
+                            bytes,
+                            (int)png_row_pitch))
     {
         success = true;
     }
@@ -795,6 +550,36 @@ bool WritePngImage(const std::string& filename,
         GFXRECON_LOG_ERROR("%s() Failed writing file", __func__);
     }
 #endif
+
+    return success;
+}
+
+bool WritePngImageSeparateAlpha(const std::string& filename,
+                                uint32_t           width,
+                                uint32_t           height,
+                                uint64_t           data_size,
+                                const void*        data,
+                                uint32_t           data_pitch,
+                                DataFormats        format)
+{
+    bool success = WritePngImage(filename, width, height, data_size, data, data_pitch, format, false);
+    if (success && DataFormatHasAlpha(format))
+    {
+        const std::string alpha_filename = util::filepath::InsertFilenamePostfix(filename, "_alpha");
+        const uint8_t*    alpha_channel  = ExtractAlphaChannel(width, height, data, data_pitch, false);
+        const size_t      alpha_pitch    = width;
+        success                          = stbi_write_png(alpha_filename.c_str(),
+                                 static_cast<int>(width),
+                                 static_cast<int>(height),
+                                 1,
+                                 alpha_channel,
+                                 static_cast<int>(alpha_pitch));
+
+        if (!success)
+        {
+            GFXRECON_LOG_ERROR("%s() Failed writing file %s", __func__, alpha_filename.c_str());
+        }
+    }
 
     return success;
 }

@@ -36,7 +36,8 @@ GFXRECON_BEGIN_NAMESPACE(encode)
 
 Dx12StateWriter::Dx12StateWriter(util::FileOutputStream* output_stream,
                                  util::Compressor*       compressor,
-                                 format::ThreadId        thread_id) :
+                                 format::ThreadId        thread_id,
+                                 util::FileOutputStream* asset_file_stream) :
     output_stream_(output_stream),
     compressor_(compressor), thread_id_(thread_id), encoder_(&parameter_stream_)
 {
@@ -621,7 +622,11 @@ void Dx12StateWriter::WriteResourceCreationState(
             GFXRECON_LOG_DEBUG_ONCE(
                 "Skipping resource data capture for ray tracing acceleration structure resource(s).");
         }
-        else if (!resource_info->is_swapchain_buffer) // swapchain buffer state is handled separately.
+        // Writting swapchain buffer could cause extra Present during replay. It might cause different frame count.
+        // So only write swapchain buffer in TrimBoundary::kDrawCalls case.
+        // TrimBoundary::kDrawCalls needs initial render targets,
+        else if (!resource_info->is_swapchain_buffer ||
+                 D3D12CaptureManager::Get()->GetTrimBoundary() == CaptureSettings::TrimBoundary::kDrawCalls)
         {
             // Store resource wrappers and max resource sizes.
             ResourceSnapshotInfo snapshot_info;
@@ -787,6 +792,13 @@ void Dx12StateWriter::WriteResourceSnapshot(graphics::Dx12ResourceDataUtil* reso
 
     bool try_map_and_copy = !is_reserved_resouce && !is_texture_with_unknown_layout;
 
+    graphics::dx12::ID3D12CommandQueueComPtr queue = nullptr;
+    if (resource_info->swapchain_wrapper)
+    {
+        // Needs swapchain's queue to write its buffer.
+        auto swapchain_info = resource_info->swapchain_wrapper->GetObjectInfo();
+        queue = swapchain_info->command_queue;
+    }
     // Read the data from the resource.
     HRESULT result = resource_data_util->ReadFromResource(resource,
                                                           try_map_and_copy,
@@ -794,7 +806,9 @@ void Dx12StateWriter::WriteResourceSnapshot(graphics::Dx12ResourceDataUtil* reso
                                                           resource_info->subresource_transitions,
                                                           temp_subresource_data_,
                                                           temp_subresource_offsets_,
-                                                          temp_subresource_sizes_);
+                                                          temp_subresource_sizes_,
+                                                          nullptr,
+                                                          queue);
 
     if (SUCCEEDED(result))
     {
@@ -1295,6 +1309,30 @@ void Dx12StateWriter::WriteSwapChainState(const Dx12StateTable& state_table)
 
         // Write swapchain creation call.
         StandardCreateWrite(swapchain_wrapper);
+
+        // Write swapchain set color space for HDR
+        if (swapchain_info->set_color_space)
+        {
+            encoder_.EncodeEnumValue(swapchain_info->color_space_type);
+            encoder_.EncodeInt32Value(S_OK);
+            WriteMethodCall(format::ApiCallId::ApiCall_IDXGISwapChain3_SetColorSpace1,
+                            swapchain_wrapper->GetCaptureId(),
+                            &parameter_stream_);
+            parameter_stream_.Clear();
+        }
+
+        // Write swapchain set hdr metadata for HDR
+        if (swapchain_info->set_hdr_metadata)
+        {
+            encoder_.EncodeEnumValue(swapchain_info->hdr_metadata_type);
+            encoder_.EncodeUInt32Value(swapchain_info->hdr_metadata_size);
+            encoder_.EncodeVoidArray(swapchain_info->hdr_metadata, swapchain_info->hdr_metadata_size);
+            encoder_.EncodeInt32Value(S_OK);
+            WriteMethodCall(format::ApiCallId::ApiCall_IDXGISwapChain4_SetHDRMetaData,
+                            swapchain_wrapper->GetCaptureId(),
+                            &parameter_stream_);
+            parameter_stream_.Clear();
+        }
 
         // Write call to resize the swapchain buffers.
         if (swapchain_info->resize_info.call_id != format::ApiCall_Unknown)

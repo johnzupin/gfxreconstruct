@@ -74,9 +74,19 @@ class CaptureSettings
         kUnknown,
         kFrames,
         kQueueSubmits,
+        kDrawCalls,
     };
 
     const static char kDefaultCaptureFileName[];
+
+    struct TrimDrawCalls
+    {
+        // 0-based
+        uint32_t        submit_index{ 0 };
+        uint32_t        command_index{ 0 };
+        util::UintRange draw_call_indices;
+        util::UintRange bundle_draw_call_indices;
+    };
 
     struct ResourveValueAnnotationInfo
     {
@@ -99,9 +109,11 @@ class CaptureSettings
         util::ScreenshotFormat       screenshot_format;
         TrimBoundary                 trim_boundary{ TrimBoundary::kUnknown };
         std::vector<util::UintRange> trim_ranges;
+        TrimDrawCalls                trim_draw_calls;
         std::string                  trim_key;
         uint32_t                     trim_key_frames{ 0 };
         RuntimeTriggerState          runtime_capture_trigger{ kNotUsed };
+        bool                         runtime_write_assets{ false };
         int                          page_guard_signal_handler_watcher_max_restores{ 1 };
         bool                         page_guard_copy_on_map{ util::PageGuardManager::kDefaultEnableCopyOnMap };
         bool                         page_guard_separate_read{ util::PageGuardManager::kDefaultEnableSeparateRead };
@@ -119,6 +131,7 @@ class CaptureSettings
         bool                         allow_pipeline_compile_required{ false };
         bool                         quit_after_frame_ranges{ false };
         bool                         force_fifo_present_mode{ true };
+        bool                         use_asset_file{ false };
 
         // An optimization for the page_guard memory tracking mode that eliminates the need for shadow memory by
         // overriding vkAllocateMemory so that all host visible allocations use the external memory extension with a
@@ -185,8 +198,11 @@ class CaptureSettings
 
     static util::Log::Severity ParseLogLevelString(const std::string& value_string, util::Log::Severity default_value);
 
-    static void
-    ParseUintRangeList(const std::string& value_string, std::vector<util::UintRange>* frames, const char* option_name);
+    static void ParseUintRangeList(const std::string&            value_string,
+                                   std::vector<util::UintRange>* frames,
+                                   const char*                   option_name,
+                                   bool                          check_overlap_range = true,
+                                   bool                          allow_zero          = false);
 
     static std::string ParseTrimKeyString(const std::string& value_string);
 

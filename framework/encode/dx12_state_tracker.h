@@ -24,7 +24,9 @@
 #ifndef GFXRECON_ENCODE_DX12_STATE_TRACKER_H
 #define GFXRECON_ENCODE_DX12_STATE_TRACKER_H
 
+#ifdef GFXRECON_AGS_SUPPORT
 #include "encode/custom_ags_state_table.h"
+#endif // GFXRECON_AGS_SUPPORT
 #include "encode/dx12_state_tracker_initializers.h"
 #include "encode/dx12_state_writer.h"
 #include "generated/generated_dx12_state_table.h"
@@ -219,6 +221,11 @@ class Dx12StateTracker
                                   const util::MemoryOutputStream*      parameter_buffer);
 
     bool IsAccelerationStructureResource(format::HandleId id);
+
+    void TrackSetColorSpace1(IDXGISwapChain_Wrapper* wrapper, HRESULT result, DXGI_COLOR_SPACE_TYPE ColorSpace);
+
+    void TrackSetHDRMetaData(
+        IDXGISwapChain_Wrapper* wrapper, HRESULT result, DXGI_HDR_METADATA_TYPE Type, UINT Size, void* pMetaData);
 
 #ifdef GFXRECON_AGS_SUPPORT
     void

@@ -28,6 +28,7 @@
 #include "generated/generated_vulkan_dispatch_table.h"
 
 #include "vulkan/vulkan.h"
+#include "vulkan/vulkan_core.h"
 
 #include <vector>
 
@@ -51,7 +52,7 @@ class VulkanResourcesUtil
                         const encode::VulkanInstanceTable&      instance_table,
                         const VkPhysicalDeviceMemoryProperties& memory_properties) :
         device_(device),
-        physical_device_(physical_device), device_table_(device_table), instance_table_(instance_table),
+        device_table_(device_table), physical_device_(physical_device), instance_table_(instance_table),
         memory_properties_(memory_properties), queue_family_index_(UINT32_MAX), command_pool_(VK_NULL_HANDLE),
         command_buffer_(VK_NULL_HANDLE)
     {
@@ -115,7 +116,8 @@ class VulkanResourcesUtil
                                           std::vector<uint64_t>& subresource_sizes,
                                           bool&                  scaling_supported,
                                           bool                   all_layers_per_level = false,
-                                          float                  scale                = 1.0f);
+                                          float                  scale                = 1.0f,
+                                          VkFormat               dst_format           = VK_FORMAT_UNDEFINED);
 
     // Use this function to dump an image sub resources into data vector.
     // This function is intented to be used when the image content can be accessed directly and expects to received a
@@ -150,6 +152,18 @@ class VulkanResourcesUtil
     // Use this function to dump the content of a buffer resource into the data vector.
     VkResult ReadFromBufferResource(
         VkBuffer buffer, uint64_t size, uint64_t offset, uint32_t queue_family_index, std::vector<uint8_t>& data);
+
+    bool IsBlitSupported(VkFormat       src_format,
+                         VkImageTiling  src_image_tiling,
+                         VkFormat       dst_format,
+                         VkImageTiling* dst_image_tiling = nullptr) const;
+
+    bool IsScalingSupported(VkFormat          src_format,
+                            VkImageTiling     src_image_tiling,
+                            VkFormat          dst_format,
+                            VkImageType       type,
+                            const VkExtent3D& extent,
+                            float             scale) const;
 
   private:
     VkResult CreateCommandPool(uint32_t queue_family_index);
@@ -217,7 +231,9 @@ class VulkanResourcesUtil
 
     VkResult BlitImage(VkImage               image,
                        VkFormat              format,
+                       VkFormat              dst_format,
                        VkImageType           type,
+                       VkImageTiling         tiling,
                        const VkExtent3D&     extent,
                        const VkExtent3D&     scaled_extent,
                        uint32_t              mip_levels,
@@ -226,8 +242,7 @@ class VulkanResourcesUtil
                        uint32_t              queue_family_index,
                        float                 scale,
                        VkImage&              scaled_image,
-                       VkDeviceMemory&       scaled_image_mem,
-                       bool&                 scaling_supported);
+                       VkDeviceMemory&       scaled_image_mem);
 
     struct StagingBufferContext
     {

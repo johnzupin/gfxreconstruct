@@ -1583,6 +1583,14 @@ class VulkanCaptureManager : public ApiCaptureManager
 
     void PostProcess_vkCmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo* pRenderingInfo);
 
+    void PostProcess_vkSetDebugUtilsObjectNameEXT(VkResult                             result,
+                                                  VkDevice                             device,
+                                                  const VkDebugUtilsObjectNameInfoEXT* pNameInfo);
+
+    void PostProcess_vkSetDebugUtilsObjectTagEXT(VkResult                            result,
+                                                 VkDevice                            device,
+                                                 const VkDebugUtilsObjectTagInfoEXT* pTagInfo);
+
 #if defined(__ANDROID__)
     void OverrideGetPhysicalDeviceSurfacePresentModesKHR(uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes);
 #endif
@@ -1602,13 +1610,15 @@ class VulkanCaptureManager : public ApiCaptureManager
         state_tracker_ = nullptr;
     }
 
-    virtual void WriteTrackedState(util::FileOutputStream* file_stream,
-                                   format::ThreadId        thread_id,
-                                   util::FileOutputStream* asset_file_stream = nullptr,
-                                   const std::string&      asset_file_name   = "") override;
+    virtual void WriteTrackedState(util::FileOutputStream* file_stream, format::ThreadId thread_id) override;
+
+    virtual void WriteTrackedStateWithAssetFile(util::FileOutputStream* file_stream,
+                                                format::ThreadId        thread_id,
+                                                util::FileOutputStream* asset_file_stream,
+                                                const std::string*      asset_file_name) override;
 
     virtual void WriteAssets(util::FileOutputStream* asset_file_stream,
-                             const std::string&      asset_file_name,
+                             const std::string*      asset_file_name,
                              format::ThreadId        thread_id) override;
 
   private:

@@ -56,7 +56,7 @@ class VulkanStateWriter
                       format::ThreadId                         thread_id,
                       std::function<format::HandleId()>        get_unique_id_fn,
                       util::FileOutputStream*                  asset_file_stream  = nullptr,
-                      const std::string&                       asset_file_name    = "",
+                      const std::string*                       asset_file_name    = nullptr,
                       VulkanStateWriter::AssetFileOffsetsInfo* asset_file_offsets = nullptr);
 
     // Returns number of blocks written to the output_stream.
@@ -414,6 +414,8 @@ class VulkanStateWriter
     void EndAccelerationStructureSection(format::HandleId device_id);
 
     void WriteExecuteFromFile(const std::string& filename, uint32_t n_blocks, int64_t offset);
+
+    void WriteDebugUtilsState(const VulkanStateTable& state_table);
 
   private:
     util::FileOutputStream*  output_stream_;

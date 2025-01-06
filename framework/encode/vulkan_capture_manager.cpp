@@ -102,10 +102,18 @@ void VulkanCaptureManager::DestroyInstance()
     singleton_->common_manager_->DestroyInstance(singleton_);
 }
 
-void VulkanCaptureManager::WriteTrackedState(util::FileOutputStream* file_stream,
-                                             format::ThreadId        thread_id,
-                                             util::FileOutputStream* asset_file_stream,
-                                             const std::string&      asset_file_name)
+void VulkanCaptureManager::WriteTrackedState(util::FileOutputStream* file_stream, format::ThreadId thread_id)
+{
+    uint64_t n_blocks = state_tracker_->WriteState(
+        file_stream, thread_id, [] { return GetUniqueId(); }, GetCompressor(), GetCurrentFrame(), nullptr, nullptr);
+
+    common_manager_->IncrementBlockIndex(n_blocks);
+}
+
+void VulkanCaptureManager::WriteTrackedStateWithAssetFile(util::FileOutputStream* file_stream,
+                                                          format::ThreadId        thread_id,
+                                                          util::FileOutputStream* asset_file_stream,
+                                                          const std::string*      asset_file_name)
 {
     uint64_t n_blocks = state_tracker_->WriteState(
         file_stream,
@@ -120,7 +128,7 @@ void VulkanCaptureManager::WriteTrackedState(util::FileOutputStream* file_stream
 }
 
 void VulkanCaptureManager::WriteAssets(util::FileOutputStream* asset_file_stream,
-                                       const std::string&      asset_file_name,
+                                       const std::string*      asset_file_name,
                                        format::ThreadId        thread_id)
 {
     assert(state_tracker_ != nullptr);
@@ -1944,7 +1952,8 @@ void VulkanCaptureManager::PostProcess_vkMapMemory(VkResult         result,
                     else if (IsPageGuardMemoryModeShadowPersistent() &&
                              (wrapper->shadow_allocation == util::PageGuardManager::kNullShadowHandle))
                     {
-                        wrapper->shadow_allocation = manager->AllocatePersistentShadowMemory(static_cast<size_t>(size));
+                        wrapper->shadow_allocation =
+                            manager->AllocatePersistentShadowMemory(static_cast<size_t>(wrapper->allocation_size));
                     }
 
                     // Return the pointer provided by the pageguard manager, which may be a pointer to shadow memory,
@@ -3426,6 +3435,36 @@ void VulkanCaptureManager::PostProcess_vkCmdBeginRendering(VkCommandBuffer      
     if (IsCaptureModeTrack())
     {
         state_tracker_->TrackBeginRendering(commandBuffer, pRenderingInfo);
+    }
+}
+
+void VulkanCaptureManager::PostProcess_vkSetDebugUtilsObjectNameEXT(VkResult                             result,
+                                                                    VkDevice                             device,
+                                                                    const VkDebugUtilsObjectNameInfoEXT* pNameInfo)
+{
+    if (result == VK_SUCCESS)
+    {
+        if (IsCaptureModeTrack())
+        {
+            auto thread_data = GetThreadData();
+            assert(thread_data != nullptr);
+            state_tracker_->TrackSetDebugUtilsObjectNameEXT(device, pNameInfo, thread_data->parameter_buffer_.get());
+        }
+    }
+}
+
+void VulkanCaptureManager::PostProcess_vkSetDebugUtilsObjectTagEXT(VkResult                            result,
+                                                                   VkDevice                            device,
+                                                                   const VkDebugUtilsObjectTagInfoEXT* pTagInfo)
+{
+    if (result == VK_SUCCESS)
+    {
+        if (IsCaptureModeTrack())
+        {
+            auto thread_data = GetThreadData();
+            assert(thread_data != nullptr);
+            state_tracker_->TrackSetDebugUtilsObjectTagEXT(device, pTagInfo, thread_data->parameter_buffer_.get());
+        }
     }
 }
 

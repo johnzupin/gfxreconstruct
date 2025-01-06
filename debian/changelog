@@ -1,3 +1,335 @@
+gfxreconstruct (1.0.4+572~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ Fabian Schmidt ]
+  * gfxrecon-info: Report total number of raytracing-pipelines (#1776)
+
+  [ Dustin Graves ]
+  * Adjust trimming state snapshot locking
+  * Fix trim locking for FORCE_COMMAND_SERIALIZATION=1
+
+  [ Fabian Schmidt ]
+  * Handle non-sType union-members in vulkan_struct_deep_copy (#1779)
+  * Add acceleration structure overrides (#1759)
+  * Add a check for empty env_var-string (#1786)
+
+  [ Marius Pélégrin - ARM ]
+  * Fix features no longer checked at device creation (#1751)
+
+  [ Dustin Graves ]
+  * Adjust output array sizes for D3D12 replay (#1785)
+
+  [ Fabian Schmidt ]
+  * MacOS: Fix compiler-warning about missing switch-cases (#1792)
+
+  [ bradgrantham-lunarg ]
+  * fix release action (#1794)
+
+  [ davidd-lunarg ]
+  * Remove duplicate third-party license text
+
+  [ Panagiotis Apostolou ]
+  * Vulkan dump resources: Fix in scaling code path (#1791)
+  * BindDescriptorSets should ignore unrelated bind points
+  * DispatchTraceRays clone CB will record until ECB
+
+  [ bradgrantham-lunarg ]
+  * Fix clang-format
+
+  [ Rodrigo Urra ]
+  * Enable capture of D3D12 apps to work again (#1656)
+
+  [ bradgrantham-lunarg ]
+  * limit ABI and build release and debug separately (#1804)
+  * Reserve kViewRelativeLocation MetaDataType for future use (#1806)
+
+  [ zehao-jing-arm ]
+  * Restore trace preload option (#1731)
+
+  [ bartosz-muszarski-arm ]
+  * Add print block info option on android (#1677)
+
+  [ Marius Pélégrin - ARM ]
+  * Don't display warning message for VK_SUCCESS over VK_SUBOPTIMAL_KHR (#1570)
+
+  [ Panagiotis Apostolou ]
+  * Properly init page_guard_external_memory_ (#1625)
+
+  [ beau-lunarg ]
+  * Add transformer annotation (#1566)
+
+  [ Matthew Porth ]
+  * - Add VK_KHR_DISPLAY_EXTENSION_NAME return to GetWsiExtensionName (#1412)
+
+  [ William Pearson ]
+  * Handle shader extraction and replacement for less common cases (#1758)
+
+  [ davidd-lunarg ]
+  * Fixup AGS library linking and install (#1789)
+
+  [ ziga-lunarg ]
+  * Fix tracking queue family properties (#1810)
+  * Write AHB command even when skipping read (#1814)
+
+  [ Locke Lin ]
+  * dx12 option: GFXRECON_CAPTURE_DRAW_CALLS  (#1680)
+
+  [ David Pinedo ]
+  * Dump resources: use cwd for output dump resource files dir
+
+  [ Panagiotis Apostolou ]
+  * Remove null AHB from allocations when replaying (#1813)
+
+  [ bradgrantham-lunarg ]
+  * remove unused FileProcessor functions and simplify file_header usage (#1822)
+
+  [ ziga-lunarg ]
+  * Add missing pipeline binaries struct entry (#1811)
+
+  [ Locke Lin ]
+  * Set trim Queue Submit to 0-based (#1819)
+
+  [ davidd-lunarg ]
+  * Validate cached CMake AGS variables
+
+  [ David Pinedo ]
+  * dump resources: Fix output filename for dispatch dump
+
+  [ ziga-lunarg ]
+  * Add missing AHB fill memory command (#1821)
+
+  [ bradgrantham-lunarg ]
+  * Fix invalid usage by waiting on CommandBuffer fence before resetting CommandBuffer (#1795)
+
+  [ Panagiotis Apostolou ]
+  * Vulkan dump resources: Convert images with blit (#1799)
+
+  [ Fabian Schmidt ]
+  * Add acceleration structure meta-commands (#1815)
+
+  [ Rodrigo Urra ]
+  * Save swapchain HDR state for trimmed captures (#1826)
+
+  [ davidd-lunarg ]
+  * Fix crash in CreateCommandList1 when trimming
+
+  [ JerryAMD ]
+  * Support Mulitple AGS contexts
+
+  [ zongdu-arm ]
+  * page guard buffers are aligned when the kUserfaultfd mode is enabled (#1831)
+
+  [ John Zulauf ]
+  * Rename Vulkan state tracking to be distinct
+  * vulkan: Add common classes and isolate more Vulkan
+  * Modify CommonObjectInfoTable to be a Singleton
+
+  [ Panagiotis Apostolou ]
+  * Asset file for trimmed captures (#1644)
+
+  [ David Pinedo ]
+  * dump resources: use scaled extent when a scaling up images
+
+  [ Mark Young ]
+  * dx12 codgen: Break depedence upon Vulkan/Khronos
+
+  [ Rodrigo Urra ]
+  * Have AGS device creation honor desired adapter (#1833)
+  * Have info tool expose SubSysId during GPU enumeration (#1834)
+
+  [ davidd-lunarg ]
+  * Add DirectX Shader Compiler dependency
+  * Use reflection to get DXIL library shader exports
+
+  [ Antonio Caggiano ]
+  * Fix vkGetQueryPoolResults timeout loop (#1843)
+
+  [ David Pinedo ]
+  * dump resources: Corrections to dump resources help text
+
+  [ Dustin Graves ]
+  * Clear CachedPSO data for CreatePipelineState replay
+
+  [ John Zulauf ]
+  * vulkan: Expose dispatch table getters
+  * Add interface to get/set capture mode
+  * Add needed decoder and interface extensions
+  * Add initialze to StructPointerDecoder allocation
+  * Add vulkan guard to consumer and decode variables
+  * vulkan: Split OverrideCreateInstance/Device
+  * Add VkPhysicalDevice aliasing support
+  * Reorganize common options
+
+  [ Mike Schuchardt ]
+  * Use libsigchain on Android
+
+  [ ziga-lunarg ]
+  * Fix descriptor info assert during capture (#1858)
+
+  [ Panagiotis Apostolou ]
+  * Fix table in USAGE_desktop_vulkan.md (#1857)
+
+  [ ziga-lunarg ]
+  * Add missing swapchain image destroy (#1861)
+
+  [ Fabian Schmidt ]
+  * ShaderGroupHandles: tracking/trimming (#1844)
+
+  [ bradgrantham-lunarg ]
+  * Also run unit tests in GitHub CI (#1867)
+
+  [ Panagiotis Apostolou ]
+  * Fixes for newly added VulkanStateTracker::DestroyState (#1869)
+
+  [ Antonio Caggiano ]
+  * tocpp: Cast values to platfrom full types (#1871)
+
+  [ Locke Lin ]
+  * Release ID3D12GraphicsCommandList4 (#1866)
+
+  [ Antonio Caggiano ]
+  * tocpp: Support wayland (#1870)
+
+  [ ziga-lunarg ]
+  * Combine common code from vulkan capture manager and vulkan state writer (#1841)
+
+  [ Antonio Caggiano ]
+  * Clarify direct allocation methods docs (#1850)
+  * screenshot: Print message on failures (#1855)
+
+  [ Dustin Graves ]
+  * Fix IDXGISwapChain::ResizeTargets capture (#1875)
+  * Fix OverrideGetBuffer resource handling
+
+  [ Panagiotis Apostolou ]
+  * Expose 2 symbols from android_main (#1739)
+
+  [ Locke Lin ]
+  * Dump root parameters, insted of descriptor heap (#1862)
+
+  [ Panagiotis Apostolou ]
+  * Fix references to pNext structs (#1832)
+  * CombineAndWriteToFile() now takes a file output as an argument (#1838)
+  * Fix block index calculation (#1881)
+
+  [ Locke Lin ]
+  * dx12 support --dump-resources-dir
+
+  [ Fabian Schmidt ]
+  * Fix a recent regression related to --pipeline-creation-jobs option. (#1888)
+
+  [ Antonio Caggiano ]
+  * util: Fix leak and report error (#1878)
+
+  [ Fabian Schmidt ]
+  * Fix a bug in pipeline-destruction (#1884)
+
+  [ Antonio Caggiano ]
+  * trimming: Fix descriptor update template buffers (#1887)
+
+  [ Locke Lin ]
+  * dx12 dump: Check duplicated notes (#1889)
+
+  [ Panagiotis Apostolou ]
+  * Vulkan dump resources: Option to dump alpha separately (#1883)
+  * Vulkan dump resources: Fix spelling in output json (#1896)
+
+  [ Mark Young ]
+  * codegen vulkan: Move vulkan_generator scripts
+  * codegen dx12: Copy reformat_code.py
+  * codegen: Move base_generators under khronos_generators
+  * codegen: Move common file into khronos_generator
+  * codegen: Move common items from vulkan to khronos
+  * codegen dx12: Remove duplicate item
+  * codegen: Move more from vulkan to khronos
+  * codgen: Automatically determine dispatchable handles
+  * codegen: Modify base_generators to remove Vulkan
+  * codegen: Remove more vulkan in base_generators
+  * codegen: Modidfy extended struct handling
+  * codegen: Move base_generator scripts up to khronos
+  * codegen: Start renaming base files
+  * codegen: Rename base_replay_consumer_body
+  * codegen: Rename BaseDecoderBody to match filename
+  * codegen: Updated BaseStructDecoderBody
+  * codegen: Rename BaseStructDecodersHeader
+  * codgen: Rename BaseStructHandleMappersBody
+  * codegen: Rename BaseStructHandleMappersHeader
+  * codegen: Update khronos base to have a write
+  * codgen: Consolidate structure_type name gen
+  * codegen: Consolidate var naming
+  * codgen: Remove local variables
+  * codegen: Add exceptions for unimplemented overrides
+
+  [ Fabian Schmidt ]
+  * portable raytracing: Add VulkanAddressReplacer (#1879)
+
+  [ Dustin Graves ]
+  * Fix default iunknown_wrapping initialization
+
+  [ Fabian Schmidt ]
+  * Fix a regression in dump-resources, related to vkCmdPushConstants (#1906)
+
+  [ bradgrantham-lunarg ]
+  * note that SIGSEGV can also happen on desktop Vulkan (#1903)
+
+  [ David Pinedo ]
+  * dump resources: call VulkanReplayConsumerBase error handler on error
+  * Fix clang-format errors
+
+  [ Fabian Schmidt ]
+  * Add option for stricter compiler warnings (#1891)
+
+  [ David Pinedo ]
+  * Add "_dr" to dump resource json filename when using json-output-per-cmd
+
+  [ ziga-lunarg ]
+  * Fix replay restarting on orientation change (#1910)
+
+  [ Marius Pélégrin - ARM ]
+  * Add options to save and load pipeline caches (#1276)
+
+  [ bradgrantham-lunarg ]
+  * allow setting --log-level in convert (#1917)
+
+  [ John Zupin ]
+  * packaging: debian: update copyright
+
+  [ Panagiotis Apostolou ]
+  * More detailed error messages for screenshot handler (#1919)
+
+  [ bradgrantham-lunarg ]
+  * add MACOS in parity with LINUX in layer manifest (#1894)
+
+  [ ziga-lunarg ]
+  * Fix shader memory size (#1927)
+
+  [ Panagiotis Apostolou ]
+  * Do not keep asset file open (#1863)
+  * Track vkSetDebugUtilsObject[Name|Tag]EXT (#1928)
+
+  [ Nick Driscoll ]
+  * Upgrade Vulkan Headers to 1.4 (#1920)
+  * Update Vulkan Headers to v1.4.304 (#1936)
+
+  [ Dustin Graves ]
+  * Fix LUID related replay crash (#1885)
+
+  [ bradgrantham-lunarg ]
+  * make one frame number instance consistent (#1907)
+
+  [ Mike Schuchardt ]
+  * Add missing json fields (#1932)
+
+  [ Panagiotis Apostolou ]
+  * Option to quit after specific frame when replaying (#1934)
+
+  [ ziga-lunarg ]
+  * Set pipeline to VK_NULL_HANDLE when fail on compile isnt supported (#1938)
+
+  [ bradgrantham-lunarg ]
+  * initialize quit_frame (#1940)
+
+ -- john <john@odin>  Mon, 06 Jan 2025 16:04:13 -0700
+
 gfxreconstruct (1.0.4+431~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Bartosz Muszarski ]

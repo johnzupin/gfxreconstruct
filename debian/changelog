@@ -1,3 +1,154 @@
+gfxreconstruct (1.0.4+662~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ Mark Young ]
+  * codegen vulkan: Move vulkan_generator scripts
+  * codegen: Remove class funcs
+  * codegen: Global and per-feature struct/union info
+  * codegen: Add vulkan video to new structure items
+  * codegen: Move mappers body items to endFile
+  * codegen: Remove feature break
+  * codegen: Force all process_* to True
+  * codegen: Remove process_* & feature_break
+  * codegen: Add base_header and extended struct
+  * codegen: Rename base_header to children
+  * codegen: Generate struct type at genStruct time
+  * codegen: Use khronos_base items for pnext gen
+  * codegen: Add API Data class
+  * codegen: Split processingStruct functionality out
+  * codegen: Switch to using structure_type variable
+  * codegen: Start using ApiData content
+  * codegen: Rename extraVulkanHeaders to extra_headers
+  * codegen: Move pnext encode/decode to separate defs
+  * codegen: Move encode/decode pnext defs into khronos
+  * codegen: Rename includeVulkanHeaders to abstract
+  * codegen: Make stype functionality generic
+  * codegen: Move flag detection logic to Khronos
+  * codegen: Add APIData bool types
+  * codegen: Move some json processing to endFile
+  * codegen: Move common struct->json body to Khronos
+  * codegen: Update types in khronos struct->json
+  * codegen: struct->json body add parent/child func
+  * codegen: Add parent->child to struct->json header
+  * codegen: Move generation to endFile for cmd buf utils
+  * codegen: Move generation to endFile for Api encoder
+  * codegen: Update more Vulkan to generate at endFile
+  * codegen: Generate vulkan handle wrapping to endFile
+
+  [ ziga-lunarg ]
+  * Fix importing AHB memory with rebind (#1820)
+
+  [ Panagiotis Apostolou ]
+  * Vulkan dump resources: No separate alpha for images dumped raw (#1935)
+  * Vulkan dump resources: Drop astc format (#1905)
+
+  [ ziga-lunarg ]
+  * Fix shader wrapper assert when pipeline binaries are used (#1937)
+
+  [ Panagiotis Apostolou ]
+  * Vulkan dump resources: Multiple cbs from same qs (#1911)
+  * Vulkan dump resources: Fix in vertex buffer size calculation (#1915)
+
+  [ Locke Lin ]
+  * Support VK_FORMAT_D24_UNORM_S8_UINT (#1954)
+
+  [ JerryAMD ]
+  * Initialize Device Info From AGS
+
+  [ Panagiotis Apostolou ]
+  * Do not emit sampler for input attachment in json (#1959)
+  * VDR: Fix indexing error in output json files (#1958)
+  * Turn vkGetBufferDeviceAddress error message into warning (#1957)
+
+  [ Marius Pélégrin - ARM ]
+  * Fix `vkSetDebugUtilsObjectNameEXT` and `vkSetDebugUtilsObjectTagEXT` for `VkDeviceMemory` objects when using rebind allocator. (#1632)
+
+  [ Panagiotis Apostolou ]
+  * Ammending removal of astc formats (#1961)
+  * Remove VDR debug printf (#1962)
+
+  [ beau-lunarg ]
+  * Add test app framework and some initial tests (#1839)
+
+  [ Panagiotis Apostolou ]
+  * Revert "Do not emit sampler for input attachment in json (#1959)" (#1964)
+
+  [ bradgrantham-lunarg ]
+  * if file was not opened, say so (#1965)
+
+  [ Brad Grantham ]
+  * fix clang-format error
+
+  [ Locke Lin ]
+  * Add delegate for Vulkan dump resources (#1941)
+
+  [ Nick Sarnie ]
+  * Update SPIR-V Headers to 1.4.304 (#1969)
+
+  [ Panagiotis Apostolou ]
+  * Amend 1961 (#1967)
+
+  [ Fabian Schmidt ]
+  * Avoid warning: Descriptor type 1000138000 not handled (#1975)
+
+  [ Marius Pelegrin ]
+  * Fix crash when window cannot be opened with same resolution
+  * Fix crash when window cannot be opened with same resolution
+
+  [ Panagiotis Apostolou ]
+  * Fix for dst_format when dumping images raw (#1949)
+
+  [ JerryAMD ]
+  * CommandList Reset at Invalid CommandAllocator (#1947)
+
+  [ Mark Young ]
+  * codegen: Generate Struct Encoders at endFile
+  * codegen: Small tweak to genStruct
+  * codegen: Update Ref resource consumer to endFile
+  * codegen: Migrate Json consumer body to endFile
+  * codegen: Move replay dump resource header to endFile
+  * codegen: Move struct handle mappers body to endFile
+  * codegen: Migrate struct decoder body gen to endFile
+  * codegen: Update consumer replay body to endFile
+  * codegen: Move consumer header to endFile
+  * codegen: Update struct decoder header to endFile
+  * codegen: Update Vulkan Struct Decoder
+  * codegen: Update Vulkan enum->String header
+  * codegen: Update Vulkan enum->String body
+  * codegen: Update extension struct handling
+  * codegen: Rename pnext_struct files
+  * codegen: Update extended struct updating
+  * codegen: Use global handle generation part 1
+  * codegen: Update Vulkan struct handle wrapping
+  * codegen: Add support for handle_pointer to Khronos
+  * codegen: Migrate struct handle mapper header
+  * codegen: Migrate handle mapper body
+  * codegen: Remove unused variables
+  * codegen: Migrate replay consumer
+
+  [ Mike Schuchardt ]
+  * Remove retired swapchain images immediately
+  * Fix handle ID format strings
+  * Remove unneeded if statements
+  * Fix capture_trigger_frames on Android
+
+  [ Fabian Schmidt ]
+  * Portable Acceleration Structures (#1955)
+
+  [ Panagiotis Apostolou ]
+  * Track assets only when asset file is enabled (#1946)
+
+  [ Fabian Schmidt ]
+  * Raise SPIRV-Reflect version to vulkan-sdk-1.4.304.0 (#1981)
+  * Portable RT: Fixes for shader-binding-table assembly (#1982)
+
+  [ bradgrantham-lunarg ]
+  * Use CMake variables to enable/disable test apps (#1987)
+
+  [ John Zupin ]
+  * packaging: debian: remove test apps
+
+ -- john <john@odin>  Tue, 28 Jan 2025 16:06:37 -0700
+
 gfxreconstruct (1.0.4+572~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Fabian Schmidt ]

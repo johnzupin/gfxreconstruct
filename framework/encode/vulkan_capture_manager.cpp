@@ -951,9 +951,38 @@ void VulkanCaptureManager::OverrideCmdBuildAccelerationStructuresKHR(
     {
         state_tracker_->TrackAccelerationStructureBuildCommand(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
     }
-
     const VulkanDeviceTable* device_table = vulkan_wrappers::GetDeviceTable(commandBuffer);
     device_table->CmdBuildAccelerationStructuresKHR(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
+}
+
+void VulkanCaptureManager::OverrideCmdCopyAccelerationStructureKHR(VkCommandBuffer command_buffer,
+                                                                   const VkCopyAccelerationStructureInfoKHR* pInfo)
+{
+    if (IsCaptureModeTrack())
+    {
+        state_tracker_->TrackAccelerationStructureCopyCommand(command_buffer, pInfo);
+    }
+    const VulkanDeviceTable* device_table = vulkan_wrappers::GetDeviceTable(command_buffer);
+    device_table->CmdCopyAccelerationStructureKHR(command_buffer, pInfo);
+}
+
+void VulkanCaptureManager::OverrideCmdWriteAccelerationStructuresPropertiesKHR(
+    VkCommandBuffer                   commandBuffer,
+    uint32_t                          accelerationStructureCount,
+    const VkAccelerationStructureKHR* pAccelerationStructures,
+    VkQueryType                       queryType,
+    VkQueryPool                       queryPool,
+    uint32_t                          firstQuery)
+{
+    if (IsCaptureModeTrack())
+    {
+        state_tracker_->TrackWriteAccelerationStructuresPropertiesCommand(
+            commandBuffer, accelerationStructureCount, pAccelerationStructures, queryType, queryPool, firstQuery);
+    }
+
+    const VulkanDeviceTable* device_table = vulkan_wrappers::GetDeviceTable(commandBuffer);
+    device_table->CmdWriteAccelerationStructuresPropertiesKHR(
+        commandBuffer, accelerationStructureCount, pAccelerationStructures, queryType, queryPool, firstQuery);
 }
 
 VkResult VulkanCaptureManager::OverrideAllocateMemory(VkDevice                     device,
@@ -1131,6 +1160,15 @@ void VulkanCaptureManager::OverrideGetPhysicalDeviceProperties2(VkPhysicalDevice
             state_tracker_->TrackRayTracingPipelineProperties(physicalDevice, raytracing_props);
         }
     }
+
+    if (auto acceleration_props =
+            graphics::vulkan_struct_get_pnext<VkPhysicalDeviceAccelerationStructurePropertiesKHR>(pProperties))
+    {
+        if (IsCaptureModeTrack())
+        {
+            state_tracker_->TrackAccelerationStructureProperties(physicalDevice, acceleration_props);
+        }
+    }
 }
 
 VkResult VulkanCaptureManager::OverrideGetPhysicalDeviceToolPropertiesEXT(
@@ -1288,11 +1326,6 @@ VulkanCaptureManager::OverrideCreateRayTracingPipelinesKHR(VkDevice             
     }
     else
     {
-        GFXRECON_LOG_ERROR_ONCE(
-            "The capturing application used vkCreateRayTracingPipelinesKHR, which may require the "
-            "rayTracingPipelineShaderGroupHandleCaptureReplay feature for accurate capture and replay. The capturing "
-            "device does not support this feature, so replay may fail.");
-
         if (deferred_operation_wrapper)
         {
             deferred_operation_wrapper->create_infos.clear();
@@ -1379,7 +1412,6 @@ VulkanCaptureManager::OverrideCreateRayTracingPipelinesKHR(VkDevice             
             }
         }
     }
-
     return result;
 }
 
@@ -1869,23 +1901,70 @@ void VulkanCaptureManager::PreProcess_vkCreateWaylandSurfaceKHR(VkInstance      
     }
 }
 
-void VulkanCaptureManager::PreProcess_vkCreateSwapchain(VkDevice                        device,
-                                                        const VkSwapchainCreateInfoKHR* pCreateInfo,
-                                                        const VkAllocationCallbacks*    pAllocator,
-                                                        VkSwapchainKHR*                 pSwapchain)
+void VulkanCaptureManager::PreProcess_vkCreateSwapchainKHR(VkDevice                        device,
+                                                           const VkSwapchainCreateInfoKHR* pCreateInfo,
+                                                           const VkAllocationCallbacks*    pAllocator,
+                                                           VkSwapchainKHR*                 pSwapchain)
 {
     GFXRECON_UNREFERENCED_PARAMETER(device);
     GFXRECON_UNREFERENCED_PARAMETER(pAllocator);
     GFXRECON_UNREFERENCED_PARAMETER(pSwapchain);
 
-    assert(pCreateInfo != nullptr);
+    GFXRECON_ASSERT(pCreateInfo != nullptr);
 
-    if (pCreateInfo)
+    WriteResizeWindowCmd2(vulkan_wrappers::GetWrappedId<vulkan_wrappers::SurfaceKHRWrapper>(pCreateInfo->surface),
+                          pCreateInfo->imageExtent.width,
+                          pCreateInfo->imageExtent.height,
+                          pCreateInfo->preTransform);
+}
+
+void VulkanCaptureManager::PostProcess_vkCreateSwapchainKHR(VkResult                        result,
+                                                            VkDevice                        device,
+                                                            const VkSwapchainCreateInfoKHR* pCreateInfo,
+                                                            const VkAllocationCallbacks*    pAllocator,
+                                                            VkSwapchainKHR*                 pSwapchain)
+{
+    GFXRECON_UNREFERENCED_PARAMETER(result);
+    GFXRECON_UNREFERENCED_PARAMETER(device);
+    GFXRECON_UNREFERENCED_PARAMETER(pAllocator);
+    GFXRECON_UNREFERENCED_PARAMETER(pSwapchain);
+
+    GFXRECON_ASSERT(pCreateInfo != nullptr);
+
+    // Vulkan Spec: Upon calling vkCreateSwapchainKHR with an oldSwapchain that is not VK_NULL_HANDLE, any images
+    // from oldSwapchain that are not acquired by the application may be freed by the implementation, which may
+    // occur even if creation of the new swapchain fails.
+
+    // The capture layer needs to be conservative and treat these images as destroyed now because the implementation
+    // is free to destroy and reuse the image handles before the retired swapchain is destroyed.
+    if (pCreateInfo->oldSwapchain != VK_NULL_HANDLE)
     {
-        WriteResizeWindowCmd2(vulkan_wrappers::GetWrappedId<vulkan_wrappers::SurfaceKHRWrapper>(pCreateInfo->surface),
-                              pCreateInfo->imageExtent.width,
-                              pCreateInfo->imageExtent.height,
-                              pCreateInfo->preTransform);
+        auto old_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::SwapchainKHRWrapper>(pCreateInfo->oldSwapchain);
+        old_wrapper->retired = true;
+
+        for (int i = old_wrapper->child_images.size() - 1; i >= 0; --i)
+        {
+            bool is_acquired = false;
+            if (i < old_wrapper->image_acquired_info.size())
+                is_acquired = old_wrapper->image_acquired_info[i].is_acquired;
+
+            if (!is_acquired)
+            {
+                const auto image_handle = old_wrapper->child_images[i]->handle;
+
+                // Remove from swapchain info struct
+                old_wrapper->child_images.erase(old_wrapper->child_images.begin() + i);
+                if (i < old_wrapper->image_acquired_info.size())
+                    old_wrapper->image_acquired_info.erase(old_wrapper->image_acquired_info.begin() + i);
+
+                // Destroy handle wrapper
+                if (IsCaptureModeTrack())
+                {
+                    state_tracker_->RemoveEntry<vulkan_wrappers::ImageWrapper>(image_handle);
+                }
+                vulkan_wrappers::DestroyWrappedHandle<vulkan_wrappers::ImageWrapper>(image_handle);
+            }
+        }
     }
 }
 
@@ -1907,7 +1986,7 @@ void VulkanCaptureManager::PostProcess_vkMapMemory(VkResult         result,
             if (IsCaptureModeTrack())
             {
                 assert(state_tracker_ != nullptr);
-                state_tracker_->TrackMappedMemory(device, memory, (*ppData), offset, size, flags);
+                state_tracker_->TrackMappedMemory(device, memory, (*ppData), offset, size, flags, GetUseAssetFile());
             }
             else
             {
@@ -2086,7 +2165,7 @@ void VulkanCaptureManager::PreProcess_vkUnmapMemory(VkDevice device, VkDeviceMem
         if (IsCaptureModeTrack())
         {
             assert(state_tracker_ != nullptr);
-            state_tracker_->TrackMappedMemory(device, memory, nullptr, 0, 0, 0);
+            state_tracker_->TrackMappedMemory(device, memory, nullptr, 0, 0, 0, GetUseAssetFile());
         }
         else
         {
@@ -2305,9 +2384,9 @@ void VulkanCaptureManager::PreProcess_vkQueueSubmit(std::shared_lock<CommonCaptu
 
     // This must be done before QueueSubmitWriteFillMemoryCmd is called
     // and tracked mapped memory regions are resetted
-    if (IsCaptureModeTrack())
+    if (IsCaptureModeTrack() && GetUseAssetFile())
     {
-        state_tracker_->TrackSubmission(submitCount, pSubmits);
+        state_tracker_->TrackAssetsInSubmission(submitCount, pSubmits);
     }
 
     QueueSubmitWriteFillMemoryCmd();
@@ -2341,9 +2420,9 @@ void VulkanCaptureManager::PreProcess_vkQueueSubmit2(
 
     // This must be done before QueueSubmitWriteFillMemoryCmd is called
     // and tracked mapped memory regions are resetted
-    if (IsCaptureModeTrack())
+    if (IsCaptureModeTrack() && GetUseAssetFile())
     {
-        state_tracker_->TrackSubmission(submitCount, pSubmits);
+        state_tracker_->TrackAssetsInSubmission(submitCount, pSubmits);
     }
 
     QueueSubmitWriteFillMemoryCmd();
@@ -2492,19 +2571,6 @@ void VulkanCaptureManager::PreProcess_vkGetAccelerationStructureDeviceAddressKHR
             "The application is using vkGetAccelerationStructureDeviceAddressKHR, which may require the "
             "accelerationStructureCaptureReplay feature for accurate capture and replay. The capture device does not "
             "support this feature, so replay of the captured file may fail.");
-    }
-}
-
-void VulkanCaptureManager::PreProcess_vkGetRayTracingShaderGroupHandlesKHR(
-    VkDevice device, VkPipeline pipeline, uint32_t firstGroup, uint32_t groupCount, size_t dataSize, void* pData)
-{
-    auto device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
-    if (!device_wrapper->property_feature_info.feature_rayTracingPipelineShaderGroupHandleCaptureReplay)
-    {
-        GFXRECON_LOG_WARNING_ONCE(
-            "The application is using vkGetRayTracingShaderGroupHandlesKHR, which may require the "
-            "rayTracingPipelineShaderGroupHandleCaptureReplay feature for accurate capture and replay. The capture "
-            "device does not support this feature, so replay of the captured file may fail.");
     }
 }
 
@@ -2779,14 +2845,18 @@ void VulkanCaptureManager::PostProcess_vkCreateGraphicsPipelines(VkResult       
                 vulkan_wrappers::GetWrapper<vulkan_wrappers::PipelineWrapper>(pPipelines[p]);
             assert(ppl_wrapper != nullptr);
 
-            for (uint32_t s = 0; s < pCreateInfos[p].stageCount; ++s)
+            const auto binary_info = graphics::vulkan_struct_get_pnext<VkPipelineBinaryInfoKHR>(&pCreateInfos[p]);
+            if (binary_info == nullptr || !binary_info->binaryCount)
             {
-                const vulkan_wrappers::ShaderModuleWrapper* shader_wrapper =
-                    vulkan_wrappers::GetWrapper<vulkan_wrappers::ShaderModuleWrapper>(
-                        pCreateInfos[p].pStages[s].module);
-                assert(shader_wrapper != nullptr);
+                for (uint32_t s = 0; s < pCreateInfos[p].stageCount; ++s)
+                {
+                    const vulkan_wrappers::ShaderModuleWrapper* shader_wrapper =
+                        vulkan_wrappers::GetWrapper<vulkan_wrappers::ShaderModuleWrapper>(
+                            pCreateInfos[p].pStages[s].module);
+                    assert(shader_wrapper != nullptr);
 
-                ppl_wrapper->bound_shaders.push_back(*shader_wrapper);
+                    ppl_wrapper->bound_shaders.push_back(*shader_wrapper);
+                }
             }
         }
     }
@@ -2808,11 +2878,15 @@ void VulkanCaptureManager::PostProcess_vkCreateComputePipelines(VkResult        
                 vulkan_wrappers::GetWrapper<vulkan_wrappers::PipelineWrapper>(pPipelines[p]);
             assert(ppl_wrapper != nullptr);
 
-            const vulkan_wrappers::ShaderModuleWrapper* shader_wrapper =
-                vulkan_wrappers::GetWrapper<vulkan_wrappers::ShaderModuleWrapper>(pCreateInfos[p].stage.module);
-            assert(shader_wrapper != nullptr);
+            const auto binary_info = graphics::vulkan_struct_get_pnext<VkPipelineBinaryInfoKHR>(&pCreateInfos[p]);
+            if (binary_info == nullptr || !binary_info->binaryCount)
+            {
+                const vulkan_wrappers::ShaderModuleWrapper* shader_wrapper =
+                    vulkan_wrappers::GetWrapper<vulkan_wrappers::ShaderModuleWrapper>(pCreateInfos[p].stage.module);
+                assert(shader_wrapper != nullptr);
 
-            ppl_wrapper->bound_shaders.push_back(*shader_wrapper);
+                ppl_wrapper->bound_shaders.push_back(*shader_wrapper);
+            }
         }
     }
 }
@@ -2835,14 +2909,18 @@ void VulkanCaptureManager::PostProcess_vkCreateRayTracingPipelinesKHR(
                 vulkan_wrappers::GetWrapper<vulkan_wrappers::PipelineWrapper>(pPipelines[p]);
             assert(ppl_wrapper != nullptr);
 
-            for (uint32_t s = 0; s < pCreateInfos[p].stageCount; ++s)
+            const auto binary_info = graphics::vulkan_struct_get_pnext<VkPipelineBinaryInfoKHR>(&pCreateInfos[p]);
+            if (binary_info == nullptr || !binary_info->binaryCount)
             {
-                const vulkan_wrappers::ShaderModuleWrapper* shader_wrapper =
-                    vulkan_wrappers::GetWrapper<vulkan_wrappers::ShaderModuleWrapper>(
-                        pCreateInfos[p].pStages[s].module);
-                assert(shader_wrapper != nullptr);
+                for (uint32_t s = 0; s < pCreateInfos[p].stageCount; ++s)
+                {
+                    const vulkan_wrappers::ShaderModuleWrapper* shader_wrapper =
+                        vulkan_wrappers::GetWrapper<vulkan_wrappers::ShaderModuleWrapper>(
+                            pCreateInfos[p].pStages[s].module);
+                    assert(shader_wrapper != nullptr);
 
-                ppl_wrapper->bound_shaders.push_back(*shader_wrapper);
+                    ppl_wrapper->bound_shaders.push_back(*shader_wrapper);
+                }
             }
         }
     }

@@ -43,7 +43,7 @@ class VulkanReplayConsumerBodyGeneratorOptions(BaseGeneratorOptions):
         prefix_text='',
         protect_file=False,
         protect_feature=True,
-        extraVulkanHeaders=[]
+        extra_headers=[]
     ):
         BaseGeneratorOptions.__init__(
             self,
@@ -54,7 +54,7 @@ class VulkanReplayConsumerBodyGeneratorOptions(BaseGeneratorOptions):
             prefix_text,
             protect_file,
             protect_feature,
-            extraVulkanHeaders=extraVulkanHeaders
+            extra_headers=extra_headers
         )
         self.replay_overrides = replay_overrides
         self.dump_resources_overrides = dump_resources_overrides
@@ -94,21 +94,10 @@ class VulkanReplayConsumerBodyGenerator(
     ):
         BaseGenerator.__init__(
             self,
-            process_cmds=True,
-            process_structs=True,
-            feature_break=True,
             err_file=err_file,
             warn_file=warn_file,
             diag_file=diag_file
         )
-
-        # Map of Vulkan structs containing handles to a list values for handle members or struct members
-        # that contain handles (eg. VkGraphicsPipelineCreateInfo contains a VkPipelineShaderStageCreateInfo
-        # member that contains handles).
-        self.structs_with_handles = dict()
-        self.structs_with_handle_ptrs = []
-        # Map of struct types to associated VkStructureType.
-        self.stype_values = dict()
 
     def beginFile(self, gen_opts):
         """Method override."""
@@ -149,6 +138,7 @@ class VulkanReplayConsumerBodyGenerator(
 
     def endFile(self):
         """Method override."""
+        KhronosBaseReplayConsumerBodyGenerator.endFile(self)
         self.newline()
         write('static void InitializeOutputStructPNextImpl(const VkBaseInStructure* in_pnext, VkBaseOutStructure* output_struct)', file=self.outFile)
         write('{', file=self.outFile)
@@ -156,8 +146,8 @@ class VulkanReplayConsumerBodyGenerator(
         write('    {', file=self.outFile)
         write('        switch(in_pnext->sType)', file=self.outFile)
         write('        {', file=self.outFile)
-        for struct in self.stype_values:
-            struct_type = self.stype_values[struct]
+        for struct in self.struct_type_names:
+            struct_type = self.struct_type_names[struct]
             if not struct_type in self.SKIP_PNEXT_STRUCT_TYPES:
                 write('            case {}:'.format(struct_type), file=self.outFile)
                 write('            {', file=self.outFile)
@@ -200,29 +190,11 @@ class VulkanReplayConsumerBodyGenerator(
         # Finish processing in superclass
         BaseGenerator.endFile(self)
 
-    def genStruct(self, typeinfo, typename, alias):
-        """Method override."""
-        BaseGenerator.genStruct(self, typeinfo, typename, alias)
-
-        if not alias:
-            self.check_struct_member_handles(
-                typename, self.structs_with_handles,
-                self.structs_with_handle_ptrs
-            )
-
-            stype = self.make_structure_type_enum(typeinfo, typename)
-            if stype:
-                self.stype_values[typename] = stype
-
     def need_feature_generation(self):
         """Indicates that the current feature has C++ code to generate."""
         if self.feature_cmd_params:
             return True
         return False
-
-    def generate_feature(self):
-        """Performs C++ code generation for the feature."""
-        KhronosBaseReplayConsumerBodyGenerator.generate_feature(self)
 
     def use_instance_table(self, name, typename):
         """Check for dispatchable handle types associated with the instance dispatch table."""
@@ -291,22 +263,24 @@ class VulkanReplayConsumerBodyGenerator(
         )
         arglist = ', '.join(args)
 
-        dispatchfunc = ''
+        dispatchfunc = 'GetDeviceTable'
         if name not in ['vkCreateInstance', 'vkCreateDevice']:
             object_name = args[0]
+            dispatch_func_is_set = False
             if self.use_instance_table(name, values[0].base_type):
                 dispatchfunc = 'GetInstanceTable'
                 if values[0].base_type == 'VkDevice':
                     object_name = 'physical_device'
                     preexpr.append("VulkanDeviceInfo* device_info     = GetObjectInfoTable().GetVkDeviceInfo(device);")
                     preexpr.append("VkPhysicalDevice  physical_device = device_info->parent;")
-            else:
-                dispatchfunc = 'GetDeviceTable'
+                    dispatchfunc += '({})->{}'.format(object_name, name[2:])
+                    dispatch_func_is_set = True
 
-            if is_override:
-                dispatchfunc += '({}->handle)->{}'.format(object_name, name[2:])
-            else:
-                dispatchfunc += '({})->{}'.format(object_name, name[2:])
+            if not dispatch_func_is_set:
+                if is_override:
+                    dispatchfunc += '({}->handle)->{}'.format(object_name, name[2:])
+                else:
+                    dispatchfunc += '({})->{}'.format(object_name, name[2:])
 
         call_expr = ''
         if is_override:
@@ -590,7 +564,7 @@ class VulkanReplayConsumerBodyGenerator(
                         if need_temp_value:
                             expr += '{}->GetPointer();'.format(value.name)
 
-                        if (value.base_type in self.structs_with_handles) or (
+                        if (value.base_type in self.global_structs_with_handles) or (
                             value.base_type in self.GENERIC_HANDLE_STRUCTS
                         ):
                             preexpr.append(expr)
@@ -736,12 +710,12 @@ class VulkanReplayConsumerBodyGenerator(
                         elif self.is_struct(value.base_type):
                             # Generate the expression to allocate the output array.
                             alloc_expr = ''
-                            if value.base_type in self.stype_values:
+                            if value.base_type in self.struct_type_names:
                                 # If this is a struct with sType and pNext fields, we need to initialize them.
                                 # TODO: recreate pNext value read from the capture file.
                                 alloc_expr += 'AllocateOutputData({}, {}{{ {}, nullptr }});'.format(
                                     length_name, value.base_type,
-                                    self.stype_values[value.base_type]
+                                    self.struct_type_names[value.base_type]
                                 )
                             else:
                                 alloc_expr += 'AllocateOutputData({});'.format(
@@ -753,8 +727,8 @@ class VulkanReplayConsumerBodyGenerator(
                                     alloc_expr, paramname=value.name
                                 )
                                 # If this is a struct with handles, we need to add replay mappings for the embedded handles.
-                                if value.base_type in self.structs_with_handles:
-                                    if value.base_type in self.structs_with_handle_ptrs:
+                                if value.base_type in self.global_structs_with_handles:
+                                    if value.base_type in self.global_structs_with_handle_ptrs:
                                         preexpr.append(
                                             'SetStructArrayHandleLengths<Decoded_{}>({paramname}->GetMetaStructPointer(), {paramname}->GetLength());'
                                             .format(
@@ -777,8 +751,8 @@ class VulkanReplayConsumerBodyGenerator(
                                     alloc_expr, paramname=value.name
                                 )
                                 # If this is a struct with handles, we need to add replay mappings for the embedded handles.
-                                if value.base_type in self.structs_with_handles:
-                                    if value.base_type in self.structs_with_handle_ptrs:
+                                if value.base_type in self.global_structs_with_handles:
+                                    if value.base_type in self.global_structs_with_handle_ptrs:
                                         preexpr.append(
                                             'SetStructArrayHandleLengths<Decoded_{}>({paramname}->GetMetaStructPointer(), {paramname}->GetLength());'
                                             .format(
@@ -894,9 +868,9 @@ class VulkanReplayConsumerBodyGenerator(
                                     )
                             elif self.is_struct(value.base_type):
                                 # If this is a struct with sType and pNext fields, we need to initialize them.
-                                if value.base_type in self.stype_values:
+                                if value.base_type in self.struct_type_names:
                                     expr += '{paramname}->IsNull() ? nullptr : {paramname}->AllocateOutputData(1, {{ {}, nullptr }});'.format(
-                                        self.stype_values[value.base_type],
+                                        self.struct_type_names[value.base_type],
                                         paramname=value.name
                                     )
                                     need_initialize_output_pnext_struct = value.name
@@ -906,9 +880,9 @@ class VulkanReplayConsumerBodyGenerator(
                                     )
 
                                 # If this is a struct with handles, we need to add replay mappings for the embedded handles.
-                                if value.base_type in self.structs_with_handles:
+                                if value.base_type in self.global_structs_with_handles:
                                     if need_temp_value:
-                                        if value.base_type in self.structs_with_handle_ptrs:
+                                        if value.base_type in self.global_structs_with_handle_ptrs:
                                             preexpr.append(
                                                 'SetStructArrayHandleLengths<Decoded_{}>({paramname}->GetMetaStructPointer(), {paramname}->GetLength());'
                                                 .format(
@@ -928,7 +902,7 @@ class VulkanReplayConsumerBodyGenerator(
                                             )
                                         )
                                     else:
-                                        if value.base_type in self.structs_with_handle_ptrs:
+                                        if value.base_type in self.global_structs_with_handle_ptrs:
                                             preexpr.append(
                                                 'SetStructHandleLengths<Decoded_{}>({paramname}->GetMetaStructPointer(), {paramname}->GetLength());'
                                                 .format(

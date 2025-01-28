@@ -43,6 +43,7 @@ import re
 import sys
 import json
 from collections import OrderedDict
+from copy import deepcopy
 from generator import GeneratorOptions, OutputGenerator, noneStr, regSortFeatures
 
 def write(*args, **kwargs):
@@ -92,6 +93,53 @@ def BitsEnumToFlagsTypedef(enum):
         return flags
     return flags
 
+class ApiData():
+    """ApiData - Class to store various Khronos API data.
+
+    Members:
+        api_name                    - The name of the API
+        api_class_prefix            - The prefix to use for classes in this API
+        command_prefix              - The prefix used to identify commands belonging to this Khronos API
+        struct_prefix               - The prefix used to identify structures belonging to this Khronos API
+        struct_type_enum            - The enum type used to define structure types for this Khronos API
+        struct_type_prefix          - The prefix used in the enum to identify the structure type enum value
+        struct_type_variable        - The variable name used to identify structure types for this Khronos API
+        struct_type_func_prefix     - The function prefix to use for structure type related functoins for this Khronos API
+        base_in_struct              - The base input structure defined in this Khronos API
+        base_out_struct             - The base output structure defined in this Khronos API
+        extended_struct_variable    - The extended struct varible name used in this Khronos API
+        extended_struct_func_prefix - The function prefix to use for extended struct functions for this Khronos API.
+        boolean_type                - The type used by the API for booleans
+    """
+    def __init__(
+            self,
+            api_name,
+            api_class_prefix,
+            command_prefix,
+            struct_prefix,
+            struct_type_enum,
+            struct_type_prefix,
+            struct_type_variable,
+            struct_type_func_prefix,
+            base_in_struct,
+            base_out_struct,
+            extended_struct_variable,
+            extended_struct_func_prefix,
+            boolean_type,
+    ):
+        self.api_name = api_name
+        self.api_class_prefix = api_class_prefix
+        self.command_prefix = command_prefix
+        self.struct_type_enum = struct_type_enum
+        self.struct_prefix = struct_prefix
+        self.struct_type_prefix = struct_type_prefix
+        self.struct_type_variable = struct_type_variable
+        self.struct_type_func_prefix = struct_type_func_prefix
+        self.base_in_struct = base_in_struct
+        self.base_out_struct = base_out_struct
+        self.extended_struct_variable = extended_struct_variable
+        self.extended_struct_func_prefix = extended_struct_func_prefix
+        self.boolean_type = boolean_type
 
 class ValueInfo():
     """ValueInfo - Class to store parameter/struct member information.
@@ -209,7 +257,7 @@ class KhronosBaseGeneratorOptions(GeneratorOptions):
         add_extensions=None,
         remove_extensions=None,
         emit_extensions=None,
-        extraVulkanHeaders=[]
+        extra_headers=[]
     ):
         GeneratorOptions.__init__(
             self,
@@ -238,7 +286,7 @@ class KhronosBaseGeneratorOptions(GeneratorOptions):
         self.indent_func_proto = indent_func_proto
         self.align_func_param = align_func_param
         self.code_generator = True
-        self.extraVulkanHeaders = extraVulkanHeaders
+        self.extra_headers = extra_headers
 
 
 class KhronosBaseGenerator(OutputGenerator):
@@ -250,9 +298,6 @@ class KhronosBaseGenerator(OutputGenerator):
 
     def __init__(
         self,
-        process_cmds=True,
-        process_structs=True,
-        feature_break=False,
         err_file=sys.stderr,
         warn_file=sys.stderr,
         diag_file=sys.stdout
@@ -302,20 +347,15 @@ class KhronosBaseGenerator(OutputGenerator):
 
         # Typenames
         self.base_types = dict()  # Set of current API's basetypes
-        self.struct_names = set()  # Set of current API's struct typenames
         self.union_names = set()  # Set of current API's union typenames
         self.handle_names = set()  # Set of current API's handle typenames
         self.dispatchable_handle_names = set()  # Set of current API's dispatchable handle typenames
-        self.flags_types = dict(
-        )  # Map of flags types
+        self.flags_types = dict()  # Map of flags types
+        self.flags_type_aliases = dict()  # Map of flags type aliases
+        self.flags_enum_bits_types = dict() # Map of flags enum to bits type
         self.enum_names = set()  # Set of current API's  enumeration typenames
         self.enumAliases = dict()  # Map of enum names to aliases
         self.enumEnumerants = dict()  # Map of enum names to enumerants
-
-        # Type processing options
-        self.process_cmds = process_cmds  # Populate the feature_cmd_params map
-        self.process_structs = process_structs  # Populate the feature_struct_members map
-        self.feature_break = feature_break  # Insert a line break between features
 
         # Basetypes and their corresponding encode command type
         self.encode_types = dict()
@@ -329,24 +369,69 @@ class KhronosBaseGenerator(OutputGenerator):
         self.encode_types['uint64_t'] = 'UInt64'
 
         # Command parameter and struct member data for the current feature
-        if self.process_structs:
-            self.feature_struct_members = OrderedDict()            # Map of struct names to lists of per-member ValueInfo
-            self.feature_struct_aliases = OrderedDict()            # Map of struct names to aliases
-            self.feature_union_members = OrderedDict()             # Map of union names to lists of per-member ValueInfo
-            self.feature_union_aliases = OrderedDict()             # Map of union names to aliases
-            self.extension_structs_with_handles = OrderedDict()     # Map of extension struct names to a Boolean value indicating that a struct member has a handle type
-            self.extension_structs_with_handle_ptrs = OrderedDict()  # Map of extension struct names to a Boolean value indicating that a struct member with a handle type is a pointer
-        if self.process_cmds:
-            self.all_cmd_params = OrderedDict()                    # Map of cmd names to lists of per-parameter ValueInfo
-            self.feature_cmd_params = OrderedDict()                # Map of cmd names to lists of per-parameter ValueInfo
+        self.struct_names = set()                              # Set of current API's struct typenames
+        self.struct_type_names = OrderedDict()                 # Map of current API's struct type enums
+        self.all_extended_structs = dict()                     # Map of all extended struct names
+        self.feature_extended_structs = dict()                 # Map of per-feature extended struct names
+        self.children_structs = dict()                         # Map of children struct names to lists of child struct names
+        self.all_struct_members = OrderedDict()                # Map of struct names to lists of per-member ValueInfo
+        self.feature_struct_members = OrderedDict()            # Map of per-feature struct names to lists of per-member ValueInfo
+        self.all_struct_aliases = OrderedDict()                # Map of struct names to aliases
+        self.feature_struct_aliases = OrderedDict()            # Map of per-feature struct names to aliases
+        self.all_union_members = OrderedDict()                 # Map of union names to lists of per-member ValueInfo
+        self.feature_union_members = OrderedDict()             # Map of per-feature union names to lists of per-member ValueInfo
+        self.all_union_aliases = OrderedDict()                 # Map of union names to aliases
+        self.feature_union_aliases = OrderedDict()             # Map of per-feature union names to aliases
+        self.extension_structs_with_handles = OrderedDict()     # Map of extension struct names to a Boolean value indicating that a struct member has a handle type
+        self.extension_structs_with_handle_ptrs = OrderedDict()  # Map of extension struct names to a Boolean value indicating that a struct member with a handle type is a pointer
 
-        self.base_header_structs = dict()  # Map of base header struct names to lists of child struct names
+        self.all_cmd_params = OrderedDict()                    # Map of cmd names to lists of per-parameter ValueInfo
+        self.feature_cmd_params = OrderedDict()                # Map of cmd names to lists of per-parameter ValueInfo
 
-        # Lower case prefix and structure type prefix for every supported Khronos API
-        self.valid_khronos_supported_api_prefixes = [
-            { 'vk', 'VK_STRUCTURE_TYPE_' },
-            { 'xr', 'XR_TYPE_' },
-        ]
+        # TODO: Temp, add "global_" to the name so they don't conflict with the existing items as we
+        # transition over to using global versions
+        self.global_structs_with_handles = OrderedDict(
+        )  # Map of structures with handles
+        self.global_structs_with_handle_ptrs = set(
+        )  # Set of structures with handles
+
+        # Data for every supported Khronos API
+        # TODO: Eventually, we should move this info into a data file that we read (JSON?)
+        self.valid_khronos_supported_api_data = []
+        self.valid_khronos_supported_api_data.append(
+            ApiData(
+                api_name='Vulkan',
+                api_class_prefix='Vulkan',
+                command_prefix='vk',
+                struct_type_enum='VkStructureType',
+                struct_prefix='Vk',
+                struct_type_prefix='VK_STRUCTURE_TYPE_',
+                struct_type_variable='sType',
+                struct_type_func_prefix='SType',
+                base_in_struct='VkBaseInStructure',
+                base_out_struct='VkBaseOutStructure',
+                extended_struct_variable='pNext',
+                extended_struct_func_prefix='PNext',
+                boolean_type='VkBool32'
+            )
+        )
+        self.valid_khronos_supported_api_data.append(
+            ApiData(
+                api_name='OpenXR',
+                api_class_prefix='OpenXr',
+                command_prefix='xr',
+                struct_type_enum='XrStructureType',
+                struct_prefix='Xr',
+                struct_type_prefix='XR_TYPE_',
+                struct_type_variable='type',
+                struct_type_func_prefix='Type',
+                base_in_struct='XrBaseInStructure',
+                base_out_struct='XrBaseOutStructure',
+                extended_struct_variable='next',
+                extended_struct_func_prefix='Next',
+                boolean_type='XrBool32'
+            )
+        )
 
     def __load_blacklists(self, filename):
         lists = json.loads(open(filename, 'r').read())
@@ -405,7 +490,7 @@ class KhronosBaseGenerator(OutputGenerator):
     def include_extra_headers(self, gen_opts):
         """Write extra header include statements
         """
-        for extra_header in gen_opts.extraVulkanHeaders:
+        for extra_header in gen_opts.extra_headers:
             header_include_path = re.sub(r'\\', '/', extra_header)
             write(f'#include "{header_include_path}"', file=self.outFile)
 
@@ -453,11 +538,10 @@ class KhronosBaseGenerator(OutputGenerator):
         OutputGenerator.beginFeature(self, interface, emit)
 
         # Reset feature specific data sets
-        if self.process_structs:
-            self.feature_struct_members = OrderedDict()
-            self.feature_struct_aliases = OrderedDict()
-        if self.process_cmds:
-            self.feature_cmd_params = OrderedDict()
+        self.feature_struct_members = OrderedDict()
+        self.feature_struct_aliases = OrderedDict()
+        self.feature_cmd_params = OrderedDict()
+        self.feature_extended_structs = dict()
 
         # Some generation cases require that extra feature protection be suppressed
         if self.genOpts.protect_feature:
@@ -466,9 +550,6 @@ class KhronosBaseGenerator(OutputGenerator):
     def endFeature(self):
         """Method override. Generate code for the feature."""
         if self.emit and self.need_feature_generation():
-            if self.feature_break:
-                self.newline()
-
             if (self.featureExtraProtect is not None):
                 write('#ifdef', self.featureExtraProtect, file=self.outFile)
 
@@ -498,10 +579,6 @@ class KhronosBaseGenerator(OutputGenerator):
             or (base_type in self.PLATFORM_STRUCTS)
         ):
             return True
-        return False
-
-    def is_class(self, value):
-        """Check for class type.  The subclass may override this method."""
         return False
 
     def is_handle(self, base_type):
@@ -709,8 +786,15 @@ class KhronosBaseGenerator(OutputGenerator):
             return True
         return False
 
+    def get_all_filtered_struct_names(self):
+        """Retrieves a filtered list of keys from self.all_struct_members with blacklisted items removed."""
+        return [
+            key for key in self.all_struct_members
+            if not self.is_struct_black_listed(key)
+        ]
+
     def get_filtered_struct_names(self):
-        """Retrieves a filtered list of keys from self.feature_struct_memebers with blacklisted items removed."""
+        """Retrieves a filtered list of keys from self.feature_struct_members with blacklisted items removed."""
         return [
             key for key in self.feature_struct_members
             if not self.is_struct_black_listed(key)
@@ -885,9 +969,16 @@ class KhronosBaseGenerator(OutputGenerator):
             if alias:
                 # Use same base type as the alias if one exists
                 self.flags_types[name] = self.flags_types[alias]
+                self.flags_type_aliases[name] = alias
             else:
                 # Otherwise, look for base type inside type declaration
                 self.flags_types[name] = type_elem.find('type').text
+
+                bittype = type_elem.get('requires')
+                if bittype is None:
+                    bittype = type_elem.get('bitvalues')
+                if bittype is not None:
+                    self.flags_enum_bits_types[bittype] = name
 
         elif (
             (category == "basetype") and (
@@ -906,15 +997,255 @@ class KhronosBaseGenerator(OutputGenerator):
         tags - they are a declaration of a struct or union member.
         """
         OutputGenerator.genStruct(self, typeinfo, typename, alias)
+        self.process_struct(typeinfo.elem, typename, alias)
+
+    def bubble_up_struct_has_handles(self, typename):
+        """Bubble up the struct_has_handles information to
+        every structure that may contain this structure.
+        This is needed because sometimes we read a containing
+        structure before we read the structure itself, or
+        we read a structure before we read the set of
+        extending structures which may include handles.
+        So we need to go back and update the previously
+        read structures which may have contained references
+        to the containing structure."""
+        # Only continue if we're supposed to process this struct
+        if (
+            self.is_struct_black_listed(typename)
+            or self.is_base_input_structure_type(typename)
+            or self.is_base_output_structure_type(typename)
+        ):
+            return
+
+        for struct in self.all_struct_members:
+            # If it's already listed as having a handle, just skip
+            if struct in self.global_structs_with_handles:
+                continue
+            for member in self.all_struct_members[struct]:
+                if member.base_type == typename:
+                    self.global_structs_with_handles[struct] = [member]
+                    if (
+                        struct not in self.global_structs_with_handle_ptrs
+                        and (member.is_pointer or member.is_array)
+                    ):
+                        self.global_structs_with_handle_ptrs.add(struct)
+
+                    self.bubble_up_struct_has_handles(struct)
+
+                    # Check to see if this is a child and update
+                    # the parent's handle status if so.
+                    for parent in self.children_structs.keys():
+                        if member.base_type in self.children_structs[parent]:
+                            self.gen_set_parent_has_handles(parent)
+
+    def gen_set_parent_has_handles(self, parent):
+        """If a child structure has a handle, we need to update
+        the parent to indicate that it to now has a handle."""
+        # If it's already listed as having a handle, just skip
+        if (
+            parent in self.global_structs_with_handles
+            or self.is_struct_black_listed(parent)
+            or self.is_base_input_structure_type(parent)
+            or self.is_base_output_structure_type(parent)
+        ):
+            return
+
+        if (parent in self.children_structs.keys()):
+            # See if any of the children structures have handles
+            for child in self.children_structs[parent]:
+                if child in self.global_structs_with_handles:
+                    self.global_structs_with_handles[parent] = [child]
+                    self.bubble_up_struct_has_handles(parent)
+                    if parent not in self.global_structs_with_handle_ptrs:
+                        self.global_structs_with_handle_ptrs.add(parent)
+
+    def process_struct(self, element, typename, alias):
         # For structs, we ignore the alias because it is a typedef.  Not ignoring the alias
         # would produce multiple definition errors for functions with struct parameters.
-        if self.process_structs:
-            if not alias:
-                self.feature_struct_members[typename] = self.make_value_info(
-                    typeinfo.elem.findall('.//member')
-                )
-            else:
-                self.feature_struct_aliases[typename] = alias
+        if not alias:
+            members = element.findall('.//member')
+            self.add_struct_members(typename, self.make_value_info(members))
+
+            handles = []
+            has_handle_pointers = False
+            for count in range(0, len(self.all_struct_members[typename])):
+                current_xml_member = members[count]
+                current_struct_member = self.all_struct_members[typename][count
+                                                                          ]
+
+                # If this structure has a type field, add it to the list
+                # of structure types
+                if (
+                    current_struct_member.base_type
+                    == self.get_struct_type_enum_name() and
+                    current_struct_member.name == self.get_struct_type_var_name()
+                ):
+
+                    # Check for value in the XML element.
+                    values = current_xml_member.attrib.get('values')
+                    if values:
+                        self.struct_type_names[typename] = values
+                    elif (
+                        not self.is_base_input_structure_type(typename)
+                        and not self.is_base_output_structure_type(typename)
+                    ):
+                        self.struct_type_names[
+                            typename] = self.generate_structure_type(typename)
+
+                # If this is the extnded struct member, and we already have this structure
+                # in the list of handled structs, it means one of the structs that extends
+                # this one has a handle.  So add it to the handle list
+                if (
+                    current_struct_member.name
+                    == self.get_extended_struct_var_name()
+                    and typename in self.all_extended_structs
+                ):
+
+                    for extended_struct in self.all_extended_structs[typename]:
+                        if extended_struct in self.global_structs_with_handles:
+                            handles.append(deepcopy(current_struct_member))
+                            break
+
+                # If this member is a handle, of course we have handles in this struct
+                elif self.is_handle(current_struct_member.base_type):
+                    handles.append(deepcopy(current_struct_member))
+                    if current_struct_member.is_pointer or current_struct_member.is_array:
+                        has_handle_pointers = True
+
+                # If the struct is one we already know about and it has handles, record that
+                elif self.is_struct(current_struct_member.base_type):
+                    if current_struct_member.base_type in self.global_structs_with_handles:
+                        handles.append(deepcopy(current_struct_member))
+                        if current_struct_member.base_type in self.global_structs_with_handle_ptrs:
+                            has_handle_pointers = True
+
+                elif (
+                    current_struct_member.base_type
+                    in self.children_structs.keys()
+                ):
+                    # See if any of the children structures have handles
+                    for child in self.children_structs[
+                        current_struct_member.base_type]:
+                        if child in self.global_structs_with_handles:
+                            handles.append(deepcopy(current_struct_member))
+                            break
+
+            if len(handles) > 0:
+                if typename in self.global_structs_with_handles:
+                    for handle in handles:
+                        # Only add the handles if it is not already listed in the
+                        # list of structure handles
+                        if typename not in self.global_structs_with_handles[
+                            typename]:
+                            self.global_structs_with_handles[typename].append(
+                                handle
+                            )
+                else:
+                    self.global_structs_with_handles[typename] = handles
+                self.bubble_up_struct_has_handles(typename)
+
+            # If this struct has a parent name, keep track of all
+            # the parents and their children
+            parent_name = element.get('parentstruct')
+            if parent_name:
+                # If it doesn't already appear in the list of parents,
+                # add an entry for it.
+                if parent_name not in self.children_structs.keys():
+                    self.children_structs[parent_name] = []
+                self.children_structs[parent_name].append(typename)
+
+                # If this has handles, but the parent is already present
+                # and not listed as having handles, update the parent
+                if len(handles) > 0:
+                    self.gen_set_parent_has_handles(parent_name)
+
+            # If this struct extends another struct, save that info
+            extended_struct = element.get('structextends')
+            if extended_struct:
+                extended_struct_list = []
+                if ',' in extended_struct:
+                    extended_struct_list = extended_struct.split(",")
+                else:
+                    extended_struct_list.append(extended_struct)
+                for ext_struct in extended_struct_list:
+                    self.add_extended_structs(ext_struct, typename)
+
+                # If this struct has handles, check the extended struct (or structs) and set
+                # their extended struct field to having handles.
+                if len(handles) > 0:
+                    for ext_struct in extended_struct_list:
+                        if ext_struct in self.all_struct_members:
+                            for member in self.all_struct_members[ext_struct]:
+                                if member.name == self.get_extended_struct_var_name(
+                                ):
+                                    # If the extended struct already has handles, then just
+                                    # append the extended struct field name to the
+                                    # existing list if it's not already there
+                                    found = False
+                                    if ext_struct in self.global_structs_with_handles:
+                                        for check_handle in self.global_structs_with_handles[
+                                            ext_struct]:
+                                            if check_handle.name == member.name:
+                                                found = True
+                                                break
+                                    if not found:
+                                        if ext_struct in self.global_structs_with_handles:
+                                            # If this member is not in the list of struct handles,
+                                            # add it to the list and put it at the beginning
+                                            if member not in self.global_structs_with_handles[
+                                                ext_struct]:
+                                                self.global_structs_with_handles[
+                                                    ext_struct].extend(
+                                                        [member]
+                                                    )
+                                                self.global_structs_with_handles[
+                                                    ext_struct
+                                                ].insert(
+                                                    0, self.
+                                                    global_structs_with_handles[
+                                                        ext_struct].
+                                                    pop(
+                                                        self.
+                                                        global_structs_with_handles[
+                                                            ext_struct].
+                                                        index(member)
+                                                    )
+                                                )
+                                        else:
+                                            self.global_structs_with_handles[
+                                                ext_struct] = [member]
+                                        has_handle_pointers = True
+                                        self.bubble_up_struct_has_handles(
+                                            ext_struct
+                                        )
+                                    break
+
+            if has_handle_pointers and typename not in self.global_structs_with_handle_ptrs:
+                self.global_structs_with_handle_ptrs.add(typename)
+
+        else:
+            self.add_struct_alias(typename, alias)
+
+    def add_extended_structs(self, name, extended):
+        if name in self.all_extended_structs:
+            self.all_extended_structs[name].append(extended)
+        else:
+            new_list = [extended]
+            self.all_extended_structs[name] = new_list
+
+        if name in self.feature_extended_structs:
+            self.feature_extended_structs[name].append(extended)
+        else:
+            new_list = [extended]
+            self.feature_extended_structs[name] = new_list
+
+    def add_struct_alias(self, name, alias):
+        self.all_struct_aliases[name] = alias
+        self.feature_struct_aliases[name] = alias
+
+    def add_struct_members(self, name, value_info):
+        self.all_struct_members[name] = value_info
+        self.feature_struct_members[name] = value_info
 
     def genUnion(self, typeinfo, typename, alias):
         """Method override.
@@ -926,15 +1257,22 @@ class KhronosBaseGenerator(OutputGenerator):
         """
         # For structs, we ignore the alias because it is a typedef.  Not ignoring the alias
         # would produce multiple definition errors for functions with struct parameters.
-        if self.process_structs:
-            if not alias:
-                if typename not in self.feature_union_members:
-                    self.feature_union_members[typename] = self.make_value_info(
-                        typeinfo.elem.findall('.//member')
-                    )
-            else:
-                if typename not in self.feature_union_aliases:
-                    self.feature_union_aliases[typename] = alias
+        if not alias:
+            if typename not in self.feature_union_members:
+                self.add_union_members(typename, self.make_value_info(
+                    typeinfo.elem.findall('.//member')
+                ))
+        else:
+            if typename not in self.all_union_aliases:
+                self.add_union_alias(typename, alias)
+
+    def add_union_alias(self, name, alias):
+        self.all_union_aliases[name] = alias
+        self.feature_union_aliases[name] = alias
+
+    def add_union_members(self, name, value_info):
+        self.all_union_members[name] = value_info
+        self.feature_union_members[name] = value_info
 
     def genGroup(self, groupinfo, group_name, alias):
         """Method override.
@@ -976,25 +1314,24 @@ class KhronosBaseGenerator(OutputGenerator):
         """Method override. Command generation."""
         OutputGenerator.genCmd(self, cmdinfo, name, alias)
 
-        if self.process_cmds:
-            # Create the declaration for the function prototype
-            proto = cmdinfo.elem.find('proto')
-            proto_decl = self.genOpts.apicall + noneStr(proto.text)
-            for elem in proto:
-                text = noneStr(elem.text)
-                tail = noneStr(elem.tail)
-                if (elem.tag == 'name'):
-                    if text.startswith('vk'):
-                        text = text[2:]
-                    proto_decl += self.makeProtoName(text, tail)
-                else:
-                    proto_decl += text + tail
+        # Create the declaration for the function prototype
+        proto = cmdinfo.elem.find('proto')
+        proto_decl = self.genOpts.apicall + noneStr(proto.text)
+        for elem in proto:
+            text = noneStr(elem.text)
+            tail = noneStr(elem.tail)
+            if (elem.tag == 'name'):
+                if text.startswith('vk'):
+                    text = text[2:]
+                proto_decl += self.makeProtoName(text, tail)
+            else:
+                proto_decl += text + tail
 
-            return_type = noneStr(proto.text
-                                  ) + noneStr(proto.find('type').text)
+        return_type = noneStr(proto.text
+                                ) + noneStr(proto.find('type').text)
 
-            self.add_command_params(name, return_type, proto_decl,
-                self.make_value_info(cmdinfo.elem.findall('param')))
+        self.add_command_params(name, return_type, proto_decl,
+            self.make_value_info(cmdinfo.elem.findall('param')))
 
     def add_command_params(self, name, return_type, proto_decl, value_info):
         # TODO: Define a class or namedtuple for the dictionary entry
@@ -1086,47 +1423,73 @@ class KhronosBaseGenerator(OutputGenerator):
 
         return values
 
+    def get_api_data(self):
+        for api_data in self.valid_khronos_supported_api_data:
+            if api_data.api_name.lower() == self.genOpts.apiname.lower():
+                return api_data
+        return None
+
+    def is_base_input_structure_type(self, type):
+        for api_data in self.valid_khronos_supported_api_data:
+            if (type.startswith(api_data.struct_prefix) and
+                type == api_data.base_in_struct):
+                return True
+        return False
+
+    def is_base_output_structure_type(self, type):
+        for api_data in self.valid_khronos_supported_api_data:
+            if (type.startswith(api_data.struct_prefix) and
+                type == api_data.base_out_struct):
+                return True
+        return False
+
+    def is_boolean_type(self, type):
+        for api_data in self.valid_khronos_supported_api_data:
+            if (type == api_data.boolean_type):
+                return True
+        return False
+
     def get_base_input_structure_name(self):
-        """
-        Intended to be overridden.
-        Must implement.
-        """
-        raise NotImplementedError
+        api_data = self.get_api_data()
+        if api_data is not None:
+            return api_data.base_in_struct
+        return ''
 
     def get_base_output_structure_name(self):
-        """
-        Intended to be overridden.
-        Must implement.
-        """
-        raise NotImplementedError
+        api_data = self.get_api_data()
+        if api_data is not None:
+            return api_data.base_out_struct
+        return ''
+
+    def get_struct_type_enum_name(self):
+        api_data = self.get_api_data()
+        if api_data is not None:
+            return api_data.struct_type_enum
+        return ''
 
     def get_struct_type_var_name(self):
-        """
-        Intended to be overridden.
-        Must implement.
-        """
-        raise NotImplementedError
+        api_data = self.get_api_data()
+        if api_data is not None:
+            return api_data.struct_type_variable
+        return ''
 
     def get_struct_type_func_prefix(self):
-        """
-        Intended to be overridden.
-        Must implement.
-        """
-        raise NotImplementedError
+        api_data = self.get_api_data()
+        if api_data is not None:
+            return api_data.struct_type_func_prefix
+        return ''
 
     def get_extended_struct_var_name(self):
-        """
-        Intended to be overridden.
-        Must implement.
-        """
-        raise NotImplementedError
+        api_data = self.get_api_data()
+        if api_data is not None:
+            return api_data.extended_struct_variable
+        return ''
 
     def get_extended_struct_func_prefix(self):
-        """
-        Intended to be overridden.
-        Must implement.
-        """
-        raise NotImplementedError
+        api_data = self.get_api_data()
+        if api_data is not None:
+            return api_data.extended_struct_func_prefix
+        return ''
 
     def is_extended_struct_definition(self, value):
         if (value.name == self.get_extended_struct_var_name() and
@@ -1141,10 +1504,10 @@ class KhronosBaseGenerator(OutputGenerator):
         type_with_prefix = upper_type
 
         # Apply any structure type prefix first
-        for api_prefix, struct_prefix in self.valid_khronos_supported_api_prefixes:
-            upper_prefix = api_prefix.upper()
+        for api_data in self.valid_khronos_supported_api_data:
+            upper_prefix = api_data.struct_prefix.upper()
             if upper_type.startswith(upper_prefix):
-                type_with_prefix = struct_prefix + upper_type
+                type_with_prefix = api_data.struct_type_prefix + upper_type
 
         type_with_prefix = type_with_prefix.replace('_OPEN_GLES', '_OPENGL_ES_')
         type_with_prefix = type_with_prefix.replace('_OPEN_GL', '_OPENGL_')
@@ -1157,11 +1520,18 @@ class KhronosBaseGenerator(OutputGenerator):
     def make_simple_var_name(self, type_name):
         lower_type = re.sub('([a-z0-9])([A-Z])', r'\1_\2', type_name).lower()
 
-        for api_prefix, struct_prefix in self.valid_khronos_supported_api_prefixes:
-            lower_prefix = api_prefix.lower()
+        for api_data in self.valid_khronos_supported_api_data:
+            lower_prefix = api_data.struct_prefix.lower()
             if lower_type.startswith(lower_prefix):
                 lower_prefix_len = len(lower_prefix)
                 new_lower_type = lower_type[:lower_prefix_len - 1] + '_' + lower_type[lower_prefix_len - 1:]
                 lower_type = new_lower_type
 
         return lower_type
+
+    def write_includes_of_common_api_headers(self, gen_opts):
+        """
+        Intended to be overridden.
+        Must implement.
+        """
+        raise NotImplementedError

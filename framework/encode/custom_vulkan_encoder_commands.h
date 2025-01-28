@@ -236,7 +236,17 @@ struct CustomEncoderPreCall<format::ApiCallId::ApiCall_vkCreateSwapchainKHR>
     template <typename... Args>
     static void Dispatch(VulkanCaptureManager* manager, Args... args)
     {
-        manager->PreProcess_vkCreateSwapchain(args...);
+        manager->PreProcess_vkCreateSwapchainKHR(args...);
+    }
+};
+
+template <>
+struct CustomEncoderPostCall<format::ApiCallId::ApiCall_vkCreateSwapchainKHR>
+{
+    template <typename... Args>
+    static void Dispatch(VulkanCaptureManager* manager, Args... args)
+    {
+        manager->PostProcess_vkCreateSwapchainKHR(args...);
     }
 };
 
@@ -1017,16 +1027,6 @@ struct CustomEncoderPreCall<format::ApiCallId::ApiCall_vkGetAccelerationStructur
     static void Dispatch(VulkanCaptureManager* manager, Args... args)
     {
         manager->PreProcess_vkGetAccelerationStructureDeviceAddressKHR(args...);
-    }
-};
-
-template <>
-struct CustomEncoderPreCall<format::ApiCallId::ApiCall_vkGetRayTracingShaderGroupHandlesKHR>
-{
-    template <typename... Args>
-    static void Dispatch(VulkanCaptureManager* manager, Args... args)
-    {
-        manager->PreProcess_vkGetRayTracingShaderGroupHandlesKHR(args...);
     }
 };
 

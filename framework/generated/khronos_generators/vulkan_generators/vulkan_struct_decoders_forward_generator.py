@@ -37,7 +37,7 @@ class VulkanStructDecodersForwardGeneratorOptions(BaseGeneratorOptions):
         prefix_text='',
         protect_file=False,
         protect_feature=True,
-        extraVulkanHeaders=[]
+        extra_headers=[]
     ):
         BaseGeneratorOptions.__init__(
             self,
@@ -48,7 +48,7 @@ class VulkanStructDecodersForwardGeneratorOptions(BaseGeneratorOptions):
             prefix_text,
             protect_file,
             protect_feature,
-            extraVulkanHeaders=extraVulkanHeaders
+            extra_headers=extra_headers
         )
 
 
@@ -63,9 +63,6 @@ class VulkanStructDecodersForwardGenerator(BaseGenerator):
     ):
         BaseGenerator.__init__(
             self,
-            process_cmds=False,
-            process_structs=True,
-            feature_break=True,
             err_file=err_file,
             warn_file=warn_file,
             diag_file=diag_file
@@ -77,15 +74,18 @@ class VulkanStructDecodersForwardGenerator(BaseGenerator):
 
         write('#include "util/defines.h"', file=self.outFile)
         self.newline()
-        self.includeVulkanHeaders(gen_opts)
+        self.write_includes_of_common_api_headers(gen_opts)
         self.newline()
         write('#include <cstdint>', file=self.outFile)
         self.newline()
         write('GFXRECON_BEGIN_NAMESPACE(gfxrecon)', file=self.outFile)
         write('GFXRECON_BEGIN_NAMESPACE(decode)', file=self.outFile)
+        self.newline()
 
     def endFile(self):
         """Method override."""
+        self.write_struct_decoder_forward_prototypes()
+
         self.newline()
         write('GFXRECON_END_NAMESPACE(decode)', file=self.outFile)
         write('GFXRECON_END_NAMESPACE(gfxrecon)', file=self.outFile)
@@ -99,14 +99,14 @@ class VulkanStructDecodersForwardGenerator(BaseGenerator):
             return True
         return False
 
-    def generate_feature(self):
-        """Performs C++ code generation for the feature."""
-        for struct in self.get_filtered_struct_names():
+    def write_struct_decoder_forward_prototypes(self):
+        """Performs C++ code generation for the struct decoders."""
+        for struct in self.get_all_filtered_struct_names():
             write('struct Decoded_{};'.format(struct), file=self.outFile)
 
         self.newline()
 
-        for struct in self.get_filtered_struct_names():
+        for struct in self.get_all_filtered_struct_names():
             write(
                 'size_t DecodeStruct(const uint8_t* parameter_buffer, size_t buffer_size, Decoded_{}* wrapper);'
                 .format(struct),

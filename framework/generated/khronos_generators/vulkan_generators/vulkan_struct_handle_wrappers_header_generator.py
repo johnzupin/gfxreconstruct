@@ -37,7 +37,7 @@ class VulkanStructHandleWrappersHeaderGeneratorOptions(BaseGeneratorOptions):
         prefix_text='',
         protect_file=False,
         protect_feature=True,
-        extraVulkanHeaders=[]
+        extra_headers=[]
     ):
         BaseGeneratorOptions.__init__(
             self,
@@ -48,7 +48,7 @@ class VulkanStructHandleWrappersHeaderGeneratorOptions(BaseGeneratorOptions):
             prefix_text,
             protect_file,
             protect_feature,
-            extraVulkanHeaders=extraVulkanHeaders
+            extra_headers=extra_headers
         )
 
 
@@ -64,9 +64,6 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
     ):
         BaseGenerator.__init__(
             self,
-            process_cmds=True,
-            process_structs=True,
-            feature_break=False,
             err_file=err_file,
             warn_file=warn_file,
             diag_file=diag_file
@@ -75,7 +72,6 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
         # Map of Vulkan structs containing handles to a list values for handle members or struct members
         # that contain handles (eg. VkGraphicsPipelineCreateInfo contains a VkPipelineShaderStageCreateInfo
         # member that contains handles).
-        self.structs_with_handles = dict()
         self.output_structs = [
         ]  # Output structures that retrieve handles, which need to be wrapped.
 
@@ -95,7 +91,7 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
         write('#include "format/platform_types.h"', file=self.outFile)
         write('#include "util/defines.h"', file=self.outFile)
         self.newline()
-        self.includeVulkanHeaders(gen_opts)
+        self.write_includes_of_common_api_headers(gen_opts)
         self.newline()
         write('GFXRECON_BEGIN_NAMESPACE(gfxrecon)', file=self.outFile)
         write('GFXRECON_BEGIN_NAMESPACE(encode)', file=self.outFile)
@@ -103,6 +99,30 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
 
     def endFile(self):
         """Method override."""
+        # Check for output structures, which retrieve handles that need to be wrapped.
+        for cmd in self.all_cmd_params:
+            info = self.all_cmd_params[cmd]
+            values = info[2]
+
+            for value in values:
+                if self.is_output_parameter(value) and self.is_struct(
+                    value.base_type
+                ) and (value.base_type in self.global_structs_with_handles
+                       ) and (value.base_type not in self.output_structs):
+                    self.output_structs.append(value.base_type)
+
+        # Generate unwrap and rewrap code for input structures.
+        for struct in self.get_all_filtered_struct_names():
+            if (
+                (struct in self.global_structs_with_handles)
+                or (struct in self.GENERIC_HANDLE_STRUCTS)
+            ) and (struct not in self.STRUCT_MAPPERS_BLACKLIST):
+                body = '\n'
+                body += 'void UnwrapStructHandles({}* value, HandleUnwrapMemory* unwrap_memory);'.format(
+                    struct
+                )
+                write(body, file=self.outFile)
+
         self.newline()
         write(
             'VkBaseInStructure* CopyPNextStruct(const VkBaseInStructure* base, HandleUnwrapMemory* unwrap_memory);',
@@ -223,46 +243,11 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
         # Finish processing in superclass
         BaseGenerator.endFile(self)
 
-    def genStruct(self, typeinfo, typename, alias):
-        """Method override."""
-        BaseGenerator.genStruct(self, typeinfo, typename, alias)
-
-        if not alias:
-            self.check_struct_member_handles(
-                typename, self.structs_with_handles
-            )
-
     def need_feature_generation(self):
         """Method override. Indicates that the current feature has C++ code to generate."""
         if self.feature_struct_members or self.feature_cmd_params:
             return True
         return False
-
-    def generate_feature(self):
-        """Performs C++ code generation for the feature."""
-        # Check for output structures, which retrieve handles that need to be wrapped.
-        for cmd in self.feature_cmd_params:
-            info = self.feature_cmd_params[cmd]
-            values = info[2]
-
-            for value in values:
-                if self.is_output_parameter(value) and self.is_struct(
-                    value.base_type
-                ) and (value.base_type in self.structs_with_handles
-                       ) and (value.base_type not in self.output_structs):
-                    self.output_structs.append(value.base_type)
-
-        # Generate unwrap and rewrap code for input structures.
-        for struct in self.get_filtered_struct_names():
-            if (
-                (struct in self.structs_with_handles)
-                or (struct in self.GENERIC_HANDLE_STRUCTS)
-            ) and (struct not in self.STRUCT_MAPPERS_BLACKLIST):
-                body = '\n'
-                body += 'void UnwrapStructHandles({}* value, HandleUnwrapMemory* unwrap_memory);'.format(
-                    struct
-                )
-                write(body, file=self.outFile)
 
     def generate_create_wrapper_funcs(self):
         """Generates functions that wrap struct handle members."""
@@ -277,8 +262,7 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
 
             wrapper_prefix = self.get_wrapper_prefix_from_type()
 
-            members = self.structs_with_handles[struct]
-            for member in members:
+            for member in self.global_structs_with_handles[struct]:
                 if self.is_struct(member.base_type):
                     if member.is_array:
                         body += '        vulkan_wrappers::CreateWrappedStructArrayHandles<ParentWrapper, CoParentWrapper, {}>(parent, co_parent, value->{}, value->{}, get_id);\n'.format(

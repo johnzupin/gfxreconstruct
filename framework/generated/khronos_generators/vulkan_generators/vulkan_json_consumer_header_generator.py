@@ -40,7 +40,7 @@ class VulkanExportJsonConsumerHeaderGeneratorOptions(VulkanConsumerHeaderGenerat
         prefix_text='',
         protect_file=False,
         protect_feature=True,
-        extraVulkanHeaders=[]
+        extra_headers=[]
     ):
         VulkanConsumerHeaderGeneratorOptions.__init__(
             self,
@@ -55,7 +55,7 @@ class VulkanExportJsonConsumerHeaderGeneratorOptions(VulkanConsumerHeaderGenerat
             prefix_text,
             protect_file,
             protect_feature,
-            extraVulkanHeaders=extraVulkanHeaders
+            extra_headers=extra_headers
         )
 
 
@@ -83,9 +83,8 @@ class VulkanExportJsonConsumerHeaderGenerator(VulkanConsumerHeaderGenerator):
             'vkGetPipelineCacheData',
         }
 
-    def generate_feature(self):
-        """Performs C++ code generation for the feature."""
-        first = True
+    def beginFile(self, gen_opts):
+        VulkanConsumerHeaderGenerator.beginFile(self, gen_opts)
 
         # TODO: Each code generator is passed a blacklist like framework\generated\vulkan_generators\blacklists.json
         # of functions and structures not to generate code for. Once the feature is implemented, the following can be
@@ -93,9 +92,11 @@ class VulkanExportJsonConsumerHeaderGenerator(VulkanConsumerHeaderGenerator):
         if 'vkCreateRayTracingPipelinesKHR' in self.APICALL_BLACKLIST:
             self.APICALL_BLACKLIST.remove('vkCreateRayTracingPipelinesKHR')
 
-        for cmd in self.get_filtered_cmd_names():
+    def output_header_contents(self):
+        """Performs C++ code generation for the header contents."""
+        for cmd in self.get_all_filtered_cmd_names():
             if cmd not in self.customImplementationRequired:
-                info = self.feature_cmd_params[cmd]
+                info = self.all_cmd_params[cmd]
                 return_type = info[0]
                 values = info[2]
 
@@ -103,7 +104,7 @@ class VulkanExportJsonConsumerHeaderGenerator(VulkanConsumerHeaderGenerator):
                     return_type, 'Process_' + cmd, values
                 )
 
-                cmddef = '' if first else '\n'
+                cmddef = '\n'
                 if self.genOpts.is_override:
                     cmddef += self.indent(
                         'virtual ' + decl + ' override;', self.INDENT_SIZE
@@ -114,4 +115,3 @@ class VulkanExportJsonConsumerHeaderGenerator(VulkanConsumerHeaderGenerator):
                     )
 
                 write(cmddef, file=self.outFile)
-                first = False

@@ -380,7 +380,8 @@ class VulkanStateTracker
                            void*            mapped_data,
                            VkDeviceSize     mapped_offset,
                            VkDeviceSize     mapped_size,
-                           VkMemoryMapFlags mapped_flags);
+                           VkMemoryMapFlags mapped_flags,
+                           bool             track_assets);
 
     void TrackBeginRenderPass(VkCommandBuffer command_buffer, const VkRenderPassBeginInfo* begin_info);
 
@@ -454,10 +455,24 @@ class VulkanStateTracker
                                            const VkAccelerationStructureBuildGeometryInfoKHR*     infos,
                                            const VkAccelerationStructureBuildRangeInfoKHR* const* pp_buildRange_infos);
 
+    void TrackAccelerationStructureCopyCommand(VkCommandBuffer                           command_buffer,
+                                               const VkCopyAccelerationStructureInfoKHR* info);
+
+    void TrackWriteAccelerationStructuresPropertiesCommand(VkCommandBuffer                   commandBuffer,
+                                                           uint32_t                          accelerationStructureCount,
+                                                           const VkAccelerationStructureKHR* pAccelerationStructures,
+                                                           VkQueryType                       queryType,
+                                                           VkQueryPool                       queryPool,
+                                                           uint32_t                          firstQuery);
+
     void TrackDeviceMemoryDeviceAddress(VkDevice device, VkDeviceMemory memory, VkDeviceAddress address);
 
     void TrackRayTracingPipelineProperties(VkPhysicalDevice                                 physicalDevice,
                                            VkPhysicalDeviceRayTracingPipelinePropertiesKHR* ray_properties);
+
+    void TrackAccelerationStructureProperties(
+        VkPhysicalDevice                                    physicalDevice,
+        VkPhysicalDeviceAccelerationStructurePropertiesKHR* acceleration_structure_properties);
 
     void TrackRayTracingShaderGroupHandles(VkDevice device, VkPipeline pipeline, size_t data_size, const void* data);
 
@@ -719,9 +734,9 @@ class VulkanStateTracker
                                                uint32_t        maxDrawCount,
                                                uint32_t        stride);
 
-    void TrackSubmission(uint32_t submitCount, const VkSubmitInfo* pSubmits);
+    void TrackAssetsInSubmission(uint32_t submitCount, const VkSubmitInfo* pSubmits);
 
-    void TrackSubmission(uint32_t submitCount, const VkSubmitInfo2* pSubmits);
+    void TrackAssetsInSubmission(uint32_t submitCount, const VkSubmitInfo2* pSubmits);
 
     void TrackBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo* pRenderingInfo);
 

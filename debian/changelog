@@ -1,3 +1,13 @@
+gfxreconstruct (1.0.4+664~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ Fabian Schmidt ]
+  * Portable RT: Fixes for shader-binding-table assembly (sbt data) (#1993)
+
+  [ bradgrantham-lunarg ]
+  * Fix indents label (#2002)
+
+ -- john <john@odin>  Tue, 04 Feb 2025 14:29:08 -0700
+
 gfxreconstruct (1.0.4+662~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Mark Young ]

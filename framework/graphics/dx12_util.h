@@ -1,6 +1,6 @@
 /*
 ** Copyright (c) 2021 LunarG, Inc.
-** Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
+** Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All rights reserved.
 ** Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
@@ -92,7 +92,7 @@ typedef _com_ptr_t<
 typedef _com_ptr_t<_com_IIID<ID3D12Object, &__uuidof(ID3D12Object)>> ID3D12ObjectComPtr;
 
 #if defined(GFXRECON_DXC_SUPPORT)
-typedef _com_ptr_t<_com_IIID<IDxcUtils, &__uuidof(IDxcUtils)>>       IDxcUtilsComPtr;
+typedef _com_ptr_t<_com_IIID<IDxcUtils, &__uuidof(IDxcUtils)>> IDxcUtilsComPtr;
 typedef _com_ptr_t<_com_IIID<IDxcContainerReflection, &__uuidof(IDxcContainerReflection)>>
                                                                              IDxcContainerReflectionComPtr;
 typedef _com_ptr_t<_com_IIID<IDxcBlobEncoding, &__uuidof(IDxcBlobEncoding)>> IDxcBlobEncodingComPtr;
@@ -112,6 +112,7 @@ enum class Dx12DumpResourcePos : uint32_t
     kBeforeDrawCall,
     kDrawCall,
     kAfterDrawCall,
+    kAfterDrawCall_NoBefore,
 };
 
 const static uint32_t kBeforeDrawCallArrayIndex = 0;
@@ -134,6 +135,8 @@ static const uint8_t  kAdapterTypeMask  = 0x3;
 static const uint32_t kAdapterTypeShift = 0;
 static const uint32_t kAdapterIdMask    = 0xFFFFFFFc;
 static const uint32_t kAdapterIdShift   = 2;
+
+static const uint32_t kMaxMarkerStrLength = 1024;
 
 struct AdapterSubmissionMapping
 {

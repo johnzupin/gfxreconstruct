@@ -22,10 +22,11 @@
 # IN THE SOFTWARE.
 
 import sys
-from base_generator import BaseGenerator, BaseGeneratorOptions, write
+from vulkan_base_generator import VulkanBaseGenerator, VulkanBaseGeneratorOptions, write
+from khronos_struct_encoders_body_generator import KhronosStructEncodersBodyGenerator
 
 
-class VulkanStructEncodersBodyGeneratorOptions(BaseGeneratorOptions):
+class VulkanStructEncodersBodyGeneratorOptions(VulkanBaseGeneratorOptions):
     """Options for generating C++ functions for Vulkan struct encoding."""
 
     def __init__(
@@ -39,7 +40,7 @@ class VulkanStructEncodersBodyGeneratorOptions(BaseGeneratorOptions):
         protect_feature=True,
         extra_headers=[]
     ):
-        BaseGeneratorOptions.__init__(
+        VulkanBaseGeneratorOptions.__init__(
             self,
             blacklists,
             platform_types,
@@ -51,9 +52,18 @@ class VulkanStructEncodersBodyGeneratorOptions(BaseGeneratorOptions):
             extra_headers=extra_headers
         )
 
+        self.begin_end_file_data.specific_headers.extend((
+            'generated/generated_vulkan_struct_encoders.h',
+            '',
+            'encode/custom_vulkan_struct_encoders.h',
+            'encode/parameter_encoder.h',
+            'encode/struct_pointer_encoder.h',
+            'util/defines.h',
+        ))
+        self.begin_end_file_data.namespaces.extend(('gfxrecon', 'encode'))
 
-class VulkanStructEncodersBodyGenerator(BaseGenerator):
-    """VulkanStructEncodersBodyGenerator - subclass of BaseGenerator.
+class VulkanStructEncodersBodyGenerator(VulkanBaseGenerator, KhronosStructEncodersBodyGenerator):
+    """VulkanStructEncodersBodyGenerator - subclass of VulkanBaseGenerator.
     Generates C++ functions for encoding Vulkan API structures.
     Generate C++ functions for Vulkan struct encoding.
     """
@@ -61,81 +71,23 @@ class VulkanStructEncodersBodyGenerator(BaseGenerator):
     def __init__(
         self, err_file=sys.stderr, warn_file=sys.stderr, diag_file=sys.stdout
     ):
-        BaseGenerator.__init__(
+        VulkanBaseGenerator.__init__(
             self,
             err_file=err_file,
             warn_file=warn_file,
             diag_file=diag_file
         )
 
-    def beginFile(self, gen_opts):
-        """Method override."""
-        BaseGenerator.beginFile(self, gen_opts)
-
-        write(
-            '#include "generated/generated_vulkan_struct_encoders.h"',
-            file=self.outFile
-        )
-        self.newline()
-        write(
-            '#include "encode/custom_vulkan_struct_encoders.h"',
-            file=self.outFile
-        )
-        write('#include "encode/parameter_encoder.h"', file=self.outFile)
-        write('#include "encode/struct_pointer_encoder.h"', file=self.outFile)
-        write('#include "util/defines.h"', file=self.outFile)
-        self.newline()
-        self.write_includes_of_common_api_headers(gen_opts)
-        self.newline()
-        write('GFXRECON_BEGIN_NAMESPACE(gfxrecon)', file=self.outFile)
-        write('GFXRECON_BEGIN_NAMESPACE(encode)', file=self.outFile)
-
     def endFile(self):
         """Method override."""
-        self.write_encoder_content()
-
+        KhronosStructEncodersBodyGenerator.write_encoder_content(self)
         self.newline()
-        write('GFXRECON_END_NAMESPACE(encode)', file=self.outFile)
-        write('GFXRECON_END_NAMESPACE(gfxrecon)', file=self.outFile)
 
         # Finish processing in superclass
-        BaseGenerator.endFile(self)
+        VulkanBaseGenerator.endFile(self)
 
     def need_feature_generation(self):
         """Indicates that the current feature has C++ code to generate."""
         if self.feature_struct_members:
             return True
         return False
-
-    def write_encoder_content(self):
-        """Performs C++ code generation for the encoder."""
-        for struct in self.get_all_filtered_struct_names():
-            body = '\n'
-            body += 'void EncodeStruct(ParameterEncoder* encoder, const {}& value)\n'.format(
-                struct
-            )
-            body += '{\n'
-            body += self.make_struct_body(
-                struct, self.all_struct_members[struct], 'value.'
-            )
-            body += '}'
-            write(body, file=self.outFile)
-
-    def make_struct_body(self, name, values, prefix):
-        """Command definition."""
-        # Build array of lines for function body
-        body = ''
-
-        for value in values:
-            # pNext fields require special treatment and are not processed by typename
-            if 'pNext' in value.name:
-                body += '    EncodePNextStruct(encoder, {});\n'.format(
-                    prefix + value.name
-                )
-            else:
-                method_call = self.make_encoder_method_call(
-                    name, value, values, prefix
-                )
-                body += '    {};\n'.format(method_call)
-
-        return body

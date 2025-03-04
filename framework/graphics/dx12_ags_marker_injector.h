@@ -1,6 +1,5 @@
 /*
-** Copyright (c) 2023 Valve Corporation
-** Copyright (c) 2023 LunarG, Inc.
+** Copyright (c) 2025 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and associated documentation files (the "Software"),
@@ -21,21 +20,34 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef GFXRECON_LAYER_CUSTOM_FUNC_TABLE_H
-#define GFXRECON_LAYER_CUSTOM_FUNC_TABLE_H
+#ifndef GFXRECON_DX12_AGS_MARKER_INJECTOR_H
+#define GFXRECON_DX12_AGS_MARKER_INJECTOR_H
 
 #include "util/defines.h"
-#include "custom_vulkan_api_call_encoders.h"
 
-#include <unordered_map>
+#include <string>
+#include <d3d12.h>
+#include <amd_ags.h>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
+GFXRECON_BEGIN_NAMESPACE(graphics)
 
-const std::unordered_map<std::string, PFN_vkVoidFunction> custom_func_table = {
-    { "GetBlockIndexGFXR", reinterpret_cast<PFN_vkVoidFunction>(encode::GetBlockIndexGFXR) },
-    { "DumpAssetsGFXR", reinterpret_cast<PFN_vkVoidFunction>(encode::DumpAssetsGFXR) }
+class Dx12AgsMarkerInjector
+{
+  public:
+    static Dx12AgsMarkerInjector* Get();
+    static Dx12AgsMarkerInjector* Create();
+    bool                          PushMarker(ID3D12GraphicsCommandList* command_list, const std::string& marker);
+    bool                          PopMarker(ID3D12GraphicsCommandList* command_list);
+    bool                          SetMarker(ID3D12GraphicsCommandList* command_list, const std::string& marker);
+    void                          SetContext(AGSContext* context) { ags_context_ = context; }
+    AGSContext*                   Context() { return ags_context_; }
+
+  private:
+    AGSContext* ags_context_{ nullptr };
 };
 
+GFXRECON_END_NAMESPACE(graphics)
 GFXRECON_END_NAMESPACE(gfxrecon)
 
-#endif // GFXRECON_LAYER_CUSTOM_FUNC_TABLE_H
+#endif // GFXRECON_DX12_AGS_MARKER_INJECTOR_H

@@ -21,10 +21,11 @@
 # IN THE SOFTWARE.
 
 import os, re, sys, inspect
-from base_generator import *
+from vulkan_base_generator import *
+from khronos_enum_to_string_header_generator import KhronosEnumToStringHeaderGenerator
 
 
-class VulkanEnumToStringHeaderGeneratorOptions(BaseGeneratorOptions):
+class VulkanEnumToStringHeaderGeneratorOptions(VulkanBaseGeneratorOptions):
     """Options for generating C++ functions for Vulkan ToString() functions"""
 
     def __init__(
@@ -38,7 +39,7 @@ class VulkanEnumToStringHeaderGeneratorOptions(BaseGeneratorOptions):
         protect_feature=True,
         extra_headers=[]
     ):
-        BaseGeneratorOptions.__init__(
+        VulkanBaseGeneratorOptions.__init__(
             self,
             blacklists,
             platform_types,
@@ -49,65 +50,35 @@ class VulkanEnumToStringHeaderGeneratorOptions(BaseGeneratorOptions):
             protect_feature,
             extra_headers=extra_headers
         )
+            
+        self.begin_end_file_data.specific_headers.extend((
+            'format/platform_types.h',
+            'util/to_string.h',
+        ))
+        self.begin_end_file_data.namespaces.extend(('gfxrecon', 'util'))
 
 
-# VulkanEnumToStringHeaderGenerator - subclass of BaseGenerator.
+# VulkanEnumToStringHeaderGenerator - subclass of VulkanBaseGenerator.
 # Generates C++ functions for stringifying Vulkan API enums.
-class VulkanEnumToStringHeaderGenerator(BaseGenerator):
+class VulkanEnumToStringHeaderGenerator(VulkanBaseGenerator, KhronosEnumToStringHeaderGenerator):
     """Generate C++ functions for Vulkan ToString() functions"""
 
     def __init__(
         self, err_file=sys.stderr, warn_file=sys.stderr, diag_file=sys.stdout
     ):
-        BaseGenerator.__init__(
+        VulkanBaseGenerator.__init__(
             self,
             err_file=err_file,
             warn_file=warn_file,
             diag_file=diag_file
         )
 
-        # Set of enums that have been processed since we'll encounter enums that are
-        #   referenced by extensions multiple times.  This list is prepopulated with
-        #   enums that should be skipped.
-        self.processedEnums = {
-            'VkAccessFlagBits2KHR',
-            'VkPipelineStageFlagBits2KHR',
-        }
-
     # Method override
-    # yapf: disable
-    def beginFile(self, genOpts):
-        BaseGenerator.beginFile(self, genOpts)
-        includes = inspect.cleandoc(
-            '''
-            #include "format/platform_types.h"
-            #include "util/to_string.h"
-            '''
-        )
-        write(includes, file=self.outFile)
-        self.write_includes_of_common_api_headers(genOpts)
-        namespace = inspect.cleandoc(
-            '''
-            GFXRECON_BEGIN_NAMESPACE(gfxrecon)
-            GFXRECON_BEGIN_NAMESPACE(util)
-            '''
-        )
-        write(namespace, file=self.outFile)
-    # yapf: enable
-
-    # Method override
-    # yapf: disable
     def endFile(self):
-        self.write_enum_to_string_header()
-
-        body = inspect.cleandoc('''
-            GFXRECON_END_NAMESPACE(util)
-            GFXRECON_END_NAMESPACE(gfxrecon)
-            ''')
-        write(body, file=self.outFile)
+        KhronosEnumToStringHeaderGenerator.write_enum_to_string_header(self)
 
         # Finish processing in superclass
-        BaseGenerator.endFile(self)
+        VulkanBaseGenerator.endFile(self)
     # yapf: enable
 
     #
@@ -116,18 +87,3 @@ class VulkanEnumToStringHeaderGenerator(BaseGenerator):
         if self.feature_struct_members:
             return True
         return False
-
-    #
-    # Performs C++ code generation for the enum to string header.
-    def write_enum_to_string_header(self):
-        for enum in sorted(self.enum_names):
-            if not enum in self.enumAliases:
-                if self.is_flags_enum_64bit(enum):
-                    body = 'std::string {0}ToString(const {0} value);'
-                    body += '\nstd::string {1}ToString(VkFlags64 vkFlags);'
-                else:
-                    body = 'template <> std::string ToString<{0}>(const {0}& value, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'
-                    if 'Bits' in enum:
-                        body += '\ntemplate <> std::string ToString<{0}>(VkFlags vkFlags, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'
-                write(body.format(enum, BitsEnumToFlagsTypedef(enum)),
-                        file=self.outFile)

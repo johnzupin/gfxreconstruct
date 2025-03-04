@@ -397,6 +397,8 @@ void MapStructHandles(Decoded_VkGeneratedCommandsShaderInfoEXT* wrapper, const C
 
 void MapStructHandles(Decoded_VkWriteIndirectExecutionSetShaderEXT* wrapper, const CommonObjectInfoTable& object_info_table);
 
+void MapStructHandles(Decoded_VkMemoryGetMetalHandleInfoEXT* wrapper, const CommonObjectInfoTable& object_info_table);
+
 void MapStructHandles(Decoded_VkAccelerationStructureGeometryTrianglesDataKHR* wrapper, const CommonObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_VkAccelerationStructureCreateInfoKHR* wrapper, const CommonObjectInfoTable& object_info_table);
@@ -413,7 +415,7 @@ void MapStructHandles(Decoded_VkCopyAccelerationStructureInfoKHR* wrapper, const
 
 void MapStructHandles(Decoded_VkRayTracingPipelineCreateInfoKHR* wrapper, const CommonObjectInfoTable& object_info_table);
 
-void MapPNextStructHandles(const void* value, void* wrapper, const CommonObjectInfoTable& object_info_table);
+void MapPNextStructHandles(PNextNode* value, const CommonObjectInfoTable& object_info_table);
 
 void AddStructHandles(format::HandleId parent_id, const Decoded_VkPhysicalDeviceGroupProperties* id_wrapper, const VkPhysicalDeviceGroupProperties* handle_struct, CommonObjectInfoTable* object_info_table);
 
@@ -439,4 +441,4 @@ void SetStructHandleLengths(Decoded_VkPipelineBinaryHandlesInfoKHR* wrapper);
 GFXRECON_END_NAMESPACE(decode)
 GFXRECON_END_NAMESPACE(gfxrecon)
 
-#endif
+#endif // GFXRECON_GENERATED_VULKAN_STRUCT_HANDLE_MAPPERS_H

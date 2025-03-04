@@ -1,5 +1,5 @@
 ###############################################################################
-# Copyright (c) 2018-2020,2023 LunarG, Inc.
+# Copyright (c) 2018-2020,2023-2025 LunarG, Inc.
 # Copyright (c) 2018-2023 Advanced Micro Devices, Inc. All rights reserved
 # All rights reserved
 #
@@ -101,8 +101,8 @@ target_sources(gfxrecon_util
                     ${CMAKE_CURRENT_LIST_DIR}/strings.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/to_string.h
                     ${CMAKE_CURRENT_LIST_DIR}/to_string.cpp
-                    ${CMAKE_CURRENT_LIST_DIR}/options.h
-                    ${CMAKE_CURRENT_LIST_DIR}/options.cpp
+                    ${CMAKE_CURRENT_LIST_DIR}/thread_data.h
+                    ${CMAKE_CURRENT_LIST_DIR}/thread_data.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/custom_common_to_string.h
                     ${CMAKE_CURRENT_LIST_DIR}/custom_common_to_string.cpp
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_enum_to_string.h
@@ -208,6 +208,7 @@ if (${RUN_TESTS})
     target_sources(gfxrecon_util_test PRIVATE
             ${CMAKE_CURRENT_LIST_DIR}/test/main.cpp
             ${CMAKE_CURRENT_LIST_DIR}/test/test_linear_hashmap.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/test/test_spirv_parsing_util.cpp
             ${CMAKE_CURRENT_LIST_DIR}/../../tools/platform_debug_helper.cpp
             $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/test/dx_pointers.h>
             $<$<BOOL:${D3D12_SUPPORT}>:${CMAKE_CURRENT_LIST_DIR}/test/dx12_utils.cpp>

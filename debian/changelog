@@ -1,3 +1,231 @@
+gfxreconstruct (1.0.4+772~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ Panagiotis Apostolou ]
+  * Remove shader reflection from asset files (#1979)
+
+  [ Fabian Schmidt ]
+  * Portable RT: Fixes for shader-binding-table assembly (#1982)
+  * Add missing StorageClassShaderRecordBufferKHR to spirv-parser (#1974)
+
+  [ bradgrantham-lunarg ]
+  * Clear CMake warnings about minimum versions and CMP135 (#1988)
+  * Use CMake variables to enable/disable test apps (#1987)
+
+  [ Panagiotis Apostolou ]
+  * MapPNextStructHandles should traverse chain till end (#1994)
+
+  [ David Pinedo ]
+  * Dx12 dump resources: dump resources only after draw calls
+  * clang-format files modified in previous commit
+
+  [ bradgrantham-lunarg ]
+  * Isolate higher min cmake to tests (#1997)
+
+  [ Bartosz Muszarski ]
+  * Add report on used resolutions
+  * Remove resolution info output if none was found
+
+  [ Mark Young ]
+  * Apply code review suggestions from Andrew
+  * Add missing override (only seen on MacOS)
+
+  [ Panagiotis Apostolou ]
+  * State writer dump ycbcr conversion objects earlier (#1995)
+
+  [ Fabian Schmidt ]
+  * Portable RT: Fixes for shader-binding-table assembly (sbt data) (#1993)
+
+  [ Ihor Zvieriev ]
+  * Added an command argument for android script to select a device if there are multiple
+  * Added a check whether the ANDROID_SERIAL was set.
+  * Remove stray whitespaces
+  * Fix the device selection failure
+  * Remove remntants of old selection option
+
+  [ bradgrantham-lunarg ]
+  * extend CMP0135 to CMake 3.24 and remove directive causing an issue (#2000)
+
+  [ Marius Pelegrin ]
+  * Add log message on app gain/loss of focus
+
+  [ Antonio Caggiano ]
+  * decode: Do not import fd on replay
+  * encode: Init buffer after binding external memory
+  * fix: Bind incompatibility
+  * encode: CommandWriter
+
+  [ Panagiotis Apostolou ]
+  * VDR: Fix for separate image alpha (#1996)
+
+  [ bradgrantham-lunarg ]
+  * Fix indents label (#2002)
+
+  [ Panagiotis Apostolou ]
+  * gfxrecon-info now prints vulkan physical device info (#1992)
+
+  [ bartosz-muszarski-arm ]
+  * Reserve MetaDataType 35 (#2006)
+
+  [ Mark Young ]
+  * codegen: Update ref resource consumer
+  * codegen: Update cmd buffer util header
+  * codegen: Remove unused code in CPP consumer
+  * codegen: Update cmd buf util body generation
+  * codegen: Update api call endcoders
+  * codegen: Rename global_structs_with_handle*
+  * codegen: Move wrapper prefix usage to use ApiData
+  * codegen: Move API Prefix to use APIData
+  * codegen: Modify struct handle wrapper header
+  * codegen: Modify how handles, atoms and opaques are handled
+  * codegen: Use "isHandleLike" instead of separate checks
+  * codegen: Move struct handle wrap body to Khronos
+  * codegen: Rename Khronos struct handle mapper files
+  * codegen: Rename Khronos base_decoder_body generator
+  * codegen: Move Khronos Base Replay name to remove Base
+  * codegen: Rename Khronos Base Struct Decoder to remove "Base"
+  * codegen: Move JSON body to support other handle-like types
+  * codegen: Migrate struct encoder header to Khronos
+  * codegen: Migrate struct encoder body to Khronos
+  * codegen: Move more from struct decoder body to Khronos
+  * codegen: Move decoder header generation into Khronos
+  * codegen: Fix 64-bit flag detection in khronos
+  * codegen: Fix flag types/enum conversion
+  * codegen: Remove unnecessary methods
+  * codegen: Remove unnecessary lists in enum->string
+  * codegen: enum->json header use Khronos types
+  * codegen: Add ability to go backwards enum->flags
+  * codegen: Update enum->json body to use Khronos types
+  * codegen: Move enum->json header into Khronos
+  * codegen: Move enum->json body to Khronos files
+  * codegen: Move enum->string header code to Khronos
+  * codegen: Move enum->string body code to Khronos
+
+  [ ziga-lunarg ]
+  * Fix trim with external formats (#1942)
+
+  [ Panagiotis Apostolou ]
+  * Fix in pixel shader resource init path (#2010)
+
+  [ Andrew H. Cox ]
+  * Catch Exceptions by Reference to Avoid Slicing (#1990)
+
+  [ Juan R Cabral ]
+  * VDR: Initialize multiview flag (#2014)
+  * Fix CommonObjectInfoTable reference count (#2013)
+
+  [ dfriederich ]
+  * Map depth image in Unorm16 for full range (#2016)
+
+  [ Panagiotis Apostolou ]
+  * VDR: Fix dumping image subresources (#2005)
+
+  [ Dustin Graves ]
+  * Include <chrono> for high_resolution_clock
+
+  [ beau-lunarg ]
+  * No default test app builds.  Force build during Github CI (#2004)
+
+  [ Mike Schuchardt ]
+  * Fix CMake warning CMP0175
+
+  [ Panagiotis Apostolou ]
+  * VDR: Fix when dumping images raw (#2020)
+
+  [ Locke Lin ]
+  * Vulkan Dump: Convert call index to block index (#1998)
+  * Revert "Vulkan Dump: Convert call index to block index (#1998)"
+
+  [ JerryAMD ]
+  * Fix Replay Crash at CreateSwapChainForComposition (#2017)
+
+  [ Locke Lin ]
+  * Vulkan Dump: Convert call index to block index (#2030)
+
+  [ bradgrantham-lunarg ]
+  * log address map failure ONCE to avoid log spam (#2031)
+
+  [ JerryAMD ]
+  * Enable AGS Markers to Replay (#1971)
+
+  [ Panagiotis Apostolou ]
+  * VDR: Let blit handle srgb (#2012)
+
+  [ Mark Young ]
+  * codegen: Refactor consumer header generator
+  * codegen: Add skip struct suppport
+  * codegen: enum->string gen refactor
+  * codegen: Refactor decoder gen
+  * codegen: Add table header support for atoms/opaques/aliases
+  * codegen: Refactor state table gen
+  * codegen: Refactor layer function table
+
+  [ Locke Lin ]
+  * Remove duplicated --dump-resources (#2037)
+
+  [ Antonio Caggiano ]
+  * replay: Fix instance info
+
+  [ bradgrantham-lunarg ]
+  * Remove second "--test-apps" (#2027)
+
+  [ Panagiotis Apostolou ]
+  * VDR: Fix for srgb images (#2039)
+
+  [ Nick Driscoll ]
+  * Vulkan Header Update 1.4.309 (#2043)
+
+  [ beau-lunarg ]
+  * Beau null test driver (#1886)
+
+  [ Locke Lin ]
+  * Correct code (#2048)
+
+  [ bradgrantham-lunarg ]
+  * Fix spelling of a couple of functions (#2038)
+
+  [ zongdu-arm ]
+  * Add waitForFence before destroying virtual swap chain resources (#2044)
+
+  [ Nick Driscoll ]
+  * Macro VERIFY_VK_RESULT no longer evaluates result twice (#2015)
+
+  [ bradgrantham-lunarg ]
+  * make empty file stack equivalent to file completion (#2049)
+
+  [ David Pinedo ]
+  * Implement dx12 dump resources if in modifiable state
+  * Remove duplicate help info, remove extraneous blank line
+  * Use a bool vector to send modifiable flags to resource dumper
+
+  [ bradgrantham-lunarg ]
+  * handle when script can't find program (#2047)
+
+  [ Rodrigo Urra ]
+  * Preserve D3D12 object names while trimming (#2026)
+
+  [ Fabian Schmidt ]
+  * Track & Sanitize usage of buffer references in pipelines (#2040)
+
+  [ Dustin Graves ]
+  * Update codegen for arrays of COM pointers (#1798)
+
+  [ Mark Young ]
+  * codegen: update and consolidate layer functions
+  * codegen: Refactor codegen for consumers
+  * codegen: DRY codegen, prep for multi-api
+
+  [ John Zulauf ]
+  * codegen: Fixes from OpenXR port work
+
+  [ Fabian Schmidt ]
+  * Fix: Revert a change affecting RT-feature selection (#2053)
+
+  [ Panos Apostolou ]
+  * Block index was being increased more than it should for trimmed captures
+  * Remove block index from thread data
+
+ -- john <john@odin>  Tue, 04 Mar 2025 10:17:50 -0700
+
 gfxreconstruct (1.0.4+664~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Fabian Schmidt ]

@@ -48,6 +48,8 @@ target_sources(gfxrecon_graphics
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_resources_util.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_device_util.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_device_util.cpp
+                    ${CMAKE_CURRENT_LIST_DIR}/vulkan_instance_util.h
+                    ${CMAKE_CURRENT_LIST_DIR}/vulkan_instance_util.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_util.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_util.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_struct_deep_copy.h
@@ -68,9 +70,9 @@ endif()
 
 target_include_directories(gfxrecon_graphics
                            PUBLIC
-                               ${CMAKE_SOURCE_DIR}/build
-                               ${CMAKE_SOURCE_DIR}/framework
-                               ${CMAKE_SOURCE_DIR}/external
+                               ${PROJECT_SOURCE_DIR}/build
+                               ${PROJECT_SOURCE_DIR}/framework
+                               ${PROJECT_SOURCE_DIR}/external
                                $<$<BOOL:${D3D12_SUPPORT}>:${D3D12_INCLUDE_DIRECTORIES}>)
 
 target_link_libraries(gfxrecon_graphics gfxrecon_util vulkan_registry platform_specific)

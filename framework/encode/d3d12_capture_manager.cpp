@@ -326,6 +326,10 @@ void D3D12CaptureManager::InitializeID3D12ResourceInfo(ID3D12Device_Wrapper*    
     info->layout          = layout;
     info->heap_offset     = heap_offset;
     info->heap_wrapper    = heap_wrapper;
+    if (heap_wrapper != nullptr)
+    {
+        info->heap_id = heap_wrapper->GetCaptureId();
+    }
 
     if (dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
     {
@@ -2894,6 +2898,30 @@ void D3D12CaptureManager::OverrideID3D12GraphicsCommandList4_BeginRenderPass(
         TrimDrawCalls_ID3D12GraphicsCommandList4_BeginRenderPass(
             wrapper, NumRenderTargets, pRenderTargets, pDepthStencil, Flags);
     }
+}
+
+HRESULT D3D12CaptureManager::OverrideD3D12CreateVersionedRootSignatureDeserializerFromSubobjectInLibrary(
+    LPCVOID pSrcData,
+    SIZE_T  SrcDataSizeInBytes,
+    LPCWSTR RootSignatureSubobjectName,
+    REFIID  pRootSignatureDeserializerInterface,
+    void**  ppRootSignatureDeserializer)
+{
+    GFXRECON_LOG_FATAL(
+        "Calling unsupported function D3D12CreateVersionedRootSignatureDeserializerFromSubobjectInLibrary");
+    return E_NOTIMPL;
+}
+
+void D3D12CaptureManager::OverrideID3D12GraphicsCommandList10_SetProgram(ID3D12GraphicsCommandList10_Wrapper* wrapper,
+                                                                         const D3D12_SET_PROGRAM_DESC*        pDesc)
+{
+    GFXRECON_LOG_FATAL("Calling unsupported function ID3D12GraphicsCommandList10::SetProgram");
+}
+
+void D3D12CaptureManager::OverrideID3D12GraphicsCommandList10_DispatchGraph(
+    ID3D12GraphicsCommandList10_Wrapper* wrapper, const D3D12_DISPATCH_GRAPH_DESC* pDesc)
+{
+    GFXRECON_LOG_FATAL("Calling unsupported function ID3D12GraphicsCommandList10::DispatchGraph");
 }
 
 void D3D12CaptureManager::PostProcess_ID3D12Device5_CreateStateObject(ID3D12Device5_Wrapper*         device5_wrapper,

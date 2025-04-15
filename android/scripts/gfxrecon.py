@@ -32,23 +32,25 @@ argc = len(sys.argv)
 # Supported commands
 valid_commands = [
     'install-apk',
+    'multiwin-replay',
     'replay'
 ]
 
 # Arguments
 # gfxrecon install-apk <file>
 # gfxrecon replay [-p | --push-file <file-on-desktop>] <file-on-device>
+# gfxrecon multiwin-replay [-p | --push-file <file-on-desktop>] <file-on-device>
 
 # Application info
 app_name = 'com.lunarg.gfxreconstruct.replay'
 app_activity = '"com.lunarg.gfxreconstruct.replay/android.app.NativeActivity"'
+multiwin_app_activity = '"com.lunarg.gfxreconstruct.replay/.ReplayActivity"'
 app_action = 'android.intent.action.MAIN'
 app_category = 'android.intent.category.LAUNCHER'
 
 # ADB commands
 adb_install = 'adb install -g -t -r'
 adb_sdk_version = 'adb shell getprop ro.build.version.sdk'
-adb_start = 'adb shell am start -n {} -a {} -c {}'.format(app_activity, app_action, app_category)
 adb_stop = 'adb shell am force-stop {}'.format(app_name)
 adb_push = 'adb push'
 adb_devices = 'adb devices'
@@ -95,6 +97,7 @@ def CreateReplayParser():
     parser.add_argument('--log-file', metavar='DEVICE_FILE', help='Write log messages to a file at the specified path instead of logcat (forwarded to replay tool)')
     parser.add_argument('--pause-frame', metavar='N', help='Pause after replaying frame number N (forwarded to replay tool)')
     parser.add_argument('--paused', action='store_true', default=False, help='Pause after replaying the first frame (same as "--pause-frame 1"; forwarded to replay tool)')
+    parser.add_argument('--cpu-mask', metavar='binary_mask', help='Set of CPU cores used by the replayer. `binary-mask` is a succession of "0" and "1" that specifies used/unused cores read from left to right. For example "10010" activates the first and fourth cores and deactivate all other cores. If the option is not set, all cores can be used. If the option is set only for some cores, the other cores are not used. (forwarded to replay tool)')
     parser.add_argument('--screenshot-all', action='store_true', default=False, help='Generate screenshots for all frames.  When this option is specified, --screenshots is ignored (forwarded to replay tool)')
     parser.add_argument('--screenshots', metavar='RANGES', help='Generate screenshots for the specified frames.  Target frames are specified as a comma separated list of frame ranges.  A frame range can be specified as a single value, to specify a single frame, or as two hyphenated values, to specify the first and last frames to process.  Frame ranges should be specified in ascending order and cannot overlap.  Note that frame numbering is 1-based (i.e. the first frame is frame 1).  Example: 200,301-305 will generate six screenshots (forwarded to replay tool)')
     parser.add_argument('--screenshot-format', metavar='FORMAT', choices=['bmp', 'png'], help='Image file format to use for screenshot generation.  Available formats are: bmp, png (forwarded to replay tool)')
@@ -144,6 +147,7 @@ def CreateReplayParser():
     parser.add_argument('--load-pipeline-cache', metavar='DEVICE_FILE', help='If set, loads data created by the `--save-pipeline-cache` option in DEVICE_FILE and uses it to create the pipelines instead of the pipeline caches saved at capture time. (forwarded to replay tool)')
     parser.add_argument('--add-new-pipeline-caches', action='store_true', default=False, help='If set, allows gfxreconstruct to create new vkPipelineCache objects when it encounters a pipeline created without cache. This option can be used in coordination with `--save-pipeline-cache` and `--load-pipeline-cache`. (forwarded to replay tool)')
     parser.add_argument('--quit-after-frame', metavar='FRAME', help='Specify a frame after which replay will terminate.')
+    parser.add_argument('--screenshot-ignore-FrameBoundaryANDROID', action='store_true', default=False, help='If set, frames switced with vkFrameBoundANDROID will be ignored from the screenshot handler.')
 
     return parser
 
@@ -167,6 +171,10 @@ def MakeExtrasString(args):
 
     if args.paused:
         arg_list.append('--paused')
+
+    if args.cpu_mask:
+        arg_list.append('--cpu-mask')
+        arg_list.append('{}'.format(args.cpu_mask))
 
     if args.screenshot_all:
         arg_list.append('--screenshot-all')
@@ -334,6 +342,9 @@ def MakeExtrasString(args):
         arg_list.append('--quit-after-frame')
         arg_list.append('{}'.format(args.quit_after_frame))
 
+    if args.screenshot_ignore_FrameBoundaryANDROID:
+        arg_list.append('--screenshot-ignore-FrameBoundaryANDROID')
+
     if args.file:
         arg_list.append(args.file)
     elif not args.version:
@@ -354,7 +365,7 @@ def InstallApk(install_args):
     print('Executing:', cmd)
     subprocess.check_call(shlex.split(cmd, posix='win' not in sys.platform))
 
-def Replay(replay_args):
+def ReplayCommon(replay_args, activity):
     replay_parser = CreateReplayParser()
     args = replay_parser.parse_args(replay_args)
 
@@ -371,11 +382,19 @@ def Replay(replay_args):
         print('Executing:', adb_stop)
         subprocess.check_call(shlex.split(adb_stop, posix='win' not in sys.platform))
 
+        adb_start = 'adb shell am start -n {} -a {} -c {}'.format(activity, app_action, app_category)
+
         cmd = ' '.join([adb_start, '--es', '"args"', '"{}"'.format(extras)])
         print('Executing:', cmd)
 
         # Specify posix=False to prevent removal of quotes from adb extras.
         subprocess.check_call(shlex.split(cmd, posix=False))
+
+def Replay(replay_args):
+    ReplayCommon(replay_args, app_activity)
+
+def MultiWinReplay(replay_args):
+    ReplayCommon(replay_args, multiwin_app_activity)
 
 if __name__ == '__main__':
     devices = QueryAvailableDevices()
@@ -387,3 +406,5 @@ if __name__ == '__main__':
         InstallApk(command.args)
     elif command.command == 'replay':
         Replay(command.args)
+    elif command.command == 'multiwin-replay':
+        MultiWinReplay(command.args)

@@ -37,6 +37,7 @@
 #include "util/logging.h"
 #include "util/platform.h"
 #include "parse_dump_resources_cli.h"
+#include "replay_pre_processing.h"
 
 #include <android_native_app_glue.h>
 #include <android/log.h>
@@ -61,48 +62,6 @@ int32_t     ProcessInputEvent(struct android_app* app, AInputEvent* event);
 void        DestroyActivity(struct android_app* app);
 
 static std::unique_ptr<gfxrecon::decode::FileProcessor> file_processor;
-
-void RunVulkanPreProcessConsumer(const std::string&                      input_filename,
-                                 gfxrecon::decode::VulkanReplayOptions&  replay_options,
-                                 gfxrecon::decode::VulkanReplayConsumer& replay_consumer)
-{
-    gfxrecon::decode::FileProcessor file_processor;
-    if (file_processor.Initialize(input_filename))
-    {
-        gfxrecon::decode::VulkanPreProcessConsumer pre_process_consumer;
-
-        if (replay_options.using_dump_resources_target)
-        {
-            pre_process_consumer.EnableDumpResources(replay_options.dump_resources_target);
-        }
-
-        gfxrecon::decode::VulkanDecoder decoder;
-        decoder.AddConsumer(&pre_process_consumer);
-        file_processor.AddDecoder(&decoder);
-        file_processor.ProcessAllFrames();
-
-        replay_options.enable_vulkan = pre_process_consumer.WasVulkanAPIDetected();
-
-        if (replay_options.enable_vulkan)
-        {
-            if (replay_options.using_dump_resources_target)
-            {
-                replay_options.dump_resources_block_indices = pre_process_consumer.GetDumpResourcesBlockIndices();
-            }
-
-            if (replay_options.enable_dump_resources)
-            {
-                // Process --dump-resources block indices arg.
-                if (!gfxrecon::parse_dump_resources::parse_dump_resources_arg(replay_options))
-                {
-                    GFXRECON_LOG_FATAL("There was an error while parsing dump resources indices. Terminating.");
-                    exit(0);
-                }
-            }
-        }
-    }
-    replay_consumer.InitializeReplayDumpResources();
-}
 
 extern "C"
 {
@@ -178,23 +137,25 @@ void android_main(struct android_app* app)
                 gfxrecon::decode::VulkanReplayOptions          replay_options =
                     GetVulkanReplayOptions(arg_parser, filename, &tracked_object_info_table);
 
-                file_processor->SetPrintBlockInfoFlag(replay_options.enable_print_block_info,
-                                                      replay_options.block_index_from,
-                                                      replay_options.block_index_to);
-
                 gfxrecon::decode::VulkanReplayConsumer vulkan_replay_consumer(application, replay_options);
                 gfxrecon::decode::VulkanDecoder        vulkan_decoder;
 
-                RunVulkanPreProcessConsumer(filename, replay_options, vulkan_replay_consumer);
+                ApiReplayOptions  api_replay_options;
+                ApiReplayConsumer api_replay_consumer;
+                api_replay_options.vk_replay_options   = &replay_options;
+                api_replay_consumer.vk_replay_consumer = &vulkan_replay_consumer;
 
-                uint32_t                               start_frame, end_frame;
-                bool        has_mfr = GetMeasurementFrameRange(arg_parser, start_frame, end_frame);
-                std::string measurement_file_name;
-
-                if (has_mfr)
+                if (IsRunPreProcessConsumer(api_replay_options))
                 {
-                    GetMeasurementFilename(arg_parser, measurement_file_name);
+                    RunPreProcessConsumer(filename, api_replay_options, api_replay_consumer);
                 }
+
+                uint32_t measurement_start_frame;
+                uint32_t measurement_end_frame;
+                bool     has_mfr = GetMeasurementFrameRange(arg_parser, measurement_start_frame, measurement_end_frame);
+
+                std::string measurement_file_name;
+                GetMeasurementFilename(arg_parser, measurement_file_name);
 
                 bool     quit_after_frame = false;
                 uint32_t quit_frame;
@@ -205,8 +166,8 @@ void android_main(struct android_app* app)
                     GetQuitAfterFrame(arg_parser, quit_frame);
                 }
 
-                gfxrecon::graphics::FpsInfo fps_info(static_cast<uint64_t>(start_frame),
-                                                     static_cast<uint64_t>(end_frame),
+                gfxrecon::graphics::FpsInfo fps_info(static_cast<uint64_t>(measurement_start_frame),
+                                                     static_cast<uint64_t>(measurement_end_frame),
                                                      has_mfr,
                                                      replay_options.quit_after_measurement_frame_range,
                                                      replay_options.flush_measurement_frame_range,
@@ -223,6 +184,10 @@ void android_main(struct android_app* app)
                 vulkan_decoder.AddConsumer(&vulkan_replay_consumer);
 
                 file_processor->AddDecoder(&vulkan_decoder);
+
+                file_processor->SetPrintBlockInfoFlag(replay_options.enable_print_block_info,
+                                                      replay_options.block_index_from,
+                                                      replay_options.block_index_to);
 
                 application->SetPauseFrame(GetPauseFrame(arg_parser));
 
@@ -246,17 +211,17 @@ void android_main(struct android_app* app)
                 if ((file_processor->GetCurrentFrameNumber() > 0) &&
                     (file_processor->GetErrorState() == gfxrecon::decode::FileProcessor::kErrorNone))
                 {
-                    if (file_processor->GetCurrentFrameNumber() < start_frame)
+                    if (file_processor->GetCurrentFrameNumber() < measurement_start_frame)
                     {
                         GFXRECON_LOG_WARNING(
                             "Measurement range start frame (%u) is greater than the last replayed frame (%u). "
                             "Measurements were never started, cannot calculate measurement range FPS.",
-                            start_frame,
+                            measurement_start_frame,
                             file_processor->GetCurrentFrameNumber());
                     }
                     else
                     {
-                        fps_info.LogToConsole();
+                        fps_info.LogMeasurements();
                     }
                 }
                 else if (file_processor->GetErrorState() != gfxrecon::decode::FileProcessor::kErrorNone)

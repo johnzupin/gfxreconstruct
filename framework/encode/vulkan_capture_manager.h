@@ -1270,7 +1270,10 @@ class VulkanCaptureManager : public ApiCaptureManager
                                             VkSemaphore                                            semaphore,
                                             VkImage                                                image)
     {
-        EndFrame(current_lock);
+        if (!common_manager_->GetIgnoreFrameBoundaryAndroid())
+        {
+            EndFrame(current_lock);
+        }
     }
 
     void PostProcess_vkCmdInsertDebugUtilsLabelEXT(VkCommandBuffer             commandBuffer,

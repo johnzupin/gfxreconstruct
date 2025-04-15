@@ -843,26 +843,6 @@ void MapStructHandles(Decoded_VkPushDescriptorSetInfo* wrapper, const CommonObje
     }
 }
 
-void MapStructHandles(Decoded_VkCopyMemoryToImageInfo* wrapper, const CommonObjectInfoTable& object_info_table)
-{
-    if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
-    {
-        VkCopyMemoryToImageInfo* value = wrapper->decoded_value;
-
-        value->dstImage = handle_mapping::MapHandle<VulkanImageInfo>(wrapper->dstImage, object_info_table, &CommonObjectInfoTable::GetVkImageInfo);
-    }
-}
-
-void MapStructHandles(Decoded_VkCopyImageToMemoryInfo* wrapper, const CommonObjectInfoTable& object_info_table)
-{
-    if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
-    {
-        VkCopyImageToMemoryInfo* value = wrapper->decoded_value;
-
-        value->srcImage = handle_mapping::MapHandle<VulkanImageInfo>(wrapper->srcImage, object_info_table, &CommonObjectInfoTable::GetVkImageInfo);
-    }
-}
-
 void MapStructHandles(Decoded_VkCopyImageToImageInfo* wrapper, const CommonObjectInfoTable& object_info_table)
 {
     if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
@@ -2112,7 +2092,7 @@ void MapPNextStructHandles(PNextNode* pnext, const CommonObjectInfoTable& object
     while (pnext)
     {
         void *wrapper = pnext->GetMetaStructPointer();
-        const auto* header = reinterpret_cast<const MetaStructHeader*>(pnext->GetMetaStructPointer());
+        const auto* header = reinterpret_cast<const VulkanMetaStructHeader*>(pnext->GetMetaStructPointer());
 
         switch (*header->sType)
         {
@@ -2204,7 +2184,7 @@ void MapPNextStructHandles(PNextNode* pnext, const CommonObjectInfoTable& object
             MapStructHandles(reinterpret_cast<Decoded_VkWriteDescriptorSetAccelerationStructureNV*>(wrapper), object_info_table);
             break;
         }
-    pnext = header->pNext;
+        pnext = header->pNext;
     }
 }
 

@@ -1,14 +1,17 @@
 cmake_minimum_required(VERSION 3.4.1)
 
-project(VkLayer_gfxreconstruct)
-
 get_filename_component(GFXRECON_SOURCE_DIR ../.. ABSOLUTE)
 
+list(APPEND CMAKE_PREFIX_PATH "${GFXRECON_SOURCE_DIR}/external/nlohmann-json")
+find_package(nlohmann_json REQUIRED)
+
+project(VkLayer_gfxreconstruct)
+
 include(../framework/cmake-config/PlatformConfig.cmake)
-add_subdirectory(../framework/util ${CMAKE_SOURCE_DIR}/../framework/util/build/layer/${ANDROID_ABI})
-add_subdirectory(../framework/graphics ${CMAKE_SOURCE_DIR}/../framework/graphics/build/layer/${ANDROID_ABI})
-add_subdirectory(../framework/format ${CMAKE_SOURCE_DIR}/../framework/format/build/layer/${ANDROID_ABI})
-add_subdirectory(../framework/encode ${CMAKE_SOURCE_DIR}/../framework/encode/build/layer/${ANDROID_ABI})
+add_subdirectory(../framework/util ${PROJECT_SOURCE_DIR}/../framework/util/build/layer/${ANDROID_ABI})
+add_subdirectory(../framework/graphics ${PROJECT_SOURCE_DIR}/../framework/graphics/build/layer/${ANDROID_ABI})
+add_subdirectory(../framework/format ${PROJECT_SOURCE_DIR}/../framework/format/build/layer/${ANDROID_ABI})
+add_subdirectory(../framework/encode ${PROJECT_SOURCE_DIR}/../framework/encode/build/layer/${ANDROID_ABI})
 
 add_library(VkLayer_gfxreconstruct SHARED "")
 

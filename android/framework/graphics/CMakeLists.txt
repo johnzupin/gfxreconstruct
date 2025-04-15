@@ -8,6 +8,8 @@ target_sources(gfxrecon_graphics
                     ${GFXRECON_SOURCE_DIR}/framework/graphics/vulkan_check_buffer_references.cpp
                     ${GFXRECON_SOURCE_DIR}/framework/graphics/vulkan_device_util.h
                     ${GFXRECON_SOURCE_DIR}/framework/graphics/vulkan_device_util.cpp
+                    ${GFXRECON_SOURCE_DIR}/framework/graphics/vulkan_instance_util.h
+                    ${GFXRECON_SOURCE_DIR}/framework/graphics/vulkan_instance_util.cpp
                     ${GFXRECON_SOURCE_DIR}/framework/graphics/vulkan_resources_util.h
                     ${GFXRECON_SOURCE_DIR}/framework/graphics/vulkan_resources_util.cpp
                     ${GFXRECON_SOURCE_DIR}/framework/graphics/vulkan_util.h
@@ -22,7 +24,6 @@ target_sources(gfxrecon_graphics
 
 target_include_directories(gfxrecon_graphics
                            PUBLIC
-                               ${GFXRECON_SOURCE_DIR}/external/nlohmann/include
                                ${GFXRECON_SOURCE_DIR}/external
                                ${GFXRECON_SOURCE_DIR}/framework)
 

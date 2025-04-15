@@ -640,7 +640,7 @@ VkResult VulkanCaptureManager::OverrideCreateDevice(VkPhysicalDevice            
 
     graphics::VulkanDeviceUtil                device_util;
     graphics::VulkanDevicePropertyFeatureInfo property_feature_info = device_util.EnableRequiredPhysicalDeviceFeatures(
-        physical_device_wrapper->instance_api_version, instance_table, physicalDevice, pCreateInfo_unwrapped);
+        physical_device_wrapper->instance_info, instance_table, physicalDevice, pCreateInfo_unwrapped);
 
     // TODO: Only enable KHR_external_memory_capabilities for 1.0 API version.
     size_t                   extension_count = pCreateInfo_unwrapped->enabledExtensionCount;
@@ -738,12 +738,14 @@ VkResult VulkanCaptureManager::OverrideCreateDevice(VkPhysicalDevice            
             wrapper->physical_device = physical_device_wrapper;
         }
 
+        wrapper->queue_family_indices.resize(pCreateInfo_unwrapped->queueCreateInfoCount);
         for (uint32_t q = 0; q < pCreateInfo_unwrapped->queueCreateInfoCount; ++q)
         {
             const VkDeviceQueueCreateInfo* queue_create_info = &pCreateInfo_unwrapped->pQueueCreateInfos[q];
             assert(wrapper->queue_family_creation_flags.find(queue_create_info->queueFamilyIndex) ==
                    wrapper->queue_family_creation_flags.end());
             wrapper->queue_family_creation_flags[queue_create_info->queueFamilyIndex] = queue_create_info->flags;
+            wrapper->queue_family_indices[q] = pCreateInfo_unwrapped->pQueueCreateInfos[q].queueFamilyIndex;
         }
     }
 
@@ -835,7 +837,7 @@ VkResult VulkanCaptureManager::OverrideCreateBuffer(VkDevice                    
             info.buffer                    = buffer_wrapper->handle;
             uint64_t opaque_address        = 0;
 
-            if (device_wrapper->physical_device->instance_api_version >= VK_MAKE_VERSION(1, 2, 0))
+            if (device_wrapper->physical_device->instance_info.api_version >= VK_MAKE_VERSION(1, 2, 0))
             {
                 opaque_address = device_table->GetBufferOpaqueCaptureAddress(device_unwrapped, &info);
             }
@@ -1036,6 +1038,22 @@ VkResult VulkanCaptureManager::OverrideAllocateMemory(VkDevice                  
         }
     }
 
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+    // If image is not VK_NULL_HANDLE and the memory is not an imported Android Hardware Buffer
+    auto dedicated_alloc_info =
+        graphics::vulkan_struct_get_pnext<VkMemoryDedicatedAllocateInfo>(pAllocateInfo_unwrapped);
+    auto import_ahb_info =
+        graphics::vulkan_struct_get_pnext<VkImportAndroidHardwareBufferInfoANDROID>(pAllocateInfo_unwrapped);
+    if (dedicated_alloc_info != nullptr && dedicated_alloc_info->image != VK_NULL_HANDLE && import_ahb_info == nullptr)
+    {
+        // allocationSize needs to be equal to VkMemoryDedicatedAllocateInfo::image VkMemoryRequirements::size
+        VkMemoryRequirements memory_requirements = {};
+        vulkan_wrappers::GetDeviceTable(device)->GetImageMemoryRequirements(
+            device, dedicated_alloc_info->image, &memory_requirements);
+        pAllocateInfo_unwrapped->allocationSize = memory_requirements.size;
+    }
+#endif
+
     if (IsPageGuardMemoryModeExternal())
     {
         VkMemoryPropertyFlags properties = GetMemoryProperties(device_wrapper, pAllocateInfo->memoryTypeIndex);
@@ -1103,7 +1121,7 @@ VkResult VulkanCaptureManager::OverrideAllocateMemory(VkDevice                  
                                                          memory_wrapper->handle };
 
             uint64_t address = 0;
-            if (device_wrapper->physical_device->instance_api_version >= VK_MAKE_VERSION(1, 2, 0))
+            if (device_wrapper->physical_device->instance_info.api_version >= VK_MAKE_VERSION(1, 2, 0))
             {
                 address = vulkan_wrappers::GetDeviceTable(device)->GetDeviceMemoryOpaqueCaptureAddress(device_unwrapped,
                                                                                                        &info);
@@ -1168,7 +1186,7 @@ void VulkanCaptureManager::OverrideGetPhysicalDeviceProperties2(VkPhysicalDevice
     auto physical_device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::PhysicalDeviceWrapper>(physicalDevice);
     GFXRECON_ASSERT(physical_device_wrapper != nullptr)
 
-    if (physical_device_wrapper->instance_api_version >= VK_MAKE_VERSION(1, 1, 0))
+    if (physical_device_wrapper->instance_info.api_version >= VK_MAKE_VERSION(1, 1, 0))
     {
         vulkan_wrappers::GetInstanceTable(physicalDevice)->GetPhysicalDeviceProperties2(physicalDevice, pProperties);
     }
@@ -1698,7 +1716,7 @@ void VulkanCaptureManager::ProcessEnumeratePhysicalDevices(VkResult          res
                     physical_device_wrapper->memory_properties = std::move(memory_properties);
                 }
 
-                physical_device_wrapper->instance_api_version = instance_wrapper->api_version;
+                physical_device_wrapper->instance_info.api_version = instance_wrapper->api_version;
 
                 WriteSetDevicePropertiesCommand(physical_device_id, properties);
                 WriteSetDeviceMemoryPropertiesCommand(physical_device_id, physical_device_wrapper->memory_properties);
@@ -1752,7 +1770,8 @@ void VulkanCaptureManager::ProcessHardwareBuffer(format::ThreadId thread_id,
     {
         const size_t ahb_size = properties.allocationSize;
         assert(ahb_size);
-        CommonProcessHardwareBuffer(thread_id, memory_id, hardware_buffer, ahb_size, this, nullptr);
+
+        CommonProcessHardwareBuffer(thread_id, device_wrapper, memory_id, hardware_buffer, ahb_size, this, nullptr);
     }
     else
     {
@@ -2072,7 +2091,7 @@ void VulkanCaptureManager::PostProcess_vkBindImageMemory2(VkResult              
             {
                 auto* memory_wrapper =
                     vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceMemoryWrapper>(pBindInfos[i].memory);
-                if (memory_wrapper->imported_fd >= 0)
+                if (memory_wrapper != nullptr && memory_wrapper->imported_fd >= 0)
                 {
                     ProcessImportFdForImage(device, pBindInfos[i].image, pBindInfos[i].memoryOffset);
                 }

@@ -465,7 +465,7 @@ void VulkanStateWriter::WriteSemaphoreState(const VulkanStateTable& state_table)
             // Query current semaphore value
             uint64_t          semaphore_value;
             format::ApiCallId signal_call_id;
-            if (device_wrapper->physical_device->instance_api_version >= VK_MAKE_VERSION(1, 2, 0))
+            if (device_wrapper->physical_device->instance_info.api_version >= VK_MAKE_VERSION(1, 2, 0))
             {
                 device_wrapper->layer_table.GetSemaphoreCounterValue(
                     device_wrapper->handle, wrapper->handle, &semaphore_value);
@@ -1368,6 +1368,7 @@ void VulkanStateWriter::WriteDeviceMemoryState(const VulkanStateTable& state_tab
     {
         const vulkan_wrappers::DeviceMemoryWrapper* wrapper = hardware_buffer.second;
         CommonProcessHardwareBuffer(thread_data_->thread_id_,
+                                    wrapper->parent_device,
                                     wrapper->hardware_buffer_memory_id,
                                     wrapper->hardware_buffer,
                                     wrapper->allocation_size,
@@ -1398,9 +1399,9 @@ void VulkanStateWriter::WriteBufferDeviceAddressState(const VulkanStateTable& st
         if ((wrapper->device_id != format::kNullHandleId) && (wrapper->address != 0))
         {
             auto physical_device_wrapper = wrapper->bind_device->physical_device;
-            auto call_id                 = physical_device_wrapper->instance_api_version >= VK_MAKE_VERSION(1, 2, 0)
-                                               ? format::ApiCall_vkGetBufferDeviceAddress
-                                               : format::ApiCall_vkGetBufferDeviceAddressKHR;
+            auto call_id = physical_device_wrapper->instance_info.api_version >= VK_MAKE_VERSION(1, 2, 0)
+                               ? format::ApiCall_vkGetBufferDeviceAddress
+                               : format::ApiCall_vkGetBufferDeviceAddressKHR;
 
             parameter_stream_.Clear();
             encoder_.EncodeHandleIdValue(wrapper->bind_device->handle_id);
@@ -1513,7 +1514,7 @@ void VulkanStateWriter::WriteASInputMemoryState(ASInputBuffer& buffer)
     };
 
     uint64_t address = 0;
-    if (device_wrapper->physical_device->instance_api_version >= VK_MAKE_VERSION(1, 2, 0))
+    if (device_wrapper->physical_device->instance_info.api_version >= VK_MAKE_VERSION(1, 2, 0))
     {
         buffer.actual_address =
             device_wrapper->layer_table.GetBufferDeviceAddress(device_wrapper->handle, &buffer_address_info);
@@ -1554,7 +1555,7 @@ void VulkanStateWriter::WriteASInputMemoryState(ASInputBuffer& buffer)
     EncodePNextStruct(&encoder_, buffer_address_info.pNext);
     encoder_.EncodeHandleIdValue(buffer.handle_id);
     encoder_.EncodeVkDeviceAddressValue(buffer.actual_address);
-    auto call_id = device_wrapper->physical_device->instance_api_version >= VK_MAKE_VERSION(1, 2, 0)
+    auto call_id = device_wrapper->physical_device->instance_info.api_version >= VK_MAKE_VERSION(1, 2, 0)
                        ? format::ApiCall_vkGetBufferDeviceAddress
                        : format::ApiCall_vkGetBufferDeviceAddressKHR;
     WriteFunctionCall(call_id, &parameter_stream_);
@@ -2274,6 +2275,12 @@ void VulkanStateWriter::ProcessImageMemory(const vulkan_wrappers::DeviceWrapper*
         assert((image_wrapper != nullptr) && ((image_wrapper->is_swapchain_image && memory_wrapper == nullptr) ||
                                               (!image_wrapper->is_swapchain_image && memory_wrapper != nullptr)));
 
+        if (image_wrapper->external_memory_android)
+        {
+            // No need to process this image memory as its corresponding AHB is processed instead
+            continue;
+        }
+
         if (snapshot_entry.need_staging_copy)
         {
             std::vector<uint64_t> subresource_offsets;
@@ -2377,6 +2384,12 @@ void VulkanStateWriter::ProcessImageMemoryWithAssetFile(const vulkan_wrappers::D
         std::vector<uint8_t>                        data;
 
         assert(image_wrapper != nullptr);
+
+        if (image_wrapper->external_memory_android)
+        {
+            // No need to process this image memory as its corresponding AHB is processed instead
+            continue;
+        }
 
         if (image_wrapper->dirty)
         {
@@ -2740,8 +2753,14 @@ void VulkanStateWriter::WriteImageMemoryState(const VulkanStateTable& state_tabl
                     snapshot_info.need_staging_copy = need_staging_copy;
                     snapshot_info.aspect            = aspect;
 
-                    if (wrapper->external_format)
+                    if (wrapper->external_format || wrapper->external_memory_android)
                     {
+                        // The original external format is not restored at replay time, but RGBA8 is used, meaning the
+                        // image size at replay might be different than current size.
+                        const VkDeviceSize rgba8_size  = 4;
+                        const VkDeviceSize replay_size = wrapper->extent.width * wrapper->extent.height * rgba8_size;
+                        *max_staging_copy_size         = std::max(*max_staging_copy_size, replay_size);
+
                         snapshot_info.resource_size = wrapper->size;
                         snapshot_info.level_sizes.push_back(wrapper->size);
                     }

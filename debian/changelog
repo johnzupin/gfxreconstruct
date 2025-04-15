@@ -1,3 +1,181 @@
+gfxreconstruct (1.0.4+773~rc1-1lunarg22.04-1) jammy; urgency=medium
+
+  [ Panagiotis Apostolou ]
+  * Align capture and replay swapchain transformations
+
+  [ JerryAMD ]
+  * BuildAS Input Data In Multi-Resources (#2034)
+
+  [ Panos Apostolou ]
+  * VDR: Fix in vertex buffer offset calculation
+
+  [ JerryAMD ]
+  * Skip Invalid PlacedResource (#2033)
+
+  [ Panagiotis Apostolou ]
+  * VDR: Fix vertex offset in indirect draw calls
+  * VDR: Include vertex and index buffer offsets in json
+  * VDR: Include vertex input state information in output json
+
+  [ Locke Lin ]
+  * Run PreProcess if needed (#2050)
+
+  [ Panos Apostolou ]
+  * Fix vertexInputState in output json
+
+  [ Locke Lin ]
+  * Use unique_ptr for resource_dumper_ (#2057)
+  * Add NO_DEFAULT_PATH (#2062)
+
+  [ Fabian Schmidt ]
+  * Fix issues around async pipeline-handle assignment/cleanup (#2054)
+  * Do not track contents of AccelerationStructure scratch-buffers (#2060)
+
+  [ Panagiotis Apostolou ]
+  * VDR: Remove shader reflection
+  * Optimizer: Mark all buffers targets of GetBufferDeviceAddress as used
+
+  [ Laurentiu Erhan ]
+  * Added Frame Range Option to Convert Tool
+
+  [ Mark Young ]
+  * convert: Perform some cleanup
+
+  [ Panagiotis Apostolou ]
+  * VDR: Handle graphics pipeline library (#2068)
+
+  [ Marius Pelegrin ]
+  * Add CPU masking/pinning option
+
+  [ Mark Young ]
+  * Clarify --cpu-mask option values
+
+  [ Charles Giessen ]
+  * ci: Use clang-format-14 in github actions (#2072)
+
+  [ Panagiotis Apostolou ]
+  * VDR: For loop was mistakenly nested
+
+  [ Antonio Caggiano ]
+  * util: Enable/check getPhysicalDeviceProperties2
+  * util: Enable samplerYcbcrConversion features
+
+  [ ziga-lunarg ]
+  * Copy AHB without CPU read mask
+
+  [ JerryAMD ]
+  * Handle ExecuteIndirect MaxCommandCount (#2069)
+
+  [ Panagiotis Apostolou ]
+  * VDR: Include first vertex in buffer offset
+  * VDR: Remove a bad assert
+
+  [ Fabian Schmidt ]
+  * Fix a regression when using inline-uniform-blocks with either dump-resources or -m rebind (#2076)
+
+  [ Mark Young ]
+  * android: Update gradle to use newer packages
+
+  [ Qi Qi ]
+  * Support multi-window replay on Android
+
+  [ Mark Young ]
+  * replay: Support single and multiwin replay
+  * README: Update replay app usage for Android
+
+  [ John Zulauf ]
+  * codegen: Final codegen cleanups for OpenXr support
+
+  [ Panagiotis Apostolou ]
+  * VDR: Use std min and max where applicabale
+
+  [ Riku Salminen ]
+  * Null pointer dereference in BindImageMemory2
+
+  [ Marius Pelegrin ]
+  * Fix resource size related SEGFAULTS in rebind allocator
+
+  [ Antonio Caggiano ]
+  * fix: Headless
+  * test: Override map addr
+  * test: External memory FD
+  * test: Update SDL to release 3.2.8
+  * test: Add filename to error message
+  * test: Optionally use test_config
+
+  [ Panagiotis Apostolou ]
+  * Filter resources with pipeline layout
+  * VDR: Multisampled images that cannot be dumped
+
+  [ Locke Lin ]
+  * Update AgilitySDK to 1.615.1 (#2073)
+
+  [ Matthew Porth ]
+  * Change loop iterator var to const ref (#2104)
+
+  [ Panagiotis Apostolou ]
+  * VDR: Omit draw calls with 0 count from output json
+  * VDR: Typo caused DrawIndirect params to be omitted
+  * VDR: 0 maxDrawCount from IndirectCount should be propagated
+  * VDR: When dumping Indirect actual_draw_count should be checked
+  * VDR: Fix size of draw call param buffer clones
+  * VDR: Count buffer was mistakenly copied into params buffer
+  * VDR: Filter indirect draw calls with 0 index/vertex/instance count
+
+  [ Brad Grantham ]
+  * update to nlohmann-json 3.11.3
+  * possible Android fix
+  * update nlohmann-json in Android build to 3.11.3
+  * remove some unused dependencies and find_package
+  * make nlohmann_json_DIR path more consistent
+  * find nlohmann-json before the project directive
+
+  [ JerryAMD ]
+  * Handle MetaCommand Related APIs (#2066)
+
+  [ Fabian Schmidt ]
+  * Batch queue-submissions in ProcessBufferMemory / ProcessImageMemory (#2089)
+
+  [ Nick Driscoll ]
+  * Add sparse-resources test app to repo (#2070)
+  * Add missing null check for modified_create_info.pApplicationInfo (#2117)
+
+  [ Per Inge Mathisen ]
+  * Change all CMAKE_SOURCE_DIR to PROJECT_SOURCE_DIR
+
+  [ Matthew Porth ]
+  * Reorder Member Variable Initializers
+
+  [ Panagiotis Apostolou ]
+  * Ignore frames from FrameBoundaryAndroid
+
+  [ bradgrantham-lunarg ]
+  * formatting
+
+  [ dabrain34 ]
+  * generate_vulkan: fix generated_vulkan_pnext_struct_decoder.cpp (#2084)
+
+  [ Nick Driscoll ]
+  * Add ImageHasUsage() utility function and call it where appropriate (#2101)
+
+  [ Mike Schuchardt ]
+  * Fix capture/replay of host image copy pHostPointer
+
+  [ bradgrantham-lunarg ]
+  * tests: Fix external memory test capture file race condition (#2119)
+  * Revert "Batch queue-submissions in ProcessBufferMemory / ProcessImageMemory (…" (#2122)
+
+  [ Bartosz Muszarski ]
+  * Unify capture settings definitions
+
+  [ Mark Young ]
+  * Fix external FD replay
+
+  [ Marius Pelegrin ]
+  * Have uniform behavior for measurements
+
+ -- john <john@odin>  Tue, 15 Apr 2025 15:30:20 -0600
+
 gfxreconstruct (1.0.4+772~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Panagiotis Apostolou ]

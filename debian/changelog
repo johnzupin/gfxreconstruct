@@ -1,3 +1,103 @@
+gfxreconstruct (1.0.4+888~rc1-1lunarg24.04-1) noble; urgency=medium
+
+  [ beau-lunarg ]
+  * Android Test App Builds (#2093)
+
+  [ ziga-lunarg ]
+  * Fix crash in vkBeginCommandBuffer (#1922)
+
+  [ Locke Lin ]
+  * Don't write vkWaitForPresentKHR (#2088)
+
+  [ Panagiotis Apostolou ]
+  * LoadData was being called twice from InitializeImage
+  * Batch resources initialization
+
+  [ Mark Young ]
+  * Add table to indicate support for various features
+
+  [ John Zulauf ]
+  * codegen: Refactor check_write/make multi-api safe
+  * openxr: Enabling changes on dev for openxxr
+  * openxr: Add submodules for OpenXR support
+  * openxr: Add OpenXr code generated files
+  * openxr: Enabling changeset
+  * openxr: Add/Update documentation for OpenXR support
+
+  [ Mark Young ]
+  * openxr: Enable capturing of replay app.
+  * openxr: Fix debug utils messenger handling
+  * openxr: Update replay app AndroidManifest.xml
+
+  [ Brad Grantham ]
+  * reserve metadata 36
+
+  [ Mark Young ]
+  * Update support table for OpenXR
+  * Fix table
+  * layer: Limit layer library's exposed symbols
+  * openxr: Fix export of layer negotiate
+
+  [ Locke Lin ]
+  * Revert "Don't write vkWaitForPresentKHR (#2088)" (#2151)
+
+  [ bradgrantham-lunarg ]
+  * Note experimental nature of OpenXR support in main README
+
+  [ John Zulauf ]
+  * openxr: Provide terminators for Debug Util extension
+
+  [ Mark Young ]
+  * openxr: Manual xrEnumerateEnvironmentBlendModes
+  * openxr: Add parent struct to warnings
+
+  [ Brad Grantham ]
+  * parallel build in Visual Studio
+
+  [ Marius Pelegrin ]
+  * Fix JSON conversion of `PointerDecoder`
+
+  [ JerryAMD ]
+  * Support MetaCommand for Trim (#2142)
+
+  [ Nick Driscoll ]
+  * Resolve issues around DebugUtilsCallback() (#2128)
+
+  [ Locke Lin ]
+  * Unit Tests: Test script runs a single test app (#2155)
+
+  [ davidd-lunarg ]
+  * Move VulkanDispatchTable to gfxrecon::graphics
+
+  [ John Zulauf ]
+  * openxr:  Add FATAL error message misconfig
+
+  [ Fabian Schmidt ]
+  * Batch queue-submissions in ProcessBufferMemory / ProcessImageMemory (2nd) (#2164)
+
+  [ Brad Grantham ]
+  * fix used of ifdef ENABLE_OPENXR_SUPPORT
+
+  [ Panagiotis Apostolou ]
+  * VDR: Handle vkCmdBindVertexBuffers2EXT
+
+  [ Locke Lin ]
+  * Don't write vkWaitForPresentKHR (#2157)
+
+  [ Matthew Porth ]
+  * Update list of supported WSI in Vulkan usage doc
+
+  [ Brad Grantham ]
+  * check that generated OpenXR code isn't out of date
+
+  [ Nick Driscoll ]
+  * Update Vulkan-Headers to v1.4.313 (#2168)
+
+  [ davidd-lunarg ]
+  * Fix Windows build when D3D12_SUPPORT=OFF
+
+ -- john <john@odin>  Tue, 29 Apr 2025 10:44:52 -0600
+
 gfxreconstruct (1.0.4+773~rc1-1lunarg24.04-1) noble; urgency=medium
 
   [ Panagiotis Apostolou ]

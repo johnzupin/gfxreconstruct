@@ -1,3 +1,22 @@
+gfxreconstruct (1.0.4+895~rc1-1lunarg24.04-1) noble; urgency=medium
+
+  [ Mark Young ]
+  * openxr: Add ability to disable OpenXR in gradle
+  * openxr: Add info on disabling OpenXR
+
+  [ bradgrantham-lunarg ]
+  * Add libxcb-glx0-dev as prerequisite on Ubuntu
+  * fix openxr enable num
+
+  [ Brad Grantham ]
+  * ignore deprecation in gcc for wstring_convert
+  * ignore deprecated header use in vulkan_hash.hpp
+
+  [ bradgrantham-lunarg ]
+  * clang-format
+
+ -- john <john@odin>  Mon, 05 May 2025 15:07:53 -0600
+
 gfxreconstruct (1.0.4+888~rc1-1lunarg24.04-1) noble; urgency=medium
 
   [ beau-lunarg ]

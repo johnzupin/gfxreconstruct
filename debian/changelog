@@ -1,3 +1,10 @@
+gfxreconstruct (1.0.4+895~rc2-1lunarg22.04-1) jammy; urgency=medium
+
+  [ John Zupin ]
+  * debian: packaging: disabel openxr support for gfxreconstruct
+
+ -- john <john@odin>  Tue, 06 May 2025 14:15:15 -0600
+
 gfxreconstruct (1.0.4+895~rc1-1lunarg22.04-1) jammy; urgency=medium
 
   [ Mark Young ]
